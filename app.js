@@ -1,9 +1,9 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.2';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.2.1';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
-  try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
+  try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
   var $ = function (id) { return document.getElementById(id); };
   var f1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); };
@@ -398,6 +398,15 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sh.hidden) close(); });
   })();
 
+  // 選照片：「從檔案選」可以選到任何檔案，先確認是圖片；HEIC（三星「高效率相片」）Chrome 多半無法解碼，給清楚的說明
+  function pickIsHeic(f) { return /heic|heif/i.test(f.type || '') || /\.(heic|heif)$/i.test(f.name || ''); }
+  function pickIsImage(f) { return /^image\//i.test(f.type || '') || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(f.name || ''); }
+  function pickError(f) {
+    if (pickIsHeic(f)) alert('這張照片是 HEIC 格式（三星相機「高效率相片」），瀏覽器無法讀取。\n\n請改用其中一種方式：\n1. 相機 › 設定 › 進階圖片選項 › 關閉「高效率相片」，之後拍的都是 JPG。\n2. 在「相簿」打開這張照片 › 分享 › 選「轉換為 JPG」後儲存，再選那張。');
+    else if (!pickIsImage(f)) toast('「' + (f.name || '這個檔案') + '」不是照片');
+    else toast('無法讀取這張照片（' + (f.name || '') + '）');
+  }
+
   // 照片上的疊圖：校正可能是透視投影（直接用 SVG matrix 畫不出來），所以把 mm 座標的圓／線逐點換到照片像素再畫
   function projCircle(Ti, r, cx, cy, n) {
     cx = cx || 0; cy = cy || 0; n = n || 120; var d = '';
@@ -463,7 +472,9 @@
     }
     function load(file) {
       if (!file) return;
+      if (!pickIsImage(file)) { pickError(file); return; }
       var url = URL.createObjectURL(file);
+      img.onerror = function () { pickError(file); };
       img.onload = function () { state.loaded = true; state.w = img.naturalWidth; state.h = img.naturalHeight; clearCal(); state.g = null; state.mode = 'auto';
         svg.setAttribute('viewBox', '0 0 ' + state.w + ' ' + state.h); setZoom(1); analyze(); };
       img.src = url;
@@ -519,6 +530,7 @@
     });
     $('photoCam').onchange = function () { load(this.files[0]); this.value = ''; };
     $('photoPick').onchange = function () { load(this.files[0]); this.value = ''; };
+    $('photoFile').onchange = function () { load(this.files[0]); this.value = ''; };
     document.querySelectorAll('.pzoom').forEach(function (b) { b.onclick = function () { setZoom(+b.dataset.z); }; });
     $('recal').onclick = function () { if (!state.loaded) return; clearCal(); state.mode = 'manual'; $('calRingRow').style.display = ''; draw(); hint(); };
     $('autoCal').onclick = function () { if (!state.loaded) return; clearCal(); state.mode = 'auto'; analyze(); };
@@ -661,11 +673,11 @@
       sh.photo.w = im.naturalWidth; sh.photo.h = im.naturalHeight;
       anaProcess(sh, done);
     };
-    im.onerror = function () { toast('無法讀取這張照片'); if (done) done(); };
+    im.onerror = function () { pickError(file); if (done) done(); };
     im.src = url;
   }
   function anaEnqueue(files) {
-    for (var i = 0; i < files.length; i++) anaQueue.push(files[i]);
+    for (var i = 0; i < files.length; i++) { if (pickIsImage(files[i])) anaQueue.push(files[i]); else pickError(files[i]); }
     if (!anaBusy) anaNext();
   }
   function anaNext() {
@@ -674,6 +686,7 @@
   }
   $('anaCam').onchange = function () { anaEnqueue(this.files); this.value = ''; };
   $('anaPick').onchange = function () { anaEnqueue(this.files); this.value = ''; };
+  $('anaFile').onchange = function () { anaEnqueue(this.files); this.value = ''; };
   function anaPhotoDraw() {
     var sh = selSheet(), P = sh && anaPhotos[sh.id], svg = $('anaPhotoSvg');
     while (svg.firstChild) svg.removeChild(svg.firstChild);
@@ -1086,5 +1099,31 @@
   setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); renderAbout(); persist(); renderAll(); liteLayout();
   window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; } };
 
-  try { if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window.self) navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
+  // ---------- 版本更新 ----------
+  // 新的 service worker 接管時自動重新載入一次（同一個分頁只做一次，避免無限重整）；回到前景時也檢查更新
+  try {
+    if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window.self) {
+      var hadCtl = !!navigator.serviceWorker.controller, reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!hadCtl || reloaded) { hadCtl = true; return; }
+        reloaded = true;
+        try { if (sessionStorage.getItem('wr_reloaded') === APP_VERSION) { toast('有新版本，點「說明 › 強制重新載入」更新'); return; } sessionStorage.setItem('wr_reloaded', APP_VERSION); } catch (e) {}
+        location.reload();
+      });
+      navigator.serviceWorker.register('sw.js?v=' + APP_VERSION, { updateViaCache: 'none' }).then(function (reg) {
+        var chk = function () { try { reg.update(); } catch (e) {} };
+        document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') chk(); });
+        if (reg.waiting) reg.waiting.postMessage('skipWaiting');
+      }).catch(function () {});
+    }
+  } catch (e) {}
+  // 說明分頁：強制更新（移除 service worker、清掉快取、重新載入；紀錄存在 localStorage，不會被清掉）
+  function forceUpdate() {
+    var jobs = [];
+    try { if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (e) {}
+    try { if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) {}
+    toast('更新中…');
+    Promise.all(jobs).catch(function () {}).then(function () { var u = location.href.split('#')[0].split('?')[0]; location.replace(u + '?r=' + Date.now()); });
+  }
+  if ($('forceUpdate')) $('forceUpdate').onclick = forceUpdate;
 })();

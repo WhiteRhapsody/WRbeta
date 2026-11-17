@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.webmanifest?v=v1.2.1">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.2.1"><!--/STYLE-->
 </head>
 <body>
 <header>
-  <div class="title">WRbeta <span class="beta" id="appVer">beta v1.2</span></div>
+  <div class="title">WRbeta <span class="beta" id="appVer">beta v1.2.1</span></div>
   <div class="hright">
     <div id="modeToggle" class="modetg" role="group" aria-label="介面模式"><button type="button" data-mode="pro" class="on" aria-pressed="true">Pro</button><button type="button" data-mode="lite" aria-pressed="false">Lite</button></div>
     <select id="targetSel" aria-label="靶種"><option value="ap10">10米空氣手槍</option><option value="ar10">10米空氣步槍</option></select>
@@ -97,6 +97,7 @@
     <div class="row">
       <label class="btn">📷 拍照<input type="file" id="photoCam" accept="image/*" capture="environment" hidden></label>
       <label class="btn">🖼 從相簿選<input type="file" id="photoPick" accept="image/*" hidden></label>
+      <label class="btn" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器">📁 從檔案選<input type="file" id="photoFile" accept="*/*" hidden></label>
       <span class="lbl">偵測靈敏度</span><select id="sensSel"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
     </div>
     <div class="row">
@@ -146,6 +147,10 @@
       <label class="btn ana-main">📷 拍下一張<input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label>
       <label class="btn ana-main2">🖼 相簿（可多選）<input type="file" id="anaPick" accept="image/*" multiple hidden></label>
     </div>
+    <div class="ana-actions ana-actions2">
+      <label class="btn ana-file" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器">📁 從檔案選（可多選）<input type="file" id="anaFile" accept="*/*" multiple hidden></label>
+    </div>
+    <div class="hint pick-hint">相簿裡找不到靶紙照片？按「📁 從檔案選」，在選單裡選「相簿／圖庫」或到 DCIM › Camera 資料夾找。</div>
     <div class="row"><span class="lbl">偵測靈敏度</span><select id="anaSens"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
       <span class="lbl" id="anaQueue"></span></div>
     <div id="anaChips" class="ana-chips" role="tablist" aria-label="靶紙"></div>
@@ -196,6 +201,7 @@
 <section id="tab-about" class="tab">
   <div class="card lite-only" id="liteThemeCard"><div class="row"><b>Lite 外觀：</b>
     <select id="liteThemeSel" aria-label="Lite 外觀"><option value="hud">1 戰術 HUD（深色霓虹）</option><option value="light">2 簡約亮色</option><option value="sport">3 運動風（深藍＋橘）</option><option value="glass">4 玻璃漸層</option></select></div></div>
+  <div class="card"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.2.1</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
   <div class="card prose" id="aboutText"></div>
 </section>
 </main>
@@ -212,8 +218,8 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js"></script><!--/CORE-->
-<!--VISION--><script src="vision.js"></script><!--/VISION-->
-<!--APP--><script src="app.js"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v1.2.1"></script><!--/CORE-->
+<!--VISION--><script src="vision.js?v=v1.2.1"></script><!--/VISION-->
+<!--APP--><script src="app.js?v=v1.2.1"></script><!--/APP-->
 </body>
 </html>

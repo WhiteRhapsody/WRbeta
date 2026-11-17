@@ -262,6 +262,9 @@ body.lite.lt-glass{--gp-op:1;--gp-op-big:.82;--gp-sheen:.32;--gp-sheen2:.08;--gp
 .ana-actions .btn{text-align:center;padding:14px 8px;font-size:17px;font-weight:700;border-radius:12px}
 .ana-main{background:var(--ana-acc,#1e6fd9);color:var(--ana-acc-fg,#fff);border-color:transparent}
 .ana-main2{background:#fff}
+.ana-actions2{grid-template-columns:1fr;margin-top:8px}.ana-actions2 .btn{padding:10px 8px;font-size:15px;background:#f3f6f9}
+.pick-hint{margin-top:6px;font-size:12.5px}
+.upd-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.upd-row button{padding:10px 14px;font-size:15px}
 .ana-chips{display:flex;gap:6px;overflow-x:auto;padding:6px 0 2px;-webkit-overflow-scrolling:touch}
 .ana-chip{flex:none;display:inline-flex;align-items:center;gap:5px;padding:8px 11px;border-radius:999px;font-size:14px;border:1px solid #c5d0db;background:#fff}
 .ana-chip i{width:10px;height:10px;border-radius:50%;background:var(--sc)}
