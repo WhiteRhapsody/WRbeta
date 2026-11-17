@@ -79,10 +79,23 @@
   function median(arr) { if (!arr.length) return NaN; var a = Array.prototype.slice.call(arr).sort(function (p, q) { return p - q; }); return a[a.length >> 1]; }
 
   // ---- 1. 找黑色瞄準區 ----
+  // 光線不均（一側陰影、檯燈）時，整張用同一個門檻會把暗側的紙也當成黑區：
+  // 先估計「紙的亮度」分布（大範圍最大值濾波＋平滑），再把每個像素除以它
+  function flattenLight(g, w, h, r) {
+    var t = new Float32Array(w * h), o = new Float32Array(w * h), x, y, k, m;
+    for (y = 0; y < h; y++) for (x = 0; x < w; x++) { m = 0; for (k = Math.max(0, x - r); k <= Math.min(w - 1, x + r); k += 2) if (g[y * w + k] > m) m = g[y * w + k]; t[y * w + x] = m; }
+    for (x = 0; x < w; x++) for (y = 0; y < h; y++) { m = 0; for (k = Math.max(0, y - r); k <= Math.min(h - 1, y + r); k += 2) if (t[k * w + x] > m) m = t[k * w + x]; o[y * w + x] = m; }
+    var bg = boxBlur(o, w, h, r), out = new Float32Array(w * h);
+    for (var i = 0; i < w * h; i++) out[i] = Math.min(255, 200 * g[i] / Math.max(8, bg[i]));
+    return out;
+  }
   function findBlackBlob(g, w, h) {
     var f = Math.max(1, Math.ceil(Math.max(w, h) / 500));
     var s = downsample(g, w, h, f), sg = boxBlur(s.g, s.w, s.h, 1);
-    var thr = otsu(sg), W = s.w, H = s.h, mask = new Uint8Array(W * H);
+    return findBlackBlobIn(sg, s.w, s.h, f) || findBlackBlobIn(flattenLight(sg, s.w, s.h, Math.round(Math.max(s.w, s.h) / 10)), s.w, s.h, f);
+  }
+  function findBlackBlobIn(sg, W, H, f) {
+    var thr = otsu(sg), mask = new Uint8Array(W * H);
     for (var i = 0; i < mask.length; i++) mask[i] = sg[i] < thr ? 1 : 0;
     var L = labelComponents(mask, W, H), best = null;
     L.comps.forEach(function (c) {
@@ -188,8 +201,138 @@
     var ref = refineCenterWithRings(g, w, h, T, target, E);
     if (ref) { E = { cx: ref.cx, cy: ref.cy, N: E.N }; T = affineFromEllipse(E, Rmm); }
     var S = symSqrt(E.N, true), axes = [Math.hypot(S[0][0], S[1][0]), Math.hypot(S[0][1], S[1][1])];
-    return { ok: true, T: T, ellipse: E, rmsMm: Math.sqrt(ss / used.length), edgePts: used.length, totalPts: pts.length,
+    var rms = Math.sqrt(ss / used.length);
+    // 手持拍照有透視：只靠黑區邊緣（小圓）的仿射，外圈環會差到好幾 mm。用所有看得到的環線擬合透視投影。
+    var proj = refineProjective(g, w, h, T, target, E.cx, E.cy, Math.sqrt(axes[0] * axes[1]));
+    if (proj.ok) { T = proj.T; rms = proj.rmsMm; }
+    return { ok: true, T: T, ellipse: E, rmsMm: rms, edgePts: used.length, totalPts: pts.length, proj: proj.info,
       pxPerMm: Math.sqrt(axes[0] * axes[1]) / Rmm, black: black, paper: paper, rotation: rot, rings: ref ? ref.rings : [] };
+  }
+  // ---- 1b. 透視校正：沿每一圈環線取點，擬合 px→mm 的 homography（8 參數），讓每點換算後半徑 = 規格環徑 ----
+  // 米色區＝黑色細線（找最暗），黑區內＝白色細線（找最亮），黑區邊緣＝亮暗交界（找梯度）。
+  // ISSF 環徑量到環線外緣，所以線中心對應 R − 線寬/2。由內而外、由寬到窄搜尋，避免一開始外圈偏太多抓錯線。
+  function ringLineSamples(g, w, h, T, target, half, maxN, NR) {
+    var Ti = invertAffine(T), out = [], lw = target.ringLine || 0.15, Rb = target.blackDiam / 2, wR = (target.ringDiam[1] - target.ringDiam[10]) / 18;
+    half = Math.min(half, 0.42 * wR);
+    var stp = Math.max(0.02, Math.min(0.06, wR / 160)), P = [0, 0];
+    for (var n = 1; n <= maxN; n++) {
+      var D = target.ringDiam[n]; if (!D || D < 4 || (n === 10 && target.tenIsDot)) continue;
+      var R = D / 2, kind = Math.abs(D - target.blackDiam) < 0.3 ? 'edge' : (D < target.blackDiam ? 'bright' : 'dark');
+      var Rt = kind === 'edge' ? R : R - lw / 2;
+      if (kind !== 'edge' && Math.abs(R - Rb) < half + 0.4) continue; // 太靠近黑區邊緣的線不用
+      for (var k = 0; k < NR; k++) {
+        var an = 2 * Math.PI * (k + 0.5 * (n % 2)) / NR, co = Math.cos(an), si = Math.sin(an), prof = [], bad = false;
+        for (var rr = R - half; rr <= R + half + 1e-9; rr += stp) {
+          applyT(Ti, co * rr, si * rr, P); var v = bilinear(g, w, h, P[0], P[1]); if (v < 0) { bad = true; break; } prof.push(v);
+        }
+        if (bad || prof.length < 7) continue;
+        var m = prof.length, sm = new Float32Array(m), i;
+        for (i = 0; i < m; i++) sm[i] = (prof[Math.max(0, i - 1)] + prof[i] + prof[Math.min(m - 1, i + 1)]) / 3;
+        var bi = -1, pos;
+        if (kind === 'edge') {
+          var bg = 0; for (i = 1; i < m - 1; i++) { var gr = sm[i + 1] - sm[i - 1]; if (gr > bg) { bg = gr; bi = i; } }
+          if (bi < 2 || bi > m - 3 || bg < 30) continue;
+          var g0 = sm[bi] - sm[bi - 2], g2 = sm[bi + 2] - sm[bi], dn = g0 - 2 * bg + g2; pos = bi + (dn ? 0.5 * (g0 - g2) / dn : 0);
+        } else {
+          var sgn = kind === 'dark' ? -1 : 1, best = -Infinity; for (i = 1; i < m - 1; i++) if (sgn * sm[i] > best) { best = sgn * sm[i]; bi = i; }
+          if (bi < 2 || bi > m - 3) continue;
+          var base = median(sm), amp = sgn * (sm[bi] - base); if (amp < 18) continue;
+          // 線要細（半高寬 < 0.7mm），彈孔、數字、鉛筆圈都比較粗或不連續
+          var hv = base + sgn * amp / 2, i0 = bi, i1 = bi;
+          while (i0 > 0 && sgn * (sm[i0 - 1] - hv) > 0) i0--; while (i1 < m - 1 && sgn * (sm[i1 + 1] - hv) > 0) i1++;
+          if ((i1 - i0 + 1) * stp > 0.7 || i0 === 0 || i1 === m - 1) continue;
+          var y0 = sm[bi - 1], y1 = sm[bi], y2 = sm[bi + 1], dd = y0 - 2 * y1 + y2; pos = bi + (dd ? 0.5 * (y0 - y2) / dd : 0);
+        }
+        var rr2 = R - half + pos * stp; applyT(Ti, co * rr2, si * rr2, P);
+        out.push([P[0], P[1], Rt]);
+      }
+    }
+    return out;
+  }
+  function solveN(A, b) { // 小型線性方程（部分主元高斯消去）
+    var n = b.length, M = A.map(function (r, i) { return r.concat([b[i]]); }), i, j, k;
+    for (i = 0; i < n; i++) { var p = i; for (k = i + 1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[p][i])) p = k;
+      var t = M[i]; M[i] = M[p]; M[p] = t; if (Math.abs(M[i][i]) < 1e-14) return null;
+      for (k = i + 1; k < n; k++) { var f = M[k][i] / M[i][i]; for (j = i; j <= n; j++) M[k][j] -= f * M[i][j]; } }
+    var x = new Array(n); for (i = n - 1; i >= 0; i--) { var s2 = M[i][n]; for (j = i + 1; j < n; j++) s2 -= M[i][j] * x[j]; x[i] = s2 / M[i][i]; }
+    return x;
+  }
+  // 參數 p（正規化像素座標 → mm）的半徑殘差
+  function projResid(p, X, Y, Rt, i) { var w = p[6] * X[i] + p[7] * Y[i] + 1, u = (p[0] * X[i] + p[1] * Y[i] + p[2]) / w, v = (p[3] * X[i] + p[4] * Y[i] + p[5]) / w; return Math.hypot(u, v) - Rt[i]; }
+  function fitProjective(pts, p0, cx, cy, S, iters) {
+    var N = pts.length, X = new Float64Array(N), Y = new Float64Array(N), Rt = new Float64Array(N), i, j, k;
+    for (i = 0; i < N; i++) { X[i] = (pts[i][0] - cx) / S; Y[i] = (pts[i][1] - cy) / S; Rt[i] = pts[i][2]; }
+    var p = p0.slice(), lam = 1e-3, wts = new Float64Array(N), cost = function (q) { var c = 0; for (var t = 0; t < N; t++) { var r = projResid(q, X, Y, Rt, t); c += wts[t] * r * r; } return c; };
+    for (var it = 0; it < iters; it++) {
+      // IRLS：Huber 權重（0.15mm），離群點（抓到數字、彈孔、鉛筆）影響很小
+      var res = []; for (i = 0; i < N; i++) res.push(Math.abs(projResid(p, X, Y, Rt, i)));
+      var sc = Math.max(0.15, 1.4826 * median(res));
+      for (i = 0; i < N; i++) wts[i] = res[i] > 4 * sc ? 0 : (res[i] <= sc ? 1 : sc / res[i]);
+      var A = [], b = []; for (j = 0; j < 8; j++) { A.push([0, 0, 0, 0, 0, 0, 0, 0]); b.push(0); }
+      for (i = 0; i < N; i++) { if (!wts[i]) continue;
+        var x = X[i], y = Y[i], w = p[6] * x + p[7] * y + 1, u = (p[0] * x + p[1] * y + p[2]) / w, v = (p[3] * x + p[4] * y + p[5]) / w, r = Math.hypot(u, v) || 1e-9;
+        var J = [u * x / (r * w), u * y / (r * w), u / (r * w), v * x / (r * w), v * y / (r * w), v / (r * w), -r * x / w, -r * y / w], e = r - Rt[i], wt = wts[i];
+        for (j = 0; j < 8; j++) { b[j] -= wt * J[j] * e; for (k = j; k < 8; k++) A[j][k] += wt * J[j] * J[k]; } }
+      for (j = 0; j < 8; j++) for (k = 0; k < j; k++) A[j][k] = A[k][j];
+      var c0 = cost(p), improved = false;
+      for (var tries = 0; tries < 6 && !improved; tries++) {
+        var Al = A.map(function (r, q) { var rr = r.slice(); rr[q] += lam * (A[q][q] + 1e-9); return rr; }), d = solveN(Al, b);
+        if (!d) { lam *= 10; continue; }
+        var pn = p.map(function (v, q) { return v + d[q]; });
+        if (cost(pn) <= c0) { p = pn; lam = Math.max(1e-6, lam / 3); improved = true; } else lam *= 10;
+      }
+      if (!improved) break;
+    }
+    var rs = []; for (i = 0; i < N; i++) rs.push(projResid(p, X, Y, Rt, i));
+    return { p: p, res: rs };
+  }
+  // 正規化參數 p → 原始像素的 T，並去掉 mm 平面的旋轉自由度（只看半徑無法決定旋轉），維持「照片上＝靶紙上」
+  function projToT(p, cx, cy, S, refT) {
+    // 正規化：x' = (x−cx)/S → 代回
+    var a = p[0] / S, b = p[1] / S, d = p[3] / S, e = p[4] / S, g = p[6] / S, h = p[7] / S;
+    var c = p[2] - a * cx - b * cy, f = p[5] - d * cx - e * cy, z = 1 - g * cx - h * cy;
+    var T = { a: a / z, b: b / z, c: c / z, d: d / z, e: e / z, f: f / z, g: g / z, h: h / z };
+    // 旋轉：讓靶心附近的線性部分和原本仿射（同樣慣例）方向一致
+    var Ti = invertAffine(T), o = applyT(Ti, 0, 0, []), eps = 1;
+    var J0 = applyT(T, o[0] + eps, o[1], []), J1 = applyT(T, o[0], o[1] + eps, []);
+    var ang = Math.atan2(J0[1], J0[0]) - Math.atan2(refT.d, refT.a);
+    var ang2 = Math.atan2(J1[1], J1[0]) - Math.atan2(refT.e, refT.b);
+    var dth = Math.atan2(Math.sin(ang) + Math.sin(ang2), Math.cos(ang) + Math.cos(ang2));
+    return rotateAffine(T, -dth);
+  }
+  function refineProjective(g, w, h, T0, target, cx, cy, Spx) {
+    var info = { used: false }, Rb = target.blackDiam / 2, S = Spx || 100;
+    // 初值：仿射 T0 換到正規化座標
+    var p = [T0.a * S, T0.b * S, T0.a * cx + T0.b * cy + T0.c, T0.d * S, T0.e * S, T0.d * cx + T0.e * cy + T0.f, 0, 0];
+    var T = T0, nMax = 0, stages = [[2.6, 'inner'], [2.2, 'all'], [1.0, 'all'], [0.6, 'all']], pts = null, fit = null;
+    // 內圈：黑區內的白線＋黑區邊緣＋黑區外兩圈
+    var nInner = 1; for (var n = 1; n <= 10; n++) if (target.ringDiam[n] && target.ringDiam[n] / 2 > Rb + 0.5) nInner = n; // 黑區外最內圈的環號
+    for (var st = 0; st < stages.length; st++) {
+      var half = stages[st][0];
+      pts = ringLineSamples(g, w, h, T, target, half, 10, 120);
+      if (stages[st][1] === 'inner') { var lim = target.ringDiam[Math.max(1, nInner - 1)] / 2 + 1; pts = pts.filter(function (q) { return q[2] <= lim; }); }
+      if (pts.length < 60) { info.reason = 'ring points ' + pts.length; return { ok: false, info: info }; }
+      fit = fitProjective(pts, p, cx, cy, S, 8);
+      p = fit.p; T = projToT(p, cx, cy, S, T0);
+      // 更新正規化參數（旋轉後）
+      var a = T.a, b = T.b, c = T.c, d = T.d, e = T.e, f = T.f, gg = T.g || 0, hh = T.h || 0, z = gg * cx + hh * cy + 1;
+      p = [a * S / z, b * S / z, (a * cx + b * cy + c) / z, d * S / z, e * S / z, (d * cx + e * cy + f) / z, gg * S / z, hh * S / z];
+    }
+    var ar = fit.res.map(Math.abs), inl = ar.filter(function (r) { return r < 0.5; });
+    var rms = Math.sqrt(inl.reduce(function (s2, r) { return s2 + r * r; }, 0) / Math.max(1, inl.length));
+    // 和原本的仿射比較（同一批點）
+    var aff = pts.map(function (q) { var m = applyT(T0, q[0], q[1], []); return Math.abs(Math.hypot(m[0], m[1]) - q[2]); });
+    var affIn = aff.filter(function (r) { return r < 0.5; }), affMed = median(aff);
+    // 覆蓋：至少要有 4 個象限的點、內點比例夠高
+    var quad = [0, 0, 0, 0]; pts.forEach(function (q, i) { if (ar[i] < 0.5) { var m = applyT(T, q[0], q[1], []); quad[(m[0] >= 0 ? 0 : 1) + (m[1] >= 0 ? 0 : 2)]++; } });
+    // 透視程度合理（分母在靶紙範圍內變化 < 40%）
+    var wv = [], R1 = target.ringDiam[1] / 2, Tin = invertAffine(T);
+    [[R1, 0], [-R1, 0], [0, R1], [0, -R1]].forEach(function (q) { var P = applyT(Tin, q[0], q[1], []); wv.push((T.g || 0) * P[0] + (T.h || 0) * P[1] + 1); });
+    var wr = Math.max.apply(null, wv) / Math.min.apply(null, wv);
+    info = { used: false, pts: pts.length, inliers: inl.length, rmsMm: rms, affMedMm: affMed, affInliers: affIn.length, quad: quad, wRatio: wr };
+    if (inl.length < 150 || inl.length < 0.45 * pts.length || Math.min.apply(null, quad) < 15 || !(wr < 1.4) || !(rms < 0.35)) { info.reason = 'reject'; return { ok: false, info: info }; }
+    info.used = true;
+    return { ok: true, T: T, rmsMm: rms, info: info };
   }
   function refineCenterWithRings(g, w, h, T, target, Eblack) {
     var Ti = invertAffine(T), wR = (target.ringDiam[1] - target.ringDiam[10]) / 18, Rb = target.blackDiam / 2;
@@ -205,7 +348,7 @@
       for (var k = 0; k < NR; k++) {
         var an = 2 * Math.PI * k / NR, co = Math.cos(an), si = Math.sin(an), prof = [], bestV = -1, bestI = -1;
         for (var rr = R - half; rr <= R + half + 1e-9; rr += stp) {
-          var x = co * rr, y = si * rr, v = bilinear(g, w, h, Ti.a * x + Ti.b * y + Ti.c, Ti.d * x + Ti.e * y + Ti.f);
+          var x = co * rr, y = si * rr, P0 = applyT(Ti, x, y), v = bilinear(g, w, h, P0[0], P0[1]);
           prof.push(v); if (v > bestV) { bestV = v; bestI = prof.length - 1; }
         }
         if (bestV < 0 || prof.some(function (v) { return v < 0; })) continue;
@@ -218,7 +361,7 @@
         // 亮度加權取次像素位置
         var sw = 0, sr = 0; for (var q = i0; q <= i1; q++) { var wt = prof[q] - halfV; sw += wt; sr += wt * q; }
         var rr2 = R - half + (sr / sw) * stp, xx = co * rr2, yy = si * rr2;
-        found.push([Ti.a * xx + Ti.b * yy + Ti.c, Ti.d * xx + Ti.e * yy + Ti.f]);
+        found.push(applyT(Ti, xx, yy, []));
       }
       if (found.length < NR * 0.35) { rings.push({ d: D, n: found.length, used: false }); return; }
       var E = null, used = found;
@@ -251,15 +394,17 @@
     if (shift > 2) return null;
     return { cx: cx, cy: cy, rings: rings, shiftMm: shift };
   }
-  function rotateAffine(T, th) { // 先 T，再把 mm 座標旋轉 th（逆時針為正）
+  function rotateAffine(T, th) { // 先 T，再把 mm 座標旋轉 th（逆時針為正）；透視投影的分母不變
     var c = Math.cos(th), s = Math.sin(th);
-    return { a: c * T.a - s * T.d, b: c * T.b - s * T.e, c: c * T.c - s * T.f, d: s * T.a + c * T.d, e: s * T.b + c * T.e, f: s * T.c + c * T.f };
+    var R = { a: c * T.a - s * T.d, b: c * T.b - s * T.e, c: c * T.c - s * T.f, d: s * T.a + c * T.d, e: s * T.b + c * T.e, f: s * T.c + c * T.f };
+    if (T.g || T.h) { R.g = T.g || 0; R.h = T.h || 0; }
+    return R;
   }
   // 用靶紙的直邊估計照片旋轉角（只能判斷 ±45° 以內）
   function estimateRotation(g, w, h, T, target) {
     var Ti = invertAffine(T), s = 2, half = target.cardSize * 0.75, n = Math.round(2 * half * s), G = new Float32Array(n * n), ok = new Uint8Array(n * n);
     for (var j = 0; j < n; j++) for (var i = 0; i < n; i++) {
-      var x = (i + 0.5) / s - half, y = half - (j + 0.5) / s, v = bilinear(g, w, h, Ti.a * x + Ti.b * y + Ti.c, Ti.d * x + Ti.e * y + Ti.f);
+      var x = (i + 0.5) / s - half, y = half - (j + 0.5) / s, P1 = applyT(Ti, x, y), v = bilinear(g, w, h, P1[0], P1[1]);
       if (v >= 0) { G[j * n + i] = v; ok[j * n + i] = 1; } }
     var NB = 180, hist = new Float64Array(NB), R1 = target.ringDiam[1] / 2 + 3, tot = 0, ms = [], as = [];
     for (j = 1; j < n - 1; j++) for (i = 1; i < n - 1; i++) {
@@ -371,14 +516,14 @@
   // sens: 1 = 標準；<1 較靈敏；>1 較保守
   function detectHoles(g, w, h, T, target, sens, chroma) {
     sens = sens || 1;
-    var Ti = invertAffine(T), pellet = target.pellet, Rb = target.blackDiam / 2, R1 = target.ringDiam[1] / 2;
+    var Ti = invertAffine(T), PP = [0, 0], pellet = target.pellet, Rb = target.blackDiam / 2, R1 = target.ringDiam[1] / 2;
     var s = Math.max(4, Math.min(16, 27 / pellet * (target.id === 'ar10' ? 2 : 1))); // px/mm（手槍 6、步槍 12）
-    var Rmax = R1 + 3, n = Math.ceil(2 * Rmax * s), G = new Float32Array(n * n), valid = new Uint8Array(n * n), rr = new Float32Array(n * n);
+    var Rmax = R1 + pellet + 2, n = Math.ceil(2 * Rmax * s), G = new Float32Array(n * n), valid = new Uint8Array(n * n), rr = new Float32Array(n * n);
     var X = new Float32Array(n * n), Y = new Float32Array(n * n), CH = chroma ? new Float32Array(n * n) : null;
     for (var j = 0; j < n; j++) for (var i = 0; i < n; i++) {
       var x = (i + 0.5) / s - Rmax, y = Rmax - (j + 0.5) / s, q = j * n + i;
       X[q] = x; Y[q] = y; rr[q] = Math.hypot(x, y);
-      var px = Ti.a * x + Ti.b * y + Ti.c, py = Ti.d * x + Ti.e * y + Ti.f, v = bilinear(g, w, h, px, py);
+      applyT(Ti, x, y, PP); var px = PP[0], py = PP[1], v = bilinear(g, w, h, px, py);
       if (v >= 0 && rr[q] <= Rmax) { G[q] = v; valid[q] = 1; if (CH) CH[q] = bilinear(chroma, w, h, px, py); }
     }
     // 背景平面（黑區、白紙各一）
@@ -416,7 +561,10 @@
     m2 = minmaxFilter(minmaxFilter(m2, n, n, rc, true), n, n, rc, false);
     if (root.__bmDebug) root.__bmDebug.det = { CH: CH, PC: PC, tChroma: tChroma, pmad: pmad, tBright: tBright, tDark: tDark, G: G, valid: valid, mask: mask, m2: m2, n: n, s: s, Rmax: Rmax, PW: PW, PB: PB, C: C };
     var L = labelComponents(m2, n, n), a1 = Math.PI * pellet * pellet / 4 * s * s;
-    var comps = L.comps.filter(function (c) { return c.area >= 0.35 * a1 * sens && !c.border; });
+    // 延伸到第 1 環外很遠的區塊＝紙張邊緣外（白色底板、桌面），不是彈孔（第 1 環最外的有效彈孔也只到 R1 + 彈徑）
+    var offPaper = {}, rOff = R1 + pellet + 0.5;
+    for (q = 0; q < n * n; q++) if (L.lab[q] && (rr[q] > rOff || (!valid[q] && m2[q]))) offPaper[L.lab[q]] = 1;
+    var comps = L.comps.filter(function (c) { return c.area >= 0.35 * a1 * sens && !c.border && !offPaper[c.id]; });
     // 單發面積：用接近單發大小的區塊中位數，否則用理論值
     var singles = comps.filter(function (c) { return c.area > 0.55 * a1 && c.area < 1.45 * a1; }).map(function (c) { return c.area; });
     var aS = singles.length >= 3 ? median(singles) : a1;
@@ -469,11 +617,21 @@
     holes = holes.filter(function (p) { return Math.hypot(p.x, p.y) <= R1 + pellet / 2; });
     return { ok: true, holes: holes, contrast: C, pxPerMm: s, singleArea: aS / s / s };
   }
+  // 換算 T：{a..f} 為仿射；多了 g,h 時是透視投影（homography）：
+  //   X = (a x + b y + c) / (g x + h y + 1)，Y = (d x + e y + f) / (g x + h y + 1)
   function invertAffine(T) {
-    var det = T.a * T.e - T.b * T.d, ia = T.e / det, ib = -T.b / det, id = -T.d / det, ie = T.a / det;
-    return { a: ia, b: ib, c: -(ia * T.c + ib * T.f), d: id, e: ie, f: -(id * T.c + ie * T.f) };
+    var a = T.a, b = T.b, c = T.c, d = T.d, e = T.e, f = T.f, g = T.g || 0, h = T.h || 0;
+    var A = e - f * h, B = -(b - c * h), Cc = b * f - c * e, D = -(d - f * g), E = a - c * g, F = -(a * f - c * d), G = d * h - e * g, H = -(a * h - b * g), I = a * e - b * d;
+    if (!I) return null;
+    var R = { a: A / I, b: B / I, c: Cc / I, d: D / I, e: E / I, f: F / I };
+    if (g || h) { R.g = G / I; R.h = H / I; }
+    return R;
+  }
+  function applyT(T, x, y, out) {
+    var w = (T.g ? T.g * x : 0) + (T.h ? T.h * y : 0) + 1;
+    out = out || [0, 0]; out[0] = (T.a * x + T.b * y + T.c) / w; out[1] = (T.d * x + T.e * y + T.f) / w; return out;
   }
 
-  var api = { chromaFromRGBA: chromaFromRGBA, rotateAffine: rotateAffine, grayFromRGBA: grayFromRGBA, calibrate: calibrate, detectHoles: detectHoles, findBlackBlob: findBlackBlob, fitConic: fitConic, affineFromEllipse: affineFromEllipse };
+  var api = { applyT: applyT, invertAffine: invertAffine, refineProjective: refineProjective, chromaFromRGBA: chromaFromRGBA, rotateAffine: rotateAffine, grayFromRGBA: grayFromRGBA, calibrate: calibrate, detectHoles: detectHoles, findBlackBlob: findBlackBlob, fitConic: fitConic, affineFromEllipse: affineFromEllipse };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.BMVision = api;
 })(typeof window !== 'undefined' ? window : this);

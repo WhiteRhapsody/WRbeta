@@ -1,6 +1,9 @@
 (function () {
   'use strict';
+  // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.2';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
+  try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
   var $ = function (id) { return document.getElementById(id); };
   var f1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); };
@@ -395,6 +398,14 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sh.hidden) close(); });
   })();
 
+  // 照片上的疊圖：校正可能是透視投影（直接用 SVG matrix 畫不出來），所以把 mm 座標的圓／線逐點換到照片像素再畫
+  function projCircle(Ti, r, cx, cy, n) {
+    cx = cx || 0; cy = cy || 0; n = n || 120; var d = '';
+    for (var i = 0; i <= n; i++) { var an = 2 * Math.PI * i / n, p = C.applyAffine(Ti, cx + r * Math.cos(an), cy + r * Math.sin(an)); d += (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }
+    return d + 'Z';
+  }
+  function projLine(Ti, x1, y1, x2, y2) { var p = C.applyAffine(Ti, x1, y1), q = C.applyAffine(Ti, x2, y2); return 'M' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + 'L' + q.x.toFixed(1) + ' ' + q.y.toFixed(1); }
+
   // ---------- 對照分頁：照片校正 ----------
   var photo = (function () {
     var V = window.BMVision;
@@ -435,12 +446,12 @@
           var t = tgt();
           if (state.mode === 'auto') {
             var res = V.calibrate(state.g, state.gw, state.gh, t); state.info = res;
-            if (res.ok) { var K = state.k, T = res.T; state.T = { a: T.a * K, b: T.b * K, c: T.c, d: T.d * K, e: T.e * K, f: T.f, rms: res.rmsMm }; }
+            if (res.ok) { state.T = C.scaleT(res.T, state.k); state.T.rms = res.rmsMm; }
             else state.T = null;
           }
           if (state.T) {
             state.Tinv = C.invertAffine(state.T);
-            var K2 = state.k, Tc = { a: state.T.a / K2, b: state.T.b / K2, c: state.T.c, d: state.T.d / K2, e: state.T.e / K2, f: state.T.f };
+            var Tc = C.scaleT(state.T, 1 / state.k);
             var det = V.detectHoles(state.g, state.gw, state.gh, Tc, t, sens(), state.chroma); state.det = det;
             cur.actuals = (det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; });
             cur.calib = { mode: state.mode, rms: state.T.rms, at: Date.now() }; persist();
@@ -468,16 +479,16 @@
       });
       if (state.Tinv) {
         var Ti = state.Tinv, t = tgt();
-        var g = el('g', { transform: 'matrix(' + [Ti.a, Ti.d, -Ti.b, -Ti.e, Ti.c, Ti.f].join(',') + ')' }, svg);
-        for (var n = 1; n <= 10; n++) el('circle', { cx: 0, cy: 0, r: t.ringDiam[n] / 2, fill: 'none', stroke: '#39ff14', 'stroke-width': 1.2, 'vector-effect': 'non-scaling-stroke', opacity: 0.75 }, g);
-        el('circle', { cx: 0, cy: 0, r: t.blackDiam / 2, fill: 'none', stroke: '#00e5ff', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }, g);
+        var g = svg;
+        for (var n = 1; n <= 10; n++) el('path', { d: projCircle(Ti, t.ringDiam[n] / 2), fill: 'none', stroke: '#39ff14', 'stroke-width': 1.2, 'vector-effect': 'non-scaling-stroke', opacity: 0.75 }, g);
+        el('path', { d: projCircle(Ti, t.blackDiam / 2), fill: 'none', stroke: '#00e5ff', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }, g);
         var RR = t.ringDiam[1] / 2 + 2; // 上下方向線：應穿過照片上印在正上、正下方的環數數字
-        el('line', { x1: 0, y1: -RR, x2: 0, y2: RR, stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, g);
-        el('line', { x1: -RR, y1: 0, x2: RR, y2: 0, stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, g);
+        el('path', { d: projLine(Ti, 0, -RR, 0, RR), stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, g);
+        el('path', { d: projLine(Ti, -RR, 0, RR, 0), stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, g);
         var lab = actLabels();
         cur.actuals.forEach(function (a, i) {
           var low = a.conf != null && a.conf < 0.5;
-          el('circle', { cx: a.x, cy: -a.y, r: t.pellet / 2, fill: 'rgba(255,40,40,.25)', stroke: low ? '#ffb300' : '#ff2828', 'stroke-width': 2.5, 'stroke-dasharray': low ? '4 3' : '', 'vector-effect': 'non-scaling-stroke' }, g);
+          el('path', { d: projCircle(Ti, t.pellet / 2, a.x, a.y, 24), fill: 'rgba(255,40,40,.25)', stroke: low ? '#ffb300' : '#ff2828', 'stroke-width': 2.5, 'stroke-dasharray': low ? '4 3' : '', 'vector-effect': 'non-scaling-stroke' }, g);
           var pp = C.applyAffine(Ti, a.x, a.y);
           var tx = el('text', { x: pp.x + u * 2.4, y: pp.y - u * 2.4, 'font-size': u * 4, fill: '#ffeb3b', stroke: '#000', 'stroke-width': u * 0.6, 'paint-order': 'stroke', 'font-weight': 'bold' }, svg);
           tx.textContent = lab[i];
@@ -628,11 +639,11 @@
         var t = atgt();
         if (P.mode === 'auto') {
           var res = V.calibrate(P.g, P.gw, P.gh, t); P.info = res; P.rotDeg = 0;
-          if (res.ok) { var K = P.k, Tm = res.T; P.T = { a: Tm.a * K, b: Tm.b * K, c: Tm.c, d: Tm.d * K, e: Tm.e * K, f: Tm.f, rms: res.rmsMm }; } else P.T = null;
+          if (res.ok) { P.T = C.scaleT(res.T, P.k); P.T.rms = res.rmsMm; } else P.T = null;
         }
         if (P.T) {
           P.Tinv = C.invertAffine(P.T);
-          var K2 = P.k, Tc = { a: P.T.a / K2, b: P.T.b / K2, c: P.T.c, d: P.T.d / K2, e: P.T.e / K2, f: P.T.f };
+          var Tc = C.scaleT(P.T, 1 / P.k);
           var det = V.detectHoles(P.g, P.gw, P.gh, Tc, t, +$('anaSens').value, P.chroma);
           sh.shots = (det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; });
           sh.calib = { mode: P.mode, rms: C.round(P.T.rms, 3), rotDeg: P.rotDeg || 0, at: new Date().toISOString() };
@@ -671,14 +682,14 @@
     P.calPts.forEach(function (q) { el('circle', { cx: q.px, cy: q.py, r: u * 1.6, fill: 'none', stroke: '#00e5ff', 'stroke-width': u * 0.5 }, svg); });
     if (!P.Tinv) return;
     var Ti = P.Tinv, t = atgt();
-    var g = el('g', { transform: 'matrix(' + [Ti.a, Ti.d, -Ti.b, -Ti.e, Ti.c, Ti.f].join(',') + ')' }, svg);
-    for (var n = 1; n <= 10; n++) el('circle', { cx: 0, cy: 0, r: t.ringDiam[n] / 2, fill: 'none', stroke: '#39ff14', 'stroke-width': 1.2, 'vector-effect': 'non-scaling-stroke', opacity: 0.7 }, g);
+    var g = svg;
+    for (var n = 1; n <= 10; n++) el('path', { d: projCircle(Ti, t.ringDiam[n] / 2), fill: 'none', stroke: '#39ff14', 'stroke-width': 1.2, 'vector-effect': 'non-scaling-stroke', opacity: 0.7 }, g);
     var RR = t.ringDiam[1] / 2 + 2;
-    el('line', { x1: 0, y1: -RR, x2: 0, y2: RR, stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, g);
-    el('line', { x1: -RR, y1: 0, x2: RR, y2: 0, stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, g);
+    el('path', { d: projLine(Ti, 0, -RR, 0, RR), stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, g);
+    el('path', { d: projLine(Ti, -RR, 0, RR, 0), stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, g);
     sh.shots.forEach(function (a, i) {
       var low = isUnsure(a);
-      el('circle', { cx: a.x, cy: -a.y, r: t.pellet / 2, fill: low ? 'rgba(255,179,0,.25)' : 'rgba(255,40,40,.25)', stroke: low ? '#ffb300' : '#ff2828', 'stroke-width': low ? 3 : 2.5, 'stroke-dasharray': low ? '5 3' : '', 'vector-effect': 'non-scaling-stroke' }, g);
+      el('path', { d: projCircle(Ti, t.pellet / 2, a.x, a.y, 24), fill: low ? 'rgba(255,179,0,.25)' : 'rgba(255,40,40,.25)', stroke: low ? '#ffb300' : '#ff2828', 'stroke-width': low ? 3 : 2.5, 'stroke-dasharray': low ? '5 3' : '', 'vector-effect': 'non-scaling-stroke' }, g);
       var pp = C.applyAffine(Ti, a.x, a.y);
       var tx = el('text', { x: pp.x + u * 2.4, y: pp.y - u * 2.4, 'font-size': u * 4, fill: low ? '#ffb300' : '#ffeb3b', stroke: '#000', 'stroke-width': u * 0.6, 'paint-order': 'stroke', 'font-weight': 'bold' }, svg);
       tx.textContent = (i + 1) + (low ? '?' : '');
@@ -1001,7 +1012,7 @@
     $('recCmpClose').onclick = function () { $('recCompare').innerHTML = ''; };
   }
   $('exportAll').onclick = function () {
-    var blob = new Blob([JSON.stringify({ app: '靶面-預報系統', version: SCHEMA_V, schema: 'sessions[]: kind=forecast|analysis，座標 mm（靶心原點，x 右 y 上），時間 ISO-8601 UTC', exported: new Date().toISOString(), sessions: sessions }, null, 1)], { type: 'application/json' });
+    var blob = new Blob([JSON.stringify({ app: 'WRbeta', appVersion: APP_VERSION, version: SCHEMA_V, schema: 'sessions[]: kind=forecast|analysis，座標 mm（靶心原點，x 右 y 上），時間 ISO-8601 UTC', exported: new Date().toISOString(), sessions: sessions }, null, 1)], { type: 'application/json' });
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '靶面預報紀錄_' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
   };
   $('importFile').onchange = function () {
@@ -1018,6 +1029,7 @@
   function renderAbout() {
     var rows = function (t) { var h = ''; for (var n = 10; n >= 1; n--) h += '<tr><td>' + n + '</td><td>' + t.ringDiam[n] + '</td><td>' + f2(t.ringDiam[n] / 2 + t.pellet / 2) + '</td></tr>'; return h; };
     $('aboutText').innerHTML =
+      '<p class="appver"><b>' + APP_NAME + '</b> 版本 beta ' + APP_VERSION + '</p>' +
       '<h3>怎麼用</h3><ol><li>上方選靶種。</li><li><b>預報</b>：每打一發，在靶面點你感覺的落點。按住可拖曳微調，放開才記錄。小靶可用 2×–8× 放大。</li>' +
       '<li><b>對照</b>：拉回靶紙後拍照，程式會<b>自動找黑區校正、自動找彈孔</b>。綠圈要對齊靶環；紫色虛線要穿過上下左右的環數數字，歪了按「轉正」。找錯的彈孔點一下刪除，漏掉的點空白處新增。自動失敗時可按「手動校正」（點靶心＋某環上右下左）。電子靶也可以改選「直接在靶面上點」。</li>' +
       '<li><b>分析</b>：不需要預報。一張打完拍一張（發數不限），程式自動校正、找彈孔並算出每張與合併數據：校正建議（群中心偏移 mm 與修正方向）、穩定度（標準差、去掉最差一發的平均）、離群發、趨勢圖、小數分分布。不確定的彈孔以橘色虛線＋「?」標示，點一下就能刪除，漏掉的點空白處新增（照片或下方靶面都可以點）。分析自動存到「紀錄」，可自訂名稱。</li>' +
@@ -1072,7 +1084,7 @@
   try { var nj = $('nojsNotice'); if (nj) nj.style.display = 'none'; } catch (e) {}
   if (!storageOK) { var sw = $('storageNotice'); if (sw) sw.style.display = ''; }
   setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); renderAbout(); persist(); renderAll(); liteLayout();
-  window.BMApp = { get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; } };
+  window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; } };
 
   try { if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window.self) navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
 })();

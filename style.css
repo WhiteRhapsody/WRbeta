@@ -46,7 +46,7 @@ details{margin-bottom:10px}summary{cursor:pointer;font-weight:700;padding:4px 0}
 .modetg{display:inline-flex;background:#0f1b27;border-radius:999px;padding:2px;border:1px solid #3c5268}
 .modetg button{border:0;background:none;color:#9fb4c8;font-size:13px;font-weight:700;padding:5px 9px;border-radius:999px;line-height:1.1;letter-spacing:.3px}
 .modetg button.on{background:#f5a623;color:#1b1b1b}
-@media (max-width:440px){header .beta{display:none}.title{font-size:16px}header select{font-size:14px;padding:5px 4px;max-width:9.2em}}
+@media (max-width:440px){header .beta{font-size:10px;padding:1px 4px;margin-left:3px}.title{font-size:16px}header select{font-size:14px;padding:5px 4px;max-width:9.2em}}
 body:not(.lite) .lite-only{display:none!important}
 body.lite .pro-only{display:none!important}
 /* ---------- Lite 預報頁 ----------

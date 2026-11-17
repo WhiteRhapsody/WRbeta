@@ -208,12 +208,17 @@
     T.rms = Math.sqrt(ss / pts.length);
     return T;
   }
-  function applyAffine(T, px, py) { return { x: T.a * px + T.b * py + T.c, y: T.d * px + T.e * py + T.f }; }
+  // T 可為仿射 {a..f}，或透視投影（多 g,h：分母 g·x + h·y + 1）
+  function applyAffine(T, px, py) { var w = (T.g ? T.g * px : 0) + (T.h ? T.h * py : 0) + 1; return { x: (T.a * px + T.b * py + T.c) / w, y: (T.d * px + T.e * py + T.f) / w }; }
   function invertAffine(T) {
-    var det = T.a * T.e - T.b * T.d;
-    var ia = T.e / det, ib = -T.b / det, id = -T.d / det, ie = T.a / det;
-    return { a: ia, b: ib, c: -(ia * T.c + ib * T.f), d: id, e: ie, f: -(id * T.c + ie * T.f) };
+    var a = T.a, b = T.b, c = T.c, d = T.d, e = T.e, f = T.f, g = T.g || 0, h = T.h || 0;
+    var I = a * e - b * d;
+    var R = { a: (e - f * h) / I, b: -(b - c * h) / I, c: (b * f - c * e) / I, d: -(d - f * g) / I, e: (a - c * g) / I, f: -(a * f - c * d) / I };
+    if (g || h) { R.g = (d * h - e * g) / I; R.h = -(a * h - b * g) / I; }
+    return R;
   }
+  // 原圖像素 ↔ 縮小圖像素（縮放 k）：T 吃原圖座標 → 吃縮圖座標要除以 k
+  function scaleT(T, k) { var R = { a: T.a * k, b: T.b * k, c: T.c, d: T.d * k, e: T.e * k, f: T.f }; if (T.g || T.h) { R.g = (T.g || 0) * k; R.h = (T.h || 0) * k; } if (T.rms != null) R.rms = T.rms; return R; }
   // 校正點對應的靶面座標：中心、上、右、下、左（選定環的外緣）
   function calibTargets(t, ringN) {
     var R = t.ringDiam[ringN] / 2;
@@ -302,7 +307,7 @@
   var api = {
     TARGETS: TARGETS, ringWidth: ringWidth, scoreShot: scoreShot, computeStats: computeStats,
     comparePredictions: comparePredictions, matchOptimal: matchOptimal, hungarian: hungarian, directionText: directionText,
-    fitAffine: fitAffine, applyAffine: applyAffine, invertAffine: invertAffine, calibTargets: calibTargets, round: round,
+    fitAffine: fitAffine, applyAffine: applyAffine, invertAffine: invertAffine, scaleT: scaleT, calibTargets: calibTargets, round: round,
     median: median, stdev: stdev, findOutliers: findOutliers, OUTLIER_RULE: OUTLIER_RULE, decimalHistogram: decimalHistogram, adjustAdvice: adjustAdvice, adjustClicks: adjustClicks, CLICK_PROFILES: CLICK_PROFILES, trend: trend, analyzeShots: analyzeShots
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.BMCore = api;
