@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v1.2.2">
+<link rel="manifest" href="manifest.webmanifest?v=v1.3.0">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.2.2"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.3.0"><!--/STYLE-->
 </head>
 <body>
 <header>
-  <div class="title">WRbeta <span class="beta" id="appVer">beta v1.2.2</span></div>
+  <div class="title">WRbeta <span class="beta" id="appVer">beta v1.3.0</span></div>
   <div class="hright">
     <div id="modeToggle" class="modetg" role="group" aria-label="介面模式"><button type="button" data-mode="pro" class="on" aria-pressed="true">Pro</button><button type="button" data-mode="lite" aria-pressed="false">Lite</button></div>
     <select id="targetSel" aria-label="靶種"><option value="ap10">10米空氣手槍</option><option value="ar10">10米空氣步槍</option></select>
@@ -33,9 +33,15 @@
 
 <main>
 <section id="tab-predict" class="tab active">
-  <div id="liteView" class="lite-only">
-    <div class="lite-tgbox"><div class="lite-tg" id="liteTg"><svg id="liteSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="靶面（點一下記錄預報，雙指縮放）"></svg>
-      <div id="liteZoomBadge" class="lite-zbadge"></div></div></div>
+  <div id="liteView" class="lite-only" data-step="1">
+    <div class="lite-tgbox"><div class="lite-tg" id="liteTg"><svg id="liteSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="靶面（點一下記錄，雙指縮放）"></svg>
+      <svg id="litePhotoSvg" class="lite-photo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="照片（雙指縮放）" hidden></svg>
+      <div id="liteZoomBadge" class="lite-zbadge"></div>
+      <div id="liteRoundBadge" class="lite-rbadge"></div>
+      <div id="liteViewSeg" class="lite-seg" role="group" aria-label="檢視" hidden><button type="button" data-v="target" class="on" aria-pressed="true">靶面</button><button type="button" data-v="photo" aria-pressed="false">照片</button></div>
+      <div id="liteBusy" class="lite-busy" hidden><i></i>分析照片中…</div>
+      <div id="liteEmpty" class="lite-empty" hidden><b>拍下靶紙或電子靶螢幕</b><span>正對拍、整個黑區入鏡，程式會自動校正並找出彈孔</span></div>
+    </div></div>
     <div class="lite-bar">
       <button type="button" id="liteUndo">↶ 復原</button>
       <span id="liteHint" class="lite-hint">點靶面記錄落點・雙指縮放</span>
@@ -54,11 +60,37 @@
         <polygon id="lpBigSh" class="lp-sheen"/><polygon id="lpCntSh" class="lp-sheen"/><polygon id="lpEstSh" class="lp-sheen"/><polygon id="lpSumSh" class="lp-sheen"/>
       </svg>
       <div class="lp-cell lp-c-big"><div class="lp-k" id="lpBigLbl">最新預報</div><div class="lp-v"><span id="lpBig">—</span></div></div>
-      <div class="lp-cell lp-c-cnt"><div class="lp-k">發數</div><div class="lp-v"><span id="lpCount">0</span></div></div>
-      <div class="lp-cell lp-c-est"><div class="lp-k">60發預估</div><div class="lp-v"><span id="lpEst">—</span></div></div>
-      <div class="lp-cell lp-c-sum"><div class="lp-k">總分</div><div class="lp-v"><span id="lpSum">0</span></div></div>
+      <div class="lp-cell lp-c-cnt"><div class="lp-k" id="lpCntLbl">發數</div><div class="lp-v"><span id="lpCount">0</span></div></div>
+      <div class="lp-cell lp-c-est"><div class="lp-k" id="lpEstLbl">60發預估</div><div class="lp-v"><span id="lpEst">—</span></div></div>
+      <div class="lp-cell lp-c-sum"><div class="lp-k" id="lpSumLbl">總分</div><div class="lp-v"><span id="lpSum">0</span></div></div>
     </div>
-    <button type="button" id="liteVerify" class="lite-verify glass"><span class="vlbl">按下對照 <span class="arr">›</span></span></button>
+    <div id="liteS2" class="lite-s2">
+      <div class="lite-src">
+        <label class="lite-srcbtn lite-cam"><span class="ic" aria-hidden="true">📷</span><span>拍照</span><input type="file" id="liteCam" accept="image/*" capture="environment" hidden></label>
+        <label class="lite-srcbtn"><span class="ic" aria-hidden="true">🖼</span><span>相簿</span><input type="file" id="litePick" accept="image/*" hidden></label>
+        <label class="lite-srcbtn" title="相簿找不到照片時用"><span class="ic" aria-hidden="true">📁</span><span>檔案</span><input type="file" id="liteFile" accept="*/*" hidden></label>
+      </div>
+      <div class="lite-tools" role="toolbar" aria-label="修正工具">
+        <button type="button" id="liteDelHole" disabled>🗑 刪除</button>
+        <button type="button" id="liteRotL" aria-label="照片轉正，逆時針 1 度">⟲ 1°</button>
+        <button type="button" id="liteRotR" aria-label="照片轉正，順時針 1 度">⟳ 1°</button>
+        <button type="button" id="liteRedetect">重新偵測</button>
+        <button type="button" id="liteManual">手動校正</button>
+        <select id="liteSens" aria-label="偵測靈敏度"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
+      </div>
+      <div id="liteS2Info" class="lite-s2info"></div>
+    </div>
+    <div id="liteS3" class="lite-s3">
+      <div id="liteRounds" class="lite-rounds" role="tablist" aria-label="輪次" hidden></div>
+      <div class="lite-s3row">
+        <input id="liteName" class="lite-name" maxlength="60" placeholder="名稱（選填，例：週二早上）" aria-label="紀錄名稱">
+        <button type="button" id="liteCopyCode">📋 紀錄碼</button>
+      </div>
+      <div id="liteCodeInfo" class="lite-codeinfo"></div>
+    </div>
+    <button type="button" id="liteVerify" class="lite-verify glass"><span class="vlbl"><span id="liteGoLbl">下一步：拍照</span> <span class="arr">›</span></span></button>
+    <div id="liteDetail" class="lite-detail"></div>
+    <div class="lite-finishrow"><button type="button" id="liteFinish">✓ 完成這一組・開始新的一組</button></div>
   </div>
   <div class="layout pro-only">
     <div class="col-target">
@@ -214,8 +246,9 @@
 
 <section id="tab-about" class="tab">
   <div class="card lite-only" id="liteThemeCard"><div class="row"><b>Lite 外觀：</b>
-    <select id="liteThemeSel" aria-label="Lite 外觀"><option value="hud">1 戰術 HUD（深色霓虹）</option><option value="light">2 簡約亮色</option><option value="sport">3 運動風（深藍＋橘）</option><option value="glass">4 玻璃漸層</option></select></div></div>
-  <div class="card"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.2.2</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
+    <select id="liteThemeSel" aria-label="Lite 外觀"><option value="hud">1 戰術 HUD（TRON 黑＋青）</option><option value="light">2 簡約亮色（Braun 拉絲鋁）</option><option value="sport">3 運動風（Gulf 深藍＋橘，預設）</option><option value="glass">4 玻璃漸層（Synthwave）</option></select></div></div>
+  <div class="card"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.3.0</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
+  <div class="card cloud-card" id="cloudCard"><div class="cloud-h">雲端帳號</div><div id="cloudBody"></div></div>
   <div class="card prose" id="aboutText"></div>
 </section>
 </main>
@@ -223,18 +256,40 @@
   <div class="lt-sheet-card">
     <div class="lt-sheet-h">選擇外觀</div>
     <div class="lt-sheet-list">
-      <button type="button" data-th="hud"><i class="sw sw-hud"></i><span><b>1 戰術 HUD</b><small>深色霓虹</small></span></button>
-      <button type="button" data-th="light"><i class="sw sw-light"></i><span><b>2 簡約亮色</b><small>白色磨砂</small></span></button>
-      <button type="button" data-th="sport"><i class="sw sw-sport"></i><span><b>3 運動風</b><small>深藍＋橘</small></span></button>
-      <button type="button" data-th="glass"><i class="sw sw-glass"></i><span><b>4 玻璃漸層</b><small>紫粉漸層</small></span></button>
+      <button type="button" data-th="hud"><i class="sw sw-hud"></i><span><b>1 戰術 HUD</b><small>TRON 黑碳纖維＋青光</small></span></button>
+      <button type="button" data-th="light"><i class="sw sw-light"></i><span><b>2 簡約亮色</b><small>Braun 拉絲鋁・戶外清楚</small></span></button>
+      <button type="button" data-th="sport"><i class="sw sw-sport"></i><span><b>3 運動風</b><small>Gulf 深藍碳纖維＋橘</small></span></button>
+      <button type="button" data-th="glass"><i class="sw sw-glass"></i><span><b>4 玻璃漸層</b><small>Synthwave 夜空玻璃</small></span></button>
+    </div>
+    <button type="button" class="lt-sheet-x">關閉</button>
+  </div>
+</div>
+<nav id="liteSteps" class="lite-steps lite-only" aria-label="Lite 步驟">
+  <button type="button" data-step="1"><i>1</i><span>預報</span></button>
+  <button type="button" data-step="2"><i>2</i><span>拍照</span></button>
+  <button type="button" data-step="3"><i>3</i><span>結果</span></button>
+  <button type="button" id="liteMoreBtn" class="lite-more" aria-label="更多" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 6.5h16v2H4zm0 4.5h16v2H4zm0 4.5h16v2H4z"/></svg><span>更多</span></button>
+</nav>
+<div id="liteMoreSheet" class="lt-sheet" role="dialog" aria-modal="true" aria-label="更多" hidden>
+  <div class="lt-sheet-card">
+    <div class="lt-sheet-h">更多</div>
+    <div class="lt-more-list">
+      <button type="button" data-act="theme"><b>🎨 外觀</b><small>四種主題</small></button>
+      <button type="button" data-act="records"><b>🗂 紀錄</b><small>存檔、比較、匯出</small></button>
+      <button type="button" data-act="analysis"><b>📈 多張分析</b><small>不預報，連拍多張</small></button>
+      <button type="button" data-act="about"><b>☁️ 說明・帳號</b><small>使用方法、雲端、更新</small></button>
+      <button type="button" data-act="pro"><b>⚙️ 切到 Pro</b><small>完整功能</small></button>
     </div>
     <button type="button" class="lt-sheet-x">關閉</button>
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v1.2.2"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v1.2.2"></script><!--/CODEC-->
-<!--VISION--><script src="vision.js?v=v1.2.2"></script><!--/VISION-->
-<!--APP--><script src="app.js?v=v1.2.2"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v1.3.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v1.3.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v1.3.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v1.3.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v1.3.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v1.3.0"></script><!--/CLOUD-->
+<!--APP--><script src="app.js?v=v1.3.0"></script><!--/APP-->
 </body>
 </html>

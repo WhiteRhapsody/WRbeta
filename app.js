@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.2.2';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.3.0';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
@@ -19,7 +19,9 @@
     set: function (k, v) { memStore[k] = String(v); if (storageOK) { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } } return false; }
   };
   function loadSessions() { try { return JSON.parse(store.get(LS_SESS)) || []; } catch (e) { return []; } }
-  function saveSessions(list) { var ok = store.set(LS_SESS, JSON.stringify(list)); if (!ok && storageOK) toast('儲存失敗（空間不足？）'); }
+  function saveSessions(list) { var ok = store.set(LS_SESS, JSON.stringify(list)); if (!ok && storageOK) toast('儲存失敗（空間不足？）'); cloudDirty(); }
+  // 雲端同步（備註4）：本機 localStorage 永遠是主要資料；登入後才在背景上傳／下載（見 cloud.js）
+  function cloudDirty() { try { if (window.WRCloud && window.WRCloud.markDirty) window.WRCloud.markDirty(); } catch (e) {} }
   var prefs = (function () { try { return JSON.parse(store.get(LS_PREF)) || {}; } catch (e) { return {}; } })();
   function savePrefs() { store.set(LS_PREF, JSON.stringify(prefs)); }
   /* 資料格式（v2）：sessions 陣列同時放兩種紀錄
@@ -49,9 +51,10 @@
     cur = sessions.filter(function (s) { return s.id === id && !isAna(s); })[0];
     if (!cur) { cur = newSession(); sessions.unshift(cur); }
   })();
-  function persist() {
+  function persist(noTouch) {
     var i = sessions.findIndex(function (s) { return s.id === cur.id; });
     if (i < 0) sessions.unshift(cur); else sessions[i] = cur;
+    if (!noTouch) cur.updated = new Date().toISOString();
     saveSessions(sessions); store.set(LS_CUR, cur.id);
   }
   function tgt() { return T[cur.targetId]; }
@@ -179,7 +182,8 @@
     if (p) { var s = C.scoreShot(tgt(), p.x, p.y); $('predReadout').innerHTML = '第 ' + (cur.preds.length + 1) + ' 發預報：<b>' + s.ring + '（' + f1(s.dec) + '）</b>' + (s.inner ? ' 內十' : '') + '　' + offsetText(p.x, p.y); }
   }, function (p) {
     var E = +predSvg.dataset.extent; if (Math.abs(p.x) > E / 2 + 1 || Math.abs(p.y) > E / 2 + 1) return;
-    cur.preds.push({ x: C.round(p.x, 3), y: C.round(p.y, 3), t: Date.now() }); persist(); renderPredict();
+    var q = { x: C.round(p.x, 3), y: C.round(p.y, 3), t: Date.now() }; if (cur.round > 0) q.r = cur.round; // Lite 多輪：標記目前這一輪
+    cur.preds.push(q); persist(); renderPredict();
     var s = C.scoreShot(tgt(), p.x, p.y);
     $('predReadout').innerHTML = '已記錄第 ' + cur.preds.length + ' 發：<b>' + s.ring + '（' + f1(s.dec) + '）</b>' + (s.inner ? ' 內十' : '');
     if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
@@ -191,20 +195,40 @@
   $('newSession').onclick = startNew; $('newSession2').onclick = startNew;
   $('liftCursor').checked = !!prefs.lift; $('liftCursor').onchange = function () { prefs.lift = this.checked; savePrefs(); };
 
-  // ---------- Lite 介面（只換預報頁的外觀，資料與 Pro 共用 cur.preds） ----------
-  var liteSvg = $('liteSvg'), liteView = null, liteTid = null, litePreview = null;
+  // ---------- Lite 介面：三步驟「1 預報 → 2 拍照 → 3 結果」（資料與 Pro 共用 cur；每輪用 r 標記，見 liteflow.js） ----------
+  var LF = window.BMLite;
+  var liteSvg = $('liteSvg'), litePh = $('litePhotoSvg');
+  var liteView = null, liteTid = null, litePreview = null; // 靶面檢視 {cx,cy,E}（SVG 座標，y 向下）
+  var litePV = null, liteVMode = 'target';               // 照片檢視；第 2 步可切「靶面／照片」
+  var liteSel = -1, liteUndo2 = null, liteDrag = null;   // 第 2 步：選取的彈孔（cur.actuals 索引）、復原、拖曳中
+  var liteRes = 'cur', liteShotSel = -1;                 // 第 3 步：看哪一輪（'cur'、數字或 'all'）、點選的一發
+  var lp = null;                                         // 本輪照片（只在記憶體，不存檔）
+  function liteStep() { var s = cur.liteStep; return s === 2 || s === 3 ? s : 1; }
+  function liteK() { return LF.curRound(cur); }
   function liteCard() { return tgt().cardSize; }
   function liteResetView() { var c = liteCard(); liteView = { cx: 0, cy: 0, E: c }; liteTid = cur.targetId; }
-  function liteClamp() {
-    var c = liteCard(); liteView.E = Math.max(c / 10, Math.min(c, liteView.E));
-    var m = (c - liteView.E) / 2; liteView.cx = Math.max(-m, Math.min(m, liteView.cx)); liteView.cy = Math.max(-m, Math.min(m, liteView.cy));
+  function zClamp(v, b, div) {
+    var M = Math.max(b.w, b.h); v.E = Math.max(M / (div || 10), Math.min(M, v.E));
+    function cl(c, lo, len) { var h = v.E / 2; return v.E >= len ? lo + len / 2 : Math.max(lo + h, Math.min(lo + len - h, c)); }
+    v.cx = cl(v.cx, b.x0, b.w); v.cy = cl(v.cy, b.y0, b.h);
+  }
+  function liteBounds() { var c = liteCard(); return { x0: -c / 2, y0: -c / 2, w: c, h: c }; }
+  function liteClamp() { zClamp(liteView, liteBounds(), 10); }
+  function photoBounds() { return { x0: 0, y0: 0, w: lp.w, h: lp.h }; }
+  function liteHasPhoto() { return !!(lp && lp.sid === cur.id && lp.rk === liteK()); }
+  function liteShowsPhoto() { return liteStep() === 2 && liteVMode === 'photo' && liteHasPhoto(); }
+  function liteBadge(z) {
+    var b = $('liteZoomBadge'); b.textContent = (Math.round(z * 10) / 10) + '×'; b.classList.toggle('show', z > 1.05);
+    $('liteFit').disabled = z <= 1.05;
   }
   function liteApplyView() {
+    if (liteShowsPhoto()) {
+      if (!litePV) litePV = { cx: lp.w / 2, cy: lp.h / 2, E: Math.max(lp.w, lp.h) };
+      var p = litePV; litePh.setAttribute('viewBox', (p.cx - p.E / 2) + ' ' + (p.cy - p.E / 2) + ' ' + p.E + ' ' + p.E); litePh.dataset.extent = p.E;
+      liteBadge(Math.max(lp.w, lp.h) / p.E); return;
+    }
     var v = liteView; liteSvg.setAttribute('viewBox', (v.cx - v.E / 2) + ' ' + (v.cy - v.E / 2) + ' ' + v.E + ' ' + v.E);
-    liteSvg.dataset.extent = v.E;
-    var z = liteCard() / v.E, b = $('liteZoomBadge');
-    b.textContent = (Math.round(z * 10) / 10) + '×'; b.classList.toggle('show', z > 1.05);
-    $('liteFit').disabled = z <= 1.05;
+    liteSvg.dataset.extent = v.E; liteBadge(liteCard() / v.E);
   }
   // 分數 → 顏色：1–6 中性灰白；7→10.9 黃→橘→紅
   var SCORE_STOPS = [[7, [255, 214, 10]], [8, [255, 170, 0]], [9, [255, 112, 26]], [10, [235, 52, 40]], [10.9, [190, 18, 46]]];
@@ -243,17 +267,20 @@
     });
     document.querySelectorAll('#liteThemeSheet [data-th]').forEach(function (b) { var on = b.dataset.th === th; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     var sel = $('liteThemeSel'); if (sel) sel.value = th;
+    var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute('content', { hud: '#050a0e', light: '#f0ede5', sport: '#002776', glass: '#0b0221' }[th]);
     if (prefs.liteTheme !== th) { prefs.liteTheme = th; savePrefs(); }
     if (!quiet) renderLite();
   }
-  function liteBig(dec, label) {
+  // 大數字方塊：dec 決定顏色；txt 可以自訂顯示文字（結果頁顯示總分，顏色依平均小數分）
+  function liteBig(dec, label, txt) {
     var col = scoreColor(dec), P = $('litePanel');
-    if (dec == null && liteTheme === 'light') col = { bg: '#e9edf1', hi: '#ffffff', fg: '#9aa6b2', lbl: '#8592a0' };
-    if (dec == null && liteTheme === 'hud') col = { bg: '#0b1620', hi: '#0b1620', fg: '#5fd8ec', lbl: '#5fd8ec', edge: '#19e3ff' };
+    if (dec == null && liteTheme === 'light') col = { bg: '#e6e2d9', hi: '#ffffff', fg: '#8a8a87', lbl: '#8a8a87' };
+    if (dec == null && liteTheme === 'hud') col = { bg: '#0a141e', hi: '#0a141e', fg: '#80e8f0', lbl: '#80e8f0', edge: '#00f5ff' };
     if (dec == null && liteTheme === 'glass') col = { bg: 'rgba(255,255,255,.16)', hi: 'rgba(255,255,255,.28)', fg: '#fff', lbl: 'rgba(255,255,255,.75)' };
+    if (dec == null && liteTheme === 'sport') col = { bg: '#0b2a5b', hi: '#1f4aa8', fg: '#ffffff', lbl: 'rgba(185,217,235,.85)' };
     P.style.setProperty('--score', col.bg); P.style.setProperty('--score-hi', col.hi || col.bg); P.style.setProperty('--score-fg', col.fg); P.style.setProperty('--score-lbl', col.lbl);
     P.style.setProperty('--score-edge', col.edge || col.bg);
-    $('lpBig').textContent = dec == null ? '—' : f1(dec); $('lpBigLbl').textContent = label;
+    $('lpBig').textContent = txt != null ? txt : (dec == null ? '—' : f1(dec)); $('lpBigLbl').textContent = label;
     $('lpBigBg').dataset.score = dec == null ? '' : dec;
     liteFit($('lpBig'));
   }
@@ -274,20 +301,23 @@
       inkCtx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + F + 'px ' + cs.fontFamily;
       var m = inkCtx.measureText(span.textContent);
       if (m.fontBoundingBoxAscent == null || m.actualBoundingBoxAscent == null) return;
-      var lh = span.getBoundingClientRect().height || F; // line-height:1 → 行高 ≈ F
+      var lh = span.getBoundingClientRect().height || F;
       var base = (lh - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2 + m.fontBoundingBoxAscent;
       var inkMid = base - (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
       var dy = lh / 2 - inkMid;
       if (isFinite(dy) && Math.abs(dy) < F * 0.4) span.style.transform = 'translateY(' + dy.toFixed(1) + 'px)';
     } catch (e) {}
   }
-  // 依實際可用高度安排：靶面＝剩餘空間的正方形（置中），數字面板與按鈕都在文件流裡，不會重疊
+  // 依實際可用高度安排：靶面＝剩餘空間的正方形；底部步驟列固定在螢幕下緣，其餘都在文件流裡
   function liteLayout() {
     var V = $('liteView'); if (!document.body.classList.contains('lite') || !V.offsetParent) return;
     var W = V.clientWidth, P = $('litePanel'); P.style.setProperty('--pw', W + 'px');
     var top = V.getBoundingClientRect().top + (window.scrollY || 0);
-    var avail = window.innerHeight - top - 10;
-    var fixed = $('litePanel').offsetHeight + $('liteVerify').offsetHeight + V.querySelector('.lite-bar').offsetHeight + 3 * 8;
+    var steps = $('liteSteps').offsetHeight || 0;
+    var avail = window.innerHeight - top - steps - 10;
+    var fixed = 0, n = 0;
+    ['.lite-bar', '#litePanel', '#liteS2', '#liteS3', '#liteVerify'].forEach(function (sel) { var e = V.querySelector(sel); if (e && e.offsetParent) { fixed += e.offsetHeight; n++; } });
+    fixed += n * 8;
     var size = Math.floor(Math.max(200, Math.min(W, avail - fixed)));
     V.style.minHeight = Math.max(0, avail) + 'px';
     var tg = $('liteTg'); tg.style.width = size + 'px'; tg.style.height = size + 'px';
@@ -296,86 +326,458 @@
   window.addEventListener('resize', liteLayout);
   try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { liteLayout(); }); } catch (e) {}
   if (window.ResizeObserver) try { new ResizeObserver(function () { liteLayout(); }).observe($('liteView')); } catch (e) {}
-  function renderLite() {
-    if (!liteView || liteTid !== cur.targetId) liteResetView();
-    var t = tgt();
-    drawTarget(liteSvg, t, 1); liteClamp(); liteApplyView();
-    var g = liteSvg.querySelector('#marks');
-    cur.preds.forEach(function (p, i) { drawShot(g, liteSvg, p, i + 1, 'pred-c', t.pellet); });
-    if (litePreview) previewMark(liteSvg, litePreview, 'pred-c', t);
-    var st = C.computeStats(t, cur.preds), n = st.n;
-    // 總分與 60發預估沿用 Pro 的主數字：整數環數加總（ISSF 資格賽計分），60發預估＝整數平均×60
-    $('lpCount').textContent = n;
-    $('lpSum').textContent = n ? st.total : 0;
-    $('lpEst').textContent = n ? st.proj60 : '—';
-    if (!litePreview) {
-      if (n) liteBig(st.shots[n - 1].dec, '第 ' + n + ' 發預報'); else liteBig(null, '最新預報');
+
+  // --- 繪製 ---
+  function liteDot(g, p, num, cls, r, extra) {
+    var E = +liteSvg.dataset.extent, gg = el('g', extra || {}, g);
+    el('circle', { cx: p.x, cy: -p.y, r: r, 'class': cls, 'stroke-width': Math.max(0.12, E * 0.003) }, gg);
+    if (num != null) {
+      var fs = labelSize(liteSvg);
+      var tx = el('text', { x: p.x, y: -p.y, 'font-size': fs, 'text-anchor': 'middle', 'dominant-baseline': 'central', fill: '#fff', stroke: /pred/.test(cls) ? '#0b3d80' : '#7a0d0d', 'stroke-width': fs * 0.18, 'paint-order': 'stroke', 'font-weight': 'bold', 'font-family': 'Arial,sans-serif' }, gg);
+      tx.textContent = num;
     }
-    ['lpCount', 'lpEst', 'lpSum'].forEach(function (id) { liteFit($(id)); });
-    $('liteUndo').disabled = !n;
+    return gg;
   }
-  // 觸控：單指＝點選（按住可拖曳微調，放開記錄）；雙指＝縮放／平移（不記錄）
-  (function () {
+  function liteResultSel() { return liteRes === 'all' ? 'all' : liteRes === 'cur' ? liteResRound() : liteRes; }
+  function liteResRound() { // 第 3 步預設看「最近一輪有結果的」
+    var k = liteK(); if (LF.pointsOf(cur.actuals, k).length) return k;
+    var d = LF.doneRounds(cur); return d.length ? d[d.length - 1].k : k;
+  }
+  function renderLiteTarget() {
+    if (!liteView || liteTid !== cur.targetId) liteResetView();
+    var t = tgt(), step = liteStep(), k = liteK();
+    drawTarget(liteSvg, t, 1); liteClamp(); liteApplyView();
+    var g = liteSvg.querySelector('#marks'), lines = liteSvg.querySelector('#lines'), E = +liteSvg.dataset.extent, R = t.pellet / 2;
+    if (step === 1) {
+      cur.preds.forEach(function (p) { if (LF.roundOf(p) !== k) liteDot(g, p, null, 'pred-old', R); });
+      LF.pointsOf(cur.preds, k).forEach(function (p, i) { liteDot(g, p, i + 1, 'pred-c', R); });
+      if (litePreview) previewMark(liteSvg, litePreview, 'pred-c', t);
+    } else if (step === 2) {
+      LF.pointsOf(cur.preds, k).forEach(function (p) { liteDot(g, p, null, 'pred-ghost', R); });
+      var n = 0;
+      cur.actuals.forEach(function (a, i) {
+        if (LF.roundOf(a) !== k) return; n++;
+        var un = a.src === 'auto' && a.conf != null && a.conf < 0.5;
+        var gg = liteDot(g, a, n, 'act-c' + (un ? ' act-unsure' : ''), R);
+        if (i === liteSel) el('circle', { cx: a.x, cy: -a.y, r: R + E * 0.014, fill: 'none', 'class': 'lite-selring', 'stroke-width': Math.max(0.2, E * 0.006) }, gg);
+      });
+      if (litePreview) previewMark(liteSvg, litePreview, 'act-c', t);
+    } else {
+      var res = LF.result(t, cur, liteResultSel()), lab = {};
+      res.cmp.pairs.forEach(function (q) {
+        var p = cur.preds[q.predIdx], a = cur.actuals[q.actIdx]; lab[q.actIdx] = q.i;
+        el('line', { x1: a.x, y1: -a.y, x2: p.x, y2: -p.y, 'class': 'lite-pairline', 'stroke-width': Math.max(0.1, E * 0.005) }, lines);
+      });
+      var ks = res.rounds, inSel = function (q) { return ks.indexOf(LF.roundOf(q)) >= 0; };
+      cur.preds.forEach(function (p, i) { if (inSel(p)) liteDot(g, p, i + 1, 'pred-c', R); });
+      var an = 0;
+      cur.actuals.forEach(function (a, i) {
+        if (!inSel(a)) return; an++;
+        var gg = liteDot(g, a, res.hasForecast ? (lab[i] || '?') : an, 'act-c', R);
+        if (i === liteShotSel) el('circle', { cx: a.x, cy: -a.y, r: R + E * 0.014, fill: 'none', 'class': 'lite-selring', 'stroke-width': Math.max(0.2, E * 0.006) }, gg);
+      });
+      if (res.st.n && res.st.advice) { // 群中心十字
+        var ad = res.st.advice, cs = Math.max(1.2, E * 0.03), sw = Math.max(0.15, E * 0.005);
+        el('line', { x1: ad.dx - cs, y1: -ad.dy, x2: ad.dx + cs, y2: -ad.dy, 'class': 'lite-mpi', 'stroke-width': sw * 1.6 }, lines);
+        el('line', { x1: ad.dx, y1: -ad.dy - cs, x2: ad.dx, y2: -ad.dy + cs, 'class': 'lite-mpi', 'stroke-width': sw * 1.6 }, lines);
+      }
+    }
+  }
+  function renderLitePhoto() {
+    var svg = litePh; while (svg.firstChild) svg.removeChild(svg.firstChild);
+    if (!liteShowsPhoto()) return;
+    if (!litePV) { litePV = { cx: lp.w / 2, cy: lp.h / 2, E: Math.max(lp.w, lp.h) }; }
+    zClamp(litePV, photoBounds(), 12);
+    var im = el('image', { x: 0, y: 0, width: lp.w, height: lp.h, preserveAspectRatio: 'none' }, svg);
+    im.setAttributeNS('http://www.w3.org/1999/xlink', 'href', lp.url); im.setAttribute('href', lp.url);
+    var u = Math.max(lp.w, lp.h) / 300;
+    lp.calPts.forEach(function (q) { el('circle', { cx: q.px, cy: q.py, r: u * 1.6, fill: 'none', stroke: '#00e5ff', 'stroke-width': 2.5, 'vector-effect': 'non-scaling-stroke' }, svg); });
+    if (lp.Tinv) {
+      var Ti = lp.Tinv, t = tgt(), k = liteK();
+      for (var n = 1; n <= 10; n++) el('path', { d: projCircle(Ti, t.ringDiam[n] / 2), fill: 'none', stroke: '#39ff14', 'stroke-width': 1.2, 'vector-effect': 'non-scaling-stroke', opacity: 0.7 }, svg);
+      var RR = t.ringDiam[1] / 2 + 2;
+      el('path', { d: projLine(Ti, 0, -RR, 0, RR), stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, svg);
+      el('path', { d: projLine(Ti, -RR, 0, RR, 0), stroke: '#ff00ff', 'stroke-width': 1.5, 'stroke-dasharray': '6 4', 'vector-effect': 'non-scaling-stroke' }, svg);
+      var m = 0;
+      cur.actuals.forEach(function (a, i) {
+        if (LF.roundOf(a) !== k) return; m++;
+        var un = a.src === 'auto' && a.conf != null && a.conf < 0.5, sel = i === liteSel;
+        el('path', { d: projCircle(Ti, t.pellet / 2, a.x, a.y, 24), fill: sel ? 'rgba(255,214,10,.35)' : 'rgba(255,40,40,.25)', stroke: sel ? '#ffd60a' : un ? '#ffb300' : '#ff2828', 'stroke-width': sel ? 3.5 : 2.5, 'stroke-dasharray': un && !sel ? '4 3' : '', 'vector-effect': 'non-scaling-stroke' }, svg);
+        var pp = C.applyAffine(Ti, a.x, a.y);
+        var tx = el('text', { x: pp.x + u * 2.4, y: pp.y - u * 2.4, 'font-size': u * 4, fill: un ? '#ffb300' : '#ffeb3b', stroke: '#000', 'stroke-width': u * 0.6, 'paint-order': 'stroke', 'font-weight': 'bold' }, svg);
+        tx.textContent = m + (un ? '?' : '');
+      });
+    }
+    liteApplyView();
+  }
+  // --- 主畫面 ---
+  var GO_LBL = { 1: '下一步：拍照', 2: '看結果', 3: '繼續下一輪' };
+  function renderLite() {
+    var t = tgt(), step = liteStep(), k = liteK(), V = $('liteView');
+    V.dataset.step = step;
+    document.body.dataset.liteStep = step;
+    var photoOn = liteShowsPhoto();
+    litePh.toggleAttribute('hidden', !photoOn); liteSvg.style.visibility = photoOn ? 'hidden' : ''; // SVG 元素沒有 .hidden 屬性，要直接改 attribute
+    renderLiteTarget(); renderLitePhoto();
+    // 步驟列
+    var rp = LF.pointsOf(cur.preds, k).length, ra = LF.pointsOf(cur.actuals, k).length, ready3 = LF.stepReady(cur, 3);
+    document.querySelectorAll('#liteSteps [data-step]').forEach(function (b) {
+      var s = +b.dataset.step, on = s === step && document.body.classList.contains('on-predict');
+      b.classList.toggle('on', on); b.setAttribute('aria-current', on ? 'step' : 'false');
+      b.classList.toggle('done', (s === 1 && rp > 0) || (s === 2 && ra > 0));
+      b.classList.toggle('dim', s === 3 && !ready3);
+    });
+    $('liteRoundBadge').textContent = '第 ' + (k + 1) + ' 輪';
+    $('liteRoundBadge').classList.toggle('show', k > 0 || LF.doneRounds(cur).length > 0);
+    // 主按鈕
+    var go = GO_LBL[step];
+    if (step === 1 && !rp) go = ra ? '下一步：拍照' : '跳過預報，直接拍照';
+    $('liteGoLbl').textContent = go;
+    $('liteVerify').classList.toggle('soft', step === 2 && !ra);
+    // 工具列
+    $('liteUndo').hidden = step === 3;
+    $('liteUndo').disabled = step === 1 ? !LF.canUndoPred(cur) : !liteUndo2;
+    var st = C.computeStats(t, cur.preds), n = st.n;
+    if (step === 1) {
+      $('liteHint').textContent = (k > 0 ? '第 ' + (k + 1) + ' 輪・本輪 ' + rp + ' 發・' : '') + '點靶面記錄落點・雙指縮放';
+      setPanelLabels('最新預報', '發數', '60發預估', '總分');
+      // 總分與 60發預估沿用 Pro 的主數字：整數環數加總（ISSF 資格賽計分），60發預估＝整數平均×60
+      $('lpCount').textContent = n; $('lpSum').textContent = n ? st.total : 0; $('lpEst').textContent = n ? st.proj60 : '—';
+      if (!litePreview) { if (n) liteBig(st.shots[n - 1].dec, '第 ' + n + ' 發預報'); else liteBig(null, '最新預報'); }
+    } else if (step === 2) renderLiteS2(rp, ra);
+    else renderLiteS3();
+    ['lpCount', 'lpEst', 'lpSum'].forEach(function (id) { liteFit($(id)); });
+    liteLayout();
+  }
+  function setPanelLabels(b, c, e, s) { $('lpBigLbl').textContent = b; $('lpCntLbl').textContent = c; $('lpEstLbl').textContent = e; $('lpSumLbl').textContent = s; }
+  function renderLiteS2(rp, ra) {
+    var info = '', warn = false, has = liteHasPhoto();
+    document.querySelectorAll('#liteViewSeg button').forEach(function (b) { var on = b.dataset.v === liteVMode; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.disabled = b.dataset.v === 'photo' && !has; });
+    $('liteViewSeg').hidden = !has;
+    $('liteBusy').hidden = !(has && lp.busy);
+    $('liteEmpty').hidden = !!(has || ra);
+    $('liteS2').classList.toggle('has-photo', !!has || ra > 0);
+    if (has && lp.busy) info = '分析照片中…';
+    else if (has && lp.mode === 'manual' && lp.calPts.length < 5) {
+      var nm = ['靶心', '黑區邊緣的「上緣」', '黑區邊緣的「右緣」', '黑區邊緣的「下緣」', '黑區邊緣的「左緣」'];
+      info = '手動校正 ' + (lp.calPts.length + 1) + '/5：在照片上點<b>' + nm[lp.calPts.length] + '</b>（可雙指放大）';
+    } else if (has && !lp.T) { info = '⚠️ 自動校正失敗（' + esc(lp.info && lp.info.reason || '原因不明') + '）。按「手動校正」，或重拍一張正對、清楚的照片。'; warn = true; }
+    else if (!has && !ra) info = rp ? '拍下這一輪的靶紙或電子靶螢幕（本輪預報 <b>' + rp + '</b> 發）' : '沒有預報也可以：拍照後只顯示成績分析';
+    else {
+      info = '偵測到 <b>' + ra + '</b> 個彈孔' + (rp ? '・本輪預報 ' + rp + ' 發' : '');
+      if (rp && ra !== rp) { info += '<br>⚠️ 數量不同：重疊的彈孔可能算少，請在靶面上補點或刪除'; warn = true; }
+      else info += '<br>點空白＝新增・按住彈孔可拖曳・選取後可刪除';
+    }
+    $('liteS2Info').innerHTML = info; $('liteS2Info').classList.toggle('warn', warn);
+    $('liteHint').textContent = liteSel >= 0 ? '已選取 1 個彈孔' : liteVMode === 'photo' && has ? '綠圈要對齊靶環・紫線穿過數字' : '第 ' + (liteK() + 1) + ' 輪・實際彈著';
+    $('liteDelHole').disabled = liteSel < 0;
+    var hasT = has && !!lp.T;
+    $('liteRotL').disabled = $('liteRotR').disabled = $('liteRedetect').disabled = !hasT;
+    $('liteManual').disabled = !has;
+  }
+  function renderLiteS3() {
+    var t = tgt(), sel = liteResultSel(), res = LF.result(t, cur, sel), st = res.st, cmp = res.cmp;
+    var rl = LF.doneRounds(cur), chips = '';
+    if (rl.length > 1 || (rl.length === 1 && rl[0].k !== liteK() && LF.pointsOf(cur.actuals, liteK()).length)) {
+      rl.forEach(function (r) { chips += '<button type="button" data-r="' + r.k + '" class="' + (sel === r.k ? 'on' : '') + '">第 ' + (r.k + 1) + ' 輪<small>' + r.acts + '發</small></button>'; });
+      chips += '<button type="button" data-r="all" class="' + (sel === 'all' ? 'on' : '') + '">全部<small>' + LF.pointsOf(cur.actuals, -1).length + '</small></button>';
+    }
+    $('liteRounds').innerHTML = chips; $('liteRounds').hidden = !chips;
+    var tot = 0; rl.forEach(function (r) { tot += r.acts; }); var ae = $('liteRounds').querySelector('[data-r=all] small'); if (ae) ae.textContent = tot + '發';
+    $('liteRounds').querySelectorAll('button').forEach(function (b) { b.onclick = function () { liteRes = b.dataset.r === 'all' ? 'all' : +b.dataset.r; liteShotSel = -1; renderLite(); }; });
+    var lbl = sel === 'all' ? '全部' : '第 ' + (sel + 1) + ' 輪';
+    if (!st.n) { liteBig(null, lbl + '・實際總分'); $('lpCount').textContent = 0; $('lpEst').textContent = '—'; $('lpSum').textContent = '—'; $('liteHint').textContent = '還沒有彈孔，先到「2 拍照」'; }
+    else {
+      liteBig(st.avgDec, lbl + '・實際總分', String(st.total));
+      $('lpCount').textContent = st.n;
+      if (res.hasForecast && cmp.m) {
+        setPanelLabels(lbl + '・實際總分', '發數', '平均誤差 mm', '預報總分');
+        $('lpEst').textContent = f1(cmp.meanErr); $('lpSum').textContent = res.pst.total;
+        var lv = LF.accuracyLevel(t, cmp);
+        $('liteHint').textContent = '預報' + (cmp.biasDir === '置中' ? '沒有明顯偏向' : '偏' + cmp.biasDir + ' ' + f1(cmp.biasLen) + 'mm') + '・環數對 ' + Math.round(cmp.sameRingRate * 100) + '%・' + lv.label;
+      } else {
+        setPanelLabels(lbl + '・實際總分', '發數', '60發預估', '小數總分');
+        $('lpEst').textContent = st.proj60; $('lpSum').textContent = f1(st.totalDec);
+        $('liteHint').textContent = st.advice ? '群中心 ' + (st.advice.centered ? '置中' : st.advice.offsetDir + ' ' + f1(st.advice.dist) + 'mm') + (st.n > 1 ? '・群大小 ' + f1(st.groupSize) + 'mm' : '') : '成績分析';
+      }
+    }
+    if (liteShotSel >= 0 && cur.actuals[liteShotSel]) {
+      var a = cur.actuals[liteShotSel], sa = C.scoreShot(t, a.x, a.y), pq = res.cmp.pairs.filter(function (q) { return q.actIdx === liteShotSel; })[0];
+      $('liteHint').textContent = pq ? '第 ' + pq.i + ' 發：預報 ' + f1(pq.pred.dec) + ' → 實際 ' + f1(pq.act.dec) + '，差 ' + f1(pq.err) + 'mm' : '這一發：' + f1(sa.dec) + '（' + offsetText(a.x, a.y) + '）';
+    }
+    if (document.activeElement !== $('liteName')) $('liteName').value = cur.name || '';
+    var Code = window.BMCode, rec = LF.toAnalysisRecord(cur), code = null;
+    try { code = rec && Code ? Code.encode(rec) : null; } catch (e) { code = null; }
+    $('liteCopyCode').disabled = !code;
+    $('liteCodeInfo').textContent = code ? '紀錄碼 ' + code.length + ' 字（含全部 ' + rec.sheets.length + ' 輪的實際彈孔，不含照片）' : '';
+    $('liteDetail').innerHTML = liteDetailHTML(t, res, lbl);
+  }
+  function liteDetailHTML(t, res, lbl) {
+    var st = res.st, cmp = res.cmp, h = '', card = function (title, body) { return '<div class="lite-card"><div class="lite-ct">' + title + '</div>' + body + '</div>'; };
+    if (!st.n) return '';
+    var kv = function (k, v, s) { return '<div class="lite-kv"><span>' + k + '</span><b>' + v + '</b>' + (s ? '<small>' + s + '</small>' : '') + '</div>'; };
+    if (res.hasForecast) {
+      if (cmp.m) {
+        var lv = LF.accuracyLevel(t, cmp);
+        h += card('🎯 預報準不準（' + lbl + '）', '<div class="lite-acc lv' + lv.level + '">' + lv.label + '<small>平均差 ' + f1(lv.rings) + ' 個環寬</small></div>' +
+          kv('平均預報誤差', f2(cmp.meanErr) + ' mm', '最大：第 ' + cmp.maxErrShot + ' 發 ' + f1(cmp.maxErr) + 'mm') +
+          kv('系統性偏向', cmp.biasDir === '置中' ? '無明顯偏向' : '預報偏' + cmp.biasDir, offsetText(cmp.biasX, cmp.biasY)) +
+          kv('環數判斷正確', Math.round(cmp.sameRingRate * 100) + '%', '平均小數分差 ' + f2(cmp.meanAbsDecDiff)) +
+          (cmp.unpairedPred || cmp.unpairedAct ? kv('沒配對到', (cmp.unpairedPred ? '預報 ' + cmp.unpairedPred + ' 發' : '') + (cmp.unpairedAct ? ' 彈孔 ' + cmp.unpairedAct + ' 個' : ''), '預報發數和彈孔數不同') : '') +
+          '<div class="lite-note">分級是 WRbeta 的練習參考（平均誤差 ≤0.5 環寬＝很準、≤1 不錯、≤2 普通），不是 ISSF 規則。照片看不出射擊順序，用「總距離最短」配對。</div>');
+      } else h += card('🎯 預報準不準', '<div>這一輪沒有可配對的預報與彈孔。</div>');
+    }
+    h += card('📊 實際成績（' + lbl + '）', kv('總分', st.total, '小數 ' + f1(st.totalDec)) + kv('平均', f2(st.avgDec), '整數 ' + f2(st.avg)) + kv('60發預估', st.proj60, '小數 ' + f1(st.proj60Dec)) +
+      kv(t.innerTen.label + '數', st.inner) + (st.n > 1 ? kv('彈著群大小', f1(st.groupSize) + ' mm') : '') +
+      (st.advice ? kv('群中心', st.advice.centered ? '置中' : st.advice.offsetDir + ' ' + f1(st.advice.dist) + 'mm', esc(st.advice.text)) : '') +
+      (st.n > 1 ? kv('穩定度（標準差）', f2(st.sdDec)) : ''));
+    if (res.perRound.length > 1) {
+      var tb = '<table class="lite-tb"><tr><th>輪</th><th>預報</th><th>彈孔</th><th>總分</th><th>小數</th></tr>';
+      res.perRound.forEach(function (r) { tb += '<tr><td>' + (r.k + 1) + '</td><td>' + r.preds + '</td><td>' + r.acts + '</td><td>' + r.st.total + '</td><td>' + f1(r.st.totalDec) + '</td></tr>'; });
+      h += card('🗂 每輪小計', tb + '</table>');
+    }
+    if (cmp.m) {
+      var pt = '<table class="lite-tb"><tr><th>#</th><th>預報</th><th>實際</th><th>差距</th></tr>';
+      cmp.pairs.forEach(function (q) { pt += '<tr><td>' + q.i + '</td><td>' + f1(q.pred.dec) + '</td><td>' + f1(q.act.dec) + '</td><td>' + f1(q.err) + 'mm</td></tr>'; });
+      h += card('逐發對照', pt + '</table>');
+    }
+    return h;
+  }
+
+  // --- 觸控：單指＝點選（按住可拖曳，放開才記錄）；雙指＝縮放／平移；滾輪縮放（電腦） ---
+  function attachZoom(svg, S) {
     var ptrs = {}, tapId = null, tapOk = false, pinch = null;
     function count() { return Object.keys(ptrs).length; }
-    function liftPx() { return $('liftCursor').checked ? 60 : 0; }
-    function pos(ev) { return svgPoint(liteSvg, ev.clientX, ev.clientY - liftPx()); }
-    function showPreview(p) {
-      litePreview = p; previewMark(liteSvg, p, 'pred-c', tgt());
-      if (p) { var s = C.scoreShot(tgt(), p.x, p.y); liteBig(s.dec, '第 ' + (cur.preds.length + 1) + ' 發・放開記錄'); }
-    }
+    function raw(ev, lift) { var pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY - (lift || 0); var q = pt.matrixTransform(svg.getScreenCTM().inverse()); return { x: q.x, y: q.y }; }
     function pinchStart() {
-      var ids = Object.keys(ptrs), a = ptrs[ids[0]], b = ptrs[ids[1]];
-      pinch = { d: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, v: { cx: liteView.cx, cy: liteView.cy, E: liteView.E } };
+      var ids = Object.keys(ptrs), a = ptrs[ids[0]], b = ptrs[ids[1]], v = S.view();
+      pinch = { d: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, v: { cx: v.cx, cy: v.cy, E: v.E } };
     }
     function pinchMove() {
       var ids = Object.keys(ptrs); if (ids.length < 2 || !pinch) return;
-      var a = ptrs[ids[0]], b = ptrs[ids[1]], r = liteSvg.getBoundingClientRect();
+      var a = ptrs[ids[0]], b = ptrs[ids[1]], r = svg.getBoundingClientRect(), v = S.view();
       var d = Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, v0 = pinch.v;
       var px = v0.cx - v0.E / 2 + (pinch.mx - r.left) * v0.E / r.width, py = v0.cy - v0.E / 2 + (pinch.my - r.top) * v0.E / r.height;
-      var E = v0.E * pinch.d / d; liteView.E = E; liteClamp(); E = liteView.E;
-      liteView.cx = px + E / 2 - (mx - r.left) * E / r.width; liteView.cy = py + E / 2 - (my - r.top) * E / r.height;
-      liteClamp(); liteApplyView();
+      v.E = v0.E * pinch.d / d; S.clamp(); var E = v.E;
+      v.cx = px + E / 2 - (mx - r.left) * E / r.width; v.cy = py + E / 2 - (my - r.top) * E / r.height;
+      S.clamp(); liteApplyView();
     }
-    liteSvg.addEventListener('pointerdown', function (ev) {
-      ev.preventDefault(); try { liteSvg.setPointerCapture(ev.pointerId); } catch (e) {}
+    svg.addEventListener('pointerdown', function (ev) {
+      if (!S.active()) return;
+      ev.preventDefault(); try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
       ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
       var n = count();
-      if (n === 1) { tapId = ev.pointerId; tapOk = true; showPreview(pos(ev)); }
-      else { if (tapOk) { tapOk = false; showPreview(null); renderLite(); } if (n === 2) pinchStart(); }
+      if (n === 1) { tapId = ev.pointerId; tapOk = true; S.down(raw(ev, S.lift())); }
+      else { if (tapOk) { tapOk = false; S.cancel(); } if (n === 2) pinchStart(); }
     });
-    liteSvg.addEventListener('pointermove', function (ev) {
+    svg.addEventListener('pointermove', function (ev) {
       if (!ptrs[ev.pointerId]) return; ev.preventDefault();
       ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
-      if (pinch) pinchMove(); else if (tapOk && ev.pointerId === tapId) showPreview(pos(ev));
+      if (pinch) pinchMove(); else if (tapOk && ev.pointerId === tapId) S.move(raw(ev, S.lift()));
     });
     function end(ev, cancel) {
       if (!ptrs[ev.pointerId]) return;
-      var commit = !cancel && tapOk && ev.pointerId === tapId && !pinch, p = commit ? pos(ev) : null;
+      var commit = !cancel && tapOk && ev.pointerId === tapId && !pinch, p = commit ? raw(ev, S.lift()) : null;
       delete ptrs[ev.pointerId];
-      if (ev.pointerId === tapId) { tapOk = false; tapId = null; if (litePreview) showPreview(null); }
+      if (ev.pointerId === tapId) { tapOk = false; tapId = null; if (!commit) S.cancel(); }
       if (count() < 2 && pinch) { pinch = null; renderLite(); }
       if (!count()) pinch = null;
-      if (commit) {
-        var half = liteCard() / 2 + 1; if (Math.abs(p.x) > half || Math.abs(p.y) > half) { renderLite(); return; }
-        cur.preds.push({ x: C.round(p.x, 3), y: C.round(p.y, 3), t: Date.now() }); persist(); renderPredict(); renderCompare();
-        if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
-      } else if (!count()) renderLite();
+      if (commit) S.up(p);
     }
-    liteSvg.addEventListener('pointerup', function (ev) { end(ev, false); });
-    liteSvg.addEventListener('pointercancel', function (ev) { end(ev, true); });
-    // 電腦：滾輪縮放
-    liteSvg.addEventListener('wheel', function (ev) {
-      ev.preventDefault(); var r = liteSvg.getBoundingClientRect(), v = liteView;
+    svg.addEventListener('pointerup', function (ev) { end(ev, false); });
+    svg.addEventListener('pointercancel', function (ev) { end(ev, true); });
+    svg.addEventListener('wheel', function (ev) {
+      if (!S.active()) return;
+      ev.preventDefault(); var r = svg.getBoundingClientRect(), v = S.view();
       var px = v.cx - v.E / 2 + (ev.clientX - r.left) * v.E / r.width, py = v.cy - v.E / 2 + (ev.clientY - r.top) * v.E / r.height;
-      v.E *= ev.deltaY > 0 ? 1.15 : 1 / 1.15; liteClamp();
+      v.E *= ev.deltaY > 0 ? 1.15 : 1 / 1.15; S.clamp();
       v.cx = px + v.E / 2 - (ev.clientX - r.left) * v.E / r.width; v.cy = py + v.E / 2 - (ev.clientY - r.top) * v.E / r.height;
-      liteClamp(); renderLite();
+      S.clamp(); renderLite();
     }, { passive: false });
-  })();
-  $('liteFit').onclick = function () { liteResetView(); renderLite(); };
-  $('liteUndo').onclick = function () { $('undoPred').onclick(); };
-  $('liteVerify').onclick = function () { showTab('compare'); window.scrollTo(0, 0); };
+  }
+  function vib() { if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {} }
+  function liteInCard(p) { var half = liteCard() / 2 + 1; return Math.abs(p.x) <= half && Math.abs(p.y) <= half; }
+  // 第 2 步編輯（靶面與照片共用，座標一律 mm）：點空白＝新增；按住彈孔＝選取＋拖曳
+  var holeEdit = {
+    down: function (m) {
+      var k = liteK(), i = LF.nearest(cur.actuals, k, m, tgt().pellet / 2 * 1.25);
+      if (i >= 0) { var a = cur.actuals[i]; liteDrag = { i: i, ox: a.x - m.x, oy: a.y - m.y, from: { x: a.x, y: a.y }, moved: false, wasSel: liteSel === i }; liteSel = i; litePreview = null; }
+      else { liteDrag = null; litePreview = m; }
+      renderLite();
+    },
+    move: function (m) {
+      if (liteDrag) {
+        var a = cur.actuals[liteDrag.i], nx = m.x + liteDrag.ox, ny = m.y + liteDrag.oy;
+        if (!liteDrag.moved && Math.hypot(nx - liteDrag.from.x, ny - liteDrag.from.y) < 0.4) return;
+        liteDrag.moved = true; a.x = C.round(nx, 3); a.y = C.round(ny, 3); a.src = 'manual'; delete a.conf;
+      } else litePreview = m;
+      renderLite();
+    },
+    up: function (m) {
+      if (liteDrag) {
+        var d = liteDrag; liteDrag = null;
+        if (d.moved) { liteUndo2 = { op: 'move', q: cur.actuals[d.i], from: d.from }; persist(); vib(); }
+        else if (d.wasSel) liteSel = -1; // 再點一次＝取消選取
+        renderLite(); return;
+      }
+      litePreview = null;
+      if (!liteInCard(m)) { renderLite(); return; }
+      var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual', r: liteK() };
+      cur.actuals.push(q); liteSel = cur.actuals.length - 1; liteUndo2 = { op: 'add', q: q };
+      persist(); vib(); renderLite(); toast('已新增一個彈孔');
+    },
+    cancel: function () {
+      if (liteDrag && liteDrag.moved) { var a = cur.actuals[liteDrag.i]; a.x = liteDrag.from.x; a.y = liteDrag.from.y; }
+      liteDrag = null; litePreview = null; renderLite();
+    }
+  };
+  function liftPx() { return $('liftCursor').checked ? 60 : 0; }
+  attachZoom(liteSvg, {
+    active: function () { return !liteShowsPhoto(); },
+    view: function () { return liteView; }, clamp: liteClamp,
+    lift: function () { return liteStep() === 1 ? liftPx() : 0; },
+    down: function (r) { var m = { x: r.x, y: -r.y }; if (liteStep() === 1) this.move(r); else if (liteStep() === 2) holeEdit.down(m); },
+    move: function (r) {
+      var m = { x: r.x, y: -r.y }, step = liteStep();
+      if (step === 1) { litePreview = m; previewMark(liteSvg, m, 'pred-c', tgt()); var s = C.scoreShot(tgt(), m.x, m.y); liteBig(s.dec, '第 ' + (cur.preds.length + 1) + ' 發・放開記錄'); }
+      else if (step === 2) holeEdit.move(m);
+    },
+    up: function (r) {
+      var m = { x: r.x, y: -r.y }, step = liteStep();
+      if (step === 1) {
+        litePreview = null;
+        if (!liteInCard(m)) { renderLite(); return; }
+        var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), t: Date.now() }; if (liteK() > 0) q.r = liteK();
+        cur.preds.push(q); persist(); renderPredict(); renderCompare(); vib();
+      } else if (step === 2) holeEdit.up(m);
+      else { // 第 3 步：點一發看它的預報與實際
+        var res = LF.result(tgt(), cur, liteResultSel()), bi = -1, bd = Infinity;
+        cur.actuals.forEach(function (a, i) { if (res.rounds.indexOf(LF.roundOf(a)) < 0) return; var d = Math.hypot(a.x - m.x, a.y - m.y); if (d < bd) { bd = d; bi = i; } });
+        liteShotSel = bd <= tgt().pellet * 1.5 && bi !== liteShotSel ? bi : -1; renderLite();
+      }
+    },
+    cancel: function () { if (liteStep() === 2) holeEdit.cancel(); else { litePreview = null; renderLite(); } }
+  });
+  attachZoom(litePh, {
+    active: function () { return liteShowsPhoto(); },
+    view: function () { return litePV; }, clamp: function () { zClamp(litePV, photoBounds(), 12); },
+    lift: function () { return 0; },
+    toMM: function (r) { return lp.T ? C.applyAffine(lp.T, r.x, r.y) : null; },
+    down: function (r) { if (lp.busy || (lp.mode === 'manual' && lp.calPts.length < 5)) return; var m = this.toMM(r); if (m) holeEdit.down(m); },
+    move: function (r) { if (lp.busy || (lp.mode === 'manual' && lp.calPts.length < 5)) return; var m = this.toMM(r); if (m) holeEdit.move(m); },
+    up: function (r) {
+      if (lp.busy) return;
+      if (lp.mode === 'manual' && lp.calPts.length < 5) {
+        var tt = C.calibTargets(tgt(), tgt().blackFromRing)[lp.calPts.length];
+        lp.calPts.push({ px: r.x, py: r.y, x: tt.x, y: tt.y });
+        if (lp.calPts.length === 5) { lp.T = C.fitAffine(lp.calPts); if (!lp.T) { toast('校正失敗，請重新點'); lp.calPts = []; } else { lp.rotDeg = 0; liteProcess(); return; } }
+        renderLite(); return;
+      }
+      var m = this.toMM(r); if (m) holeEdit.up(m);
+    },
+    cancel: function () { holeEdit.cancel(); }
+  });
+
+  // --- 第 2 步：照片（沿用自動校正＋找彈孔；本輪的彈孔只換掉本輪） ---
+  function liteLoad(file) {
+    if (!file) return;
+    if (!pickIsImage(file)) { pickError(file); return; }
+    var url = URL.createObjectURL(file), im = new Image();
+    im.onload = function () {
+      if (lp && lp.url) try { URL.revokeObjectURL(lp.url); } catch (e) {}
+      lp = { sid: cur.id, rk: liteK(), url: url, img: im, w: im.naturalWidth, h: im.naturalHeight, name: file.name || '', mode: 'auto', calPts: [], T: null, Tinv: null, g: null, rotDeg: 0, busy: false, info: null };
+      litePV = null; liteSel = -1; liteUndo2 = null; liteVMode = 'photo';
+      liteProcess();
+    };
+    im.onerror = function () { pickError(file); };
+    im.src = url;
+  }
+  function liteProcess() {
+    var P = lp, V = window.BMVision; if (!P) return;
+    P.busy = true; renderLite();
+    setTimeout(function () {
+      try {
+        if (!P.g) {
+          var maxS = 2000, k = Math.min(1, maxS / Math.max(P.w, P.h)), cw = Math.round(P.w * k), ch = Math.round(P.h * k);
+          var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+          var ctx = cv.getContext('2d'); ctx.drawImage(P.img, 0, 0, cw, ch);
+          var idata = ctx.getImageData(0, 0, cw, ch).data; P.g = V.grayFromRGBA(idata, cw, ch); P.chroma = V.chromaFromRGBA(idata, cw, ch); P.gw = cw; P.gh = ch; P.k = cw / P.w;
+        }
+        var t = tgt();
+        if (P.mode === 'auto') {
+          var res = V.calibrate(P.g, P.gw, P.gh, t); P.info = res; P.rotDeg = 0;
+          if (res.ok) { P.T = C.scaleT(res.T, P.k); P.T.rms = res.rmsMm; } else P.T = null;
+        }
+        if (P.T) {
+          P.Tinv = C.invertAffine(P.T);
+          var det = V.detectHoles(P.g, P.gw, P.gh, C.scaleT(P.T, 1 / P.k), t, +$('liteSens').value, P.chroma);
+          LF.setRoundActuals(cur, P.rk, (det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; }));
+          cur.calib = { mode: P.mode, rms: C.round(P.T.rms || 0, 3), at: Date.now() };
+          cur.rounds = cur.rounds || []; cur.rounds[P.rk] = { at: new Date().toISOString(), photo: { w: P.w, h: P.h, name: P.name }, calib: { mode: P.mode, rms: C.round(P.T.rms || 0, 3) } };
+          persist();
+          var rp = LF.pointsOf(cur.preds, P.rk).length, ra = LF.pointsOf(cur.actuals, P.rk).length;
+          liteVMode = rp && ra !== rp ? 'photo' : 'target'; // 數量對得上就直接看靶面，對不上留在照片方便檢查
+        }
+      } catch (e) { P.T = null; P.info = { reason: '分析錯誤：' + e.message }; }
+      P.busy = false; liteSel = -1; liteUndo2 = null; renderLite(); renderCompare();
+    }, 30);
+  }
+  ['liteCam', 'litePick', 'liteFile'].forEach(function (id) { $(id).onchange = function () { liteLoad(this.files[0]); this.value = ''; }; });
+  document.querySelectorAll('#liteViewSeg button').forEach(function (b) { b.onclick = function () { liteVMode = b.dataset.v; litePreview = null; renderLite(); }; });
+  $('liteDelHole').onclick = function () {
+    if (liteSel < 0 || !cur.actuals[liteSel]) return;
+    var q = cur.actuals.splice(liteSel, 1)[0]; liteUndo2 = { op: 'del', q: q, i: liteSel }; liteSel = -1; persist(); renderLite(); renderCompare(); toast('已刪除一個彈孔');
+  };
+  function liteRotate(deg) {
+    if (!lp || !lp.T) return;
+    var th = deg * Math.PI / 180, c = Math.cos(th), s = Math.sin(th), rms = lp.T.rms, k = lp.rk;
+    lp.T = window.BMVision.rotateAffine(lp.T, th); lp.T.rms = rms; lp.Tinv = C.invertAffine(lp.T); lp.rotDeg += deg;
+    cur.actuals = cur.actuals.map(function (p) { return LF.roundOf(p) === k ? Object.assign({}, p, { x: C.round(c * p.x - s * p.y, 3), y: C.round(s * p.x + c * p.y, 3) }) : p; });
+    liteUndo2 = null; persist(); renderLite(); toast('已轉 ' + lp.rotDeg + '°');
+  }
+  $('liteRotL').onclick = function () { liteRotate(-1); }; $('liteRotR').onclick = function () { liteRotate(1); };
+  $('liteRedetect').onclick = function () { if (lp && lp.T) liteProcess(); };
+  $('liteSens').onchange = function () { if (lp && lp.T) liteProcess(); };
+  $('liteManual').onclick = function () {
+    if (!lp) return;
+    if (lp.mode === 'manual' && lp.calPts.length < 5) { lp.mode = 'auto'; lp.calPts = []; liteProcess(); return; } // 再按一次＝回到自動
+    lp.mode = 'manual'; lp.calPts = []; lp.T = null; lp.Tinv = null; liteVMode = 'photo'; renderLite();
+  };
+  // --- 共用按鈕 ---
+  $('liteFit').onclick = function () { if (liteShowsPhoto()) litePV = null; else liteResetView(); renderLite(); };
+  $('liteUndo').onclick = function () {
+    if (liteStep() === 1) { if (LF.canUndoPred(cur)) { cur.preds.pop(); persist(); renderPredict(); renderCompare(); } return; }
+    var u = liteUndo2; if (!u) return;
+    if (u.op === 'add') { var i = cur.actuals.indexOf(u.q); if (i >= 0) cur.actuals.splice(i, 1); }
+    else if (u.op === 'del') cur.actuals.splice(Math.min(u.i, cur.actuals.length), 0, u.q);
+    else if (u.op === 'move') { u.q.x = u.from.x; u.q.y = u.from.y; }
+    liteUndo2 = null; liteSel = -1; persist(); renderLite(); renderCompare();
+  };
+  function setLiteStep(s, quiet) {
+    if (s === 3 && !LF.stepReady(cur, 3)) { toast('先在「2 拍照」拍下靶紙，才有結果'); s = 2; }
+    if (cur.liteStep !== s) { cur.liteStep = s; persist(); }
+    litePreview = null; liteDrag = null; if (s !== 2) liteSel = -1; if (s === 3) { liteRes = 'cur'; liteShotSel = -1; }
+    if (!document.body.classList.contains('on-predict')) showTab('predict');
+    renderLite(); if (!quiet) window.scrollTo(0, 0);
+  }
+  $('liteVerify').onclick = function () {
+    var s = liteStep();
+    if (s === 1) setLiteStep(2);
+    else if (s === 2) { if (!LF.pointsOf(cur.actuals, liteK()).length) { toast('還沒有彈孔：先拍照，或在靶面上點實際彈著'); return; } setLiteStep(3); }
+    else { var k = LF.nextRound(cur); lp = null; liteUndo2 = null; liteVMode = 'target'; liteResetView(); persist(); setLiteStep(1); toast('第 ' + (k + 1) + ' 輪開始：預報 → 拍照 → 結果'); }
+  };
+  document.querySelectorAll('#liteSteps [data-step]').forEach(function (b) { b.onclick = function () { setLiteStep(+b.dataset.step); }; });
+  $('liteName').onchange = function () { cur.name = this.value.trim().slice(0, 60); persist(); renderLite(); toast('名稱已存'); };
+  $('liteCopyCode').onclick = function () {
+    var Code = window.BMCode, rec = LF.toAnalysisRecord(cur), code = rec && Code && Code.encode(rec);
+    if (!code) { toast('還沒有可複製的彈孔'); return; }
+    copyText(code, '已複製紀錄碼（' + code.length + ' 字）');
+  };
+  $('liteFinish').onclick = function () {
+    var n = cur.preds.length + cur.actuals.length;
+    function go() { cur.liteStep = 1; persist(); startNew(); lp = null; liteUndo2 = null; liteVMode = 'target'; cur.liteStep = 1; renderLite(); toast('已存到「紀錄」，開始新的一組'); }
+    if (n) ask('這一組已自動存到「紀錄」。開始新的一組？', go); else go();
+  };
 
   // ---------- Pro / Lite 模式切換（記在 prefs，存不了就只在記憶體） ----------
   function setMode(m, quiet) {
@@ -383,6 +785,7 @@
     document.body.classList.toggle('lite', m === 'lite');
     document.querySelectorAll('#modeToggle button').forEach(function (b) { var on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     if (prefs.ui !== m) { prefs.ui = m; savePrefs(); }
+    if (m === 'lite' && !document.body.classList.contains('on-predict') && document.querySelector('.tab.active#tab-compare')) showTab('predict'); // Lite 沒有對照分頁（併入第 2、3 步）
     if (!quiet) { renderPredict(); liteLayout(); toast(m === 'lite' ? '已切換到 Lite 介面' : '已切換到 Pro 介面'); }
   }
   document.querySelectorAll('#modeToggle button').forEach(function (b) { b.onclick = function () { setMode(b.dataset.mode); }; });
@@ -393,6 +796,23 @@
     function close() { sh.hidden = true; document.body.classList.remove('lt-sheet-open'); $('liteThemeBtn').focus({ preventScroll: true }); }
     $('liteThemeBtn').onclick = function () { sh.hidden = false; document.body.classList.add('lt-sheet-open'); var b = sh.querySelector('.on') || sh.querySelector('[data-th]'); if (b) b.focus({ preventScroll: true }); };
     sh.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { setLiteTheme(b.dataset.th); liteLayout(); toast('外觀：' + names[b.dataset.th]); close(); }; });
+    sh.querySelector('.lt-sheet-x').onclick = close;
+    sh.addEventListener('click', function (e) { if (e.target === sh) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sh.hidden) close(); });
+  })();
+  // Lite 底部「更多」：外觀、紀錄、多張分析、說明與帳號、切到 Pro（Lite 隱藏上方分頁列，都從這裡進）
+  (function () {
+    var sh = $('liteMoreSheet');
+    function close() { sh.hidden = true; }
+    $('liteMoreBtn').onclick = function () { sh.hidden = false; var b = sh.querySelector('[data-act]'); if (b) b.focus({ preventScroll: true }); };
+    sh.querySelectorAll('[data-act]').forEach(function (b) {
+      b.onclick = function () {
+        var a = b.dataset.act; close();
+        if (a === 'theme') $('liteThemeBtn').onclick();
+        else if (a === 'pro') { setMode('pro'); showTab('predict'); }
+        else { showTab(a); window.scrollTo(0, 0); }
+      };
+    });
     sh.querySelector('.lt-sheet-x').onclick = close;
     sh.addEventListener('click', function (e) { if (e.target === sh) close(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sh.hidden) close(); });
@@ -626,6 +1046,7 @@
   }
   function persistA() {
     if (!acur.sheets.length && !acur.name) return false;
+    acur.updated = new Date().toISOString();
     var i = sessions.findIndex(function (s) { return s.id === acur.id; });
     if (i < 0) sessions.unshift(acur); else sessions[i] = acur;
     saveSessions(sessions); store.set(LS_ACUR, acur.id);
@@ -1056,6 +1477,7 @@
       del.onclick = function () {
         ask('刪除「' + recTitle(s) + '」？', function () {
           sessions = sessions.filter(function (x) { return x.id !== s.id; }); delete recPick[s.id];
+          try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(s.id); } catch (e) {}
           if (ana && s.id === acur.id) { acur = newAnalysis(acur.targetId); anaPhotos = {}; anaSel = 'all'; }
           if (!ana && s.id === cur.id) { cur = sessions.filter(function (x) { return !isAna(x); })[0] || newSession(); if (sessions.indexOf(cur) < 0) sessions.push(cur); }
           persist(); renderAll();
@@ -1163,6 +1585,8 @@
     if (name === 'records') renderRecords();
     if (name === 'analysis') renderAnalysis();
     document.body.classList.toggle('on-predict', name === 'predict');
+    document.querySelectorAll('#liteMoreSheet [data-act]').forEach(function (b) { b.classList.toggle('on', b.dataset.act === name); });
+    if (document.body.classList.contains('lite')) renderLite();
     if (name === 'predict') liteLayout();
   }
   document.querySelectorAll('.tabs button').forEach(function (b) { b.onclick = function () { showTab(b.dataset.tab); }; });
@@ -1184,8 +1608,43 @@
   function renderAll() { renderAnalysis(); tsel.value = cur.targetId; $('pairMode').value = cur.pairMode || (cur.actuals.some(function (a) { return a.src === 'auto'; }) ? 'optimal' : 'order'); fillCalRing(); renderPredict(); renderCompare(); renderRecords(); }
   try { var nj = $('nojsNotice'); if (nj) nj.style.display = 'none'; } catch (e) {}
   if (!storageOK) { var sw = $('storageNotice'); if (sw) sw.style.display = ''; }
-  setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); renderAbout(); persist(); renderAll(); liteLayout();
-  window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; } };
+  setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); renderAbout(); persist(true); renderAll(); liteLayout();
+  window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; }, get liteStep() { return liteStep(); }, setLiteStep: setLiteStep, get litePhoto() { return lp; }, get liteSel() { return liteSel; }, renderLite: function () { renderLite(); } };
+
+  // ---------- 雲端帳號（備註4，Firebase；沒有設定檔時只顯示「即將推出」） ----------
+  (function () {
+    var W = window.WRCloud, box = $('cloudBody'); if (!box) return;
+    function render(st) {
+      st = st || (W && W.state) || { status: 'off' };
+      var h = '';
+      if (!W || st.status === 'off') h = '<div class="cloud-soon">☁️ 雲端帳號即將推出</div><div class="lbl">之後可以用 Google 帳號登入，把紀錄同步到雲端、換手機也不會不見。目前紀錄存在這台裝置（可用紀錄碼或匯出備份）。</div>';
+      else if (st.status === 'loading') h = '<div class="lbl">連線中…</div>';
+      else if (st.status === 'signed-in') {
+        var u = st.user || {};
+        h = '<div class="cloud-user"><b>' + esc(u.name || '已登入') + '</b><span class="lbl">' + esc(u.email || '') + (u.relay ? '（Apple 轉寄信箱）' : '') + '</span></div>' +
+          '<div class="lbl">' + (st.syncing ? '同步中…' : st.lastSync ? '上次同步：' + esc(fmtTW(st.lastSync)) + '（台北）' : '尚未同步') + (st.error ? '　⚠️ ' + esc(st.error) : '') + '</div>' +
+          '<div class="row"><button type="button" id="cloudSync" class="primary">立即同步</button><button type="button" id="cloudOut">登出</button></div>';
+      } else {
+        h = '<div class="lbl">登入後，紀錄會自動備份到你自己的雲端空間（只有你看得到）。沒登入也可以照常使用。</div><div class="row">' +
+          (st.providers || ['google']).map(function (p) { return '<button type="button" class="cloud-in" data-p="' + p + '">' + (p === 'apple' ? ' 用 Apple 登入' : '用 Google 帳號登入') + '</button>'; }).join('') + '</div>' + (st.error ? '<div class="lbl">⚠️ ' + esc(st.error) + '</div>' : '');
+      }
+      box.innerHTML = h;
+      box.querySelectorAll('.cloud-in').forEach(function (b) { b.onclick = function () { W.signIn(b.dataset.p); }; });
+      if ($('cloudSync')) $('cloudSync').onclick = function () { W.syncNow(); };
+      if ($('cloudOut')) $('cloudOut').onclick = function () { ask('登出後紀錄仍留在這台裝置。確定登出？', function () { W.signOut(); }); };
+    }
+    if (W && W.init) W.init({
+      getSessions: function () { return sessions; },
+      setSessions: function (list) { // 雲端合併後的結果寫回本機，畫面重畫
+        sessions = list; store.set(LS_SESS, JSON.stringify(sessions));
+        cur = sessions.filter(function (x) { return x.id === cur.id; })[0] || cur; if (sessions.indexOf(cur) < 0) sessions.unshift(cur);
+        acur = sessions.filter(function (x) { return x.id === acur.id; })[0] || acur;
+        renderAll();
+      },
+      onState: render
+    });
+    render();
+  })();
 
   // ---------- 版本更新 ----------
   // 新的 service worker 接管時自動重新載入一次（同一個分頁只做一次，避免無限重整）；回到前景時也檢查更新
