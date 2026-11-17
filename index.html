@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v1.2.1">
+<link rel="manifest" href="manifest.webmanifest?v=v1.2.2">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.2.1"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.2.2"><!--/STYLE-->
 </head>
 <body>
 <header>
-  <div class="title">WRbeta <span class="beta" id="appVer">beta v1.2.1</span></div>
+  <div class="title">WRbeta <span class="beta" id="appVer">beta v1.2.2</span></div>
   <div class="hright">
     <div id="modeToggle" class="modetg" role="group" aria-label="介面模式"><button type="button" data-mode="pro" class="on" aria-pressed="true">Pro</button><button type="button" data-mode="lite" aria-pressed="false">Lite</button></div>
     <select id="targetSel" aria-label="靶種"><option value="ap10">10米空氣手槍</option><option value="ar10">10米空氣步槍</option></select>
@@ -185,6 +185,20 @@
       <details><summary>逐發列表</summary><div id="anaList"></div></details>
     </div>
   </div>
+  <div class="card ana-code-card">
+    <div class="ana-code-h">紀錄碼（可複製貼上備份，只有本 App 讀得懂）</div>
+    <div class="ana-actions ana-actions2 ana-code-actions">
+      <button type="button" id="anaCopyCode">📋 複製紀錄碼</button>
+      <button type="button" id="anaShareCode" hidden>分享紀錄碼</button>
+      <button type="button" id="anaCopyAllCodes">📋 複製全部分析紀錄碼</button>
+      <button type="button" id="anaPasteCode">📥 貼上紀錄碼還原</button>
+    </div>
+    <div id="anaCodeInfo" class="lbl ana-code-info"></div>
+    <div id="anaPasteBox" class="ana-paste" hidden>
+      <textarea id="anaPasteArea" rows="4" placeholder="貼上紀錄碼（多筆可直接接在一起，空白與換行沒關係）" aria-label="貼上紀錄碼"></textarea>
+      <div class="row"><button type="button" id="anaPasteGo" class="primary">還原</button><button type="button" id="anaPasteCancel">取消</button></div>
+    </div>
+  </div>
 </section>
 
 <section id="tab-records" class="tab">
@@ -201,7 +215,7 @@
 <section id="tab-about" class="tab">
   <div class="card lite-only" id="liteThemeCard"><div class="row"><b>Lite 外觀：</b>
     <select id="liteThemeSel" aria-label="Lite 外觀"><option value="hud">1 戰術 HUD（深色霓虹）</option><option value="light">2 簡約亮色</option><option value="sport">3 運動風（深藍＋橘）</option><option value="glass">4 玻璃漸層</option></select></div></div>
-  <div class="card"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.2.1</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
+  <div class="card"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.2.2</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
   <div class="card prose" id="aboutText"></div>
 </section>
 </main>
@@ -218,8 +232,9 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v1.2.1"></script><!--/CORE-->
-<!--VISION--><script src="vision.js?v=v1.2.1"></script><!--/VISION-->
-<!--APP--><script src="app.js?v=v1.2.1"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v1.2.2"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v1.2.2"></script><!--/CODEC-->
+<!--VISION--><script src="vision.js?v=v1.2.2"></script><!--/VISION-->
+<!--APP--><script src="app.js?v=v1.2.2"></script><!--/APP-->
 </body>
 </html>

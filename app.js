@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.2.1';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.2.2';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
@@ -619,11 +619,17 @@
   var anaSel = acur.sheets.length ? 'all' : 'all', anaZoom = 1, anaPhotos = {}, anaQueue = [], anaBusy = false;
   var anaSvg = $('anaSvg');
   function atgt() { return T[acur.targetId] || T.ap10; }
+  function requestPersist() {
+    if (requestPersist.done) return;
+    requestPersist.done = true;
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  }
   function persistA() {
     if (!acur.sheets.length && !acur.name) return false;
     var i = sessions.findIndex(function (s) { return s.id === acur.id; });
     if (i < 0) sessions.unshift(acur); else sessions[i] = acur;
     saveSessions(sessions); store.set(LS_ACUR, acur.id);
+    requestPersist();
     $('anaSaved').textContent = storageOK ? '✓ 已存到紀錄' : '⚠ 此畫面無法存檔';
     return true;
   }
@@ -926,8 +932,90 @@
     $('anaSheetTable').innerHTML = tb;
     $('anaSheetTable').querySelectorAll('tr[data-id]').forEach(function (r) { r.onclick = function () { anaSel = r.dataset.id; renderAnalysis(); }; });
     $('anaList').innerHTML = shotTable(st.shots);
+    updateAnaCodeInfo();
   }
   fillAnaCalRing();
+
+  // ---------- 分析紀錄碼 ----------
+  function anaShotCount(s) {
+    var n = 0, i;
+    for (i = 0; i < ((s && s.sheets) || []).length; i++) n += (s.sheets[i].shots || []).length;
+    return n;
+  }
+  function anaRecords() {
+    return sessions.filter(function (s) { return isAna(s) && anaShotCount(s); }).sort(function (a, b) { return Date.parse(a.created) - Date.parse(b.created); });
+  }
+  function copyText(text, okMsg) {
+    function done() { toast(okMsg); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () { fallback(); });
+    } else fallback();
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { toast('複製失敗，請改用分享或手動選取'); }
+      ta.remove();
+    }
+  }
+  function updateAnaCodeInfo() {
+    var info = $('anaCodeInfo'), Code = window.BMCode, n = anaShotCount(acur), code = null;
+    if (!$('anaShareCode').dataset.ready) {
+      $('anaShareCode').dataset.ready = '1';
+      if (navigator.share) $('anaShareCode').hidden = false;
+    }
+    $('anaCopyCode').disabled = !n;
+    $('anaShareCode').disabled = !n;
+    var all = anaRecords();
+    $('anaCopyAllCodes').disabled = !all.length;
+    if (!Code) { info.textContent = ''; return; }
+    if (n) { try { code = Code.encode(acur); } catch (e) { code = null; } }
+    if (code && all.length > 1) info.textContent = '本筆 ' + code.length + ' 字　·　已存 ' + all.length + ' 筆分析可一併複製';
+    else if (code) info.textContent = '本筆 ' + code.length + ' 字';
+    else if (all.length) info.textContent = '已存 ' + all.length + ' 筆分析紀錄，可複製全部或貼上還原';
+    else info.textContent = '分析完成後可複製紀錄碼，下次貼上就能還原（不包含照片）';
+  }
+  $('anaCopyCode').onclick = function () {
+    var Code = window.BMCode, code = Code && Code.encode(acur);
+    if (!code) { toast('目前沒有可複製的分析'); return; }
+    copyText(code, '已複製本筆紀錄碼（' + code.length + ' 字）');
+  };
+  $('anaShareCode').onclick = function () {
+    var Code = window.BMCode, code = Code && Code.encode(acur);
+    if (!code) { toast('目前沒有可分享的分析'); return; }
+    try { navigator.share({ title: 'WRbeta 紀錄碼', text: code }); } catch (e) { copyText(code, '已複製本筆紀錄碼（' + code.length + ' 字）'); }
+  };
+  $('anaCopyAllCodes').onclick = function () {
+    var Code = window.BMCode, list = anaRecords(), code = Code && Code.encodeMany(list);
+    if (!code) { toast('目前沒有可複製的分析紀錄'); return; }
+    copyText(code, '已複製 ' + list.length + ' 筆分析紀錄碼（' + code.length + ' 字）');
+  };
+  function showPasteBox(on) {
+    $('anaPasteBox').hidden = !on;
+    if (on) { $('anaPasteArea').value = ''; setTimeout(function () { $('anaPasteArea').focus(); }, 0); }
+  }
+  $('anaPasteCode').onclick = function () { showPasteBox(true); };
+  $('anaPasteCancel').onclick = function () { showPasteBox(false); };
+  $('anaPasteGo').onclick = function () {
+    var Code = window.BMCode, text = $('anaPasteArea').value, r, i, added;
+    if (!Code) { toast('無法還原'); return; }
+    if (!stripWait(text)) { toast('請先貼上紀錄碼'); return; }
+    r = Code.merge(sessions, text);
+    if (!r.added.length && !r.skipped && !r.invalid) { toast('沒有讀到紀錄碼'); return; }
+    added = r.added.slice().sort(function (a, b) { return Date.parse(a.created) - Date.parse(b.created); });
+    for (i = 0; i < added.length; i++) sessions.unshift(added[i]);
+    if (added.length) {
+      saveSessions(sessions);
+      requestPersist();
+      acur = added[added.length - 1];
+      anaPhotos = {}; anaSel = 'all';
+      store.set(LS_ACUR, acur.id);
+    }
+    showPasteBox(false);
+    renderAnalysis(); renderRecords();
+    toast((added.length ? '還原 ' + added.length + ' 筆' : '沒有新增') + (r.skipped ? '，略過 ' + r.skipped + ' 筆重複' : '') + (r.invalid ? '，' + r.invalid + ' 筆無效' : ''), 3200);
+  };
+  function stripWait(text) { return String(text || '').replace(/\s+/g, ''); }
 
   // ---------- 紀錄 ----------
   var recPick = {}; // 勾選要比較的紀錄 id
@@ -1045,7 +1133,7 @@
       '<p class="appver"><b>' + APP_NAME + '</b> 版本 beta ' + APP_VERSION + '</p>' +
       '<h3>怎麼用</h3><ol><li>上方選靶種。</li><li><b>預報</b>：每打一發，在靶面點你感覺的落點。按住可拖曳微調，放開才記錄。小靶可用 2×–8× 放大。</li>' +
       '<li><b>對照</b>：拉回靶紙後拍照，程式會<b>自動找黑區校正、自動找彈孔</b>。綠圈要對齊靶環；紫色虛線要穿過上下左右的環數數字，歪了按「轉正」。找錯的彈孔點一下刪除，漏掉的點空白處新增。自動失敗時可按「手動校正」（點靶心＋某環上右下左）。電子靶也可以改選「直接在靶面上點」。</li>' +
-      '<li><b>分析</b>：不需要預報。一張打完拍一張（發數不限），程式自動校正、找彈孔並算出每張與合併數據：校正建議（群中心偏移 mm 與修正方向）、穩定度（標準差、去掉最差一發的平均）、離群發、趨勢圖、小數分分布。不確定的彈孔以橘色虛線＋「?」標示，點一下就能刪除，漏掉的點空白處新增（照片或下方靶面都可以點）。分析自動存到「紀錄」，可自訂名稱。</li>' +
+      '<li><b>分析</b>：不需要預報。一張打完拍一張（發數不限），程式自動校正、找彈孔並算出每張與合併數據：校正建議（群中心偏移 mm 與修正方向）、穩定度（標準差、去掉最差一發的平均）、離群發、趨勢圖、小數分分布。不確定的彈孔以橘色虛線＋「?」標示，點一下就能刪除，漏掉的點空白處新增（照片或下方靶面都可以點）。分析自動存到「紀錄」，可自訂名稱。可用「複製紀錄碼」把彈孔座標壓成一串只有本 App 讀得懂的字，貼到備忘錄或 LINE 備份，下次「貼上還原」就能畫回靶面（不含照片）。</li>' +
       '<li><b>紀錄比較</b>：在「紀錄」勾選 2 筆以上（分析或預報），按「比較」看平均、群大小、偏移、標準差、內十數與跨日期趨勢。</li>' +
       '<li>照片看不出射擊順序，所以預設用「最近配對」（總距離最短的一對一配對）；直接在靶面依序點時可改成「依射擊順序」。程式會算出每發預報差距、平均誤差與預報的系統性偏向。</li><li><b>紀錄</b>：每組自動存在這台裝置，可匯出備份。</li></ol>' +
       '<h3>靶面尺寸（外徑，mm）</h3><p>來源：ISSF Rule Book 2026 Edition 2025（Third Print 10/2026，2026-10-19 生效）。畫面是依這些尺寸以向量繪製。</p>' +
@@ -1068,7 +1156,7 @@
     bg.querySelector('.yes').onclick = function () { bg.remove(); onYes(); };
     document.body.appendChild(bg);
   }
-  function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 1800); }
+  function toast(msg, ms) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, ms || (String(msg).length > 24 ? 2800 : 1800)); }
   function showTab(name) {
     document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
     document.querySelectorAll('.tab').forEach(function (s) { s.classList.toggle('active', s.id === 'tab-' + name); });

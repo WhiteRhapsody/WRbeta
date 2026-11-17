@@ -315,3 +315,12 @@ body.lite.lt-light{--ana-acc:#16202b;--ana-acc-fg:#fff}
 body.lite.lt-sport{--ana-acc:#ff8a00;--ana-acc-fg:#13233a}
 body.lite.lt-glass{--ana-acc:#e8577a;--ana-acc-fg:#fff}
 body.lite .ana-chip.on{background:var(--ana-acc);color:var(--ana-acc-fg);border-color:var(--ana-acc)}
+
+/* 分析：紀錄碼 */
+.ana-code-card{margin-top:10px}
+.ana-code-h{font-weight:700;font-size:14px;margin-bottom:8px}
+.ana-code-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:0}
+.ana-code-actions button{padding:12px 8px;font-size:15px;font-weight:700;border-radius:12px}
+.ana-code-info{margin-top:8px;font-size:13px;color:#334}
+.ana-paste{margin-top:8px}
+.ana-paste textarea{width:100%;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;line-height:1.4;padding:10px;border-radius:8px;border:1px solid #9fb0c2;resize:vertical;word-break:break-all}
