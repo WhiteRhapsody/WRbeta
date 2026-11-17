@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b2a3a">
+<title>靶面-預報系統（測試版）</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<!--STYLE--><link rel="stylesheet" href="style.css"><!--/STYLE-->
+</head>
+<body>
+<header>
+  <div class="title">靶面-預報系統 <span class="beta">測試版</span></div>
+  <div class="hright">
+    <div id="modeToggle" class="modetg" role="group" aria-label="介面模式"><button type="button" data-mode="pro" class="on" aria-pressed="true">Pro</button><button type="button" data-mode="lite" aria-pressed="false">Lite</button></div>
+    <select id="targetSel" aria-label="靶種"><option value="ap10">10米空氣手槍</option><option value="ar10">10米空氣步槍</option></select>
+  </div>
+</header>
+<div id="nojsNotice" class="notice">⚠️ 這個預覽畫面不能執行程式，所以靶面無法操作。請把檔案用 <b>Chrome</b> 開啟（或使用公開網址）。</div>
+<noscript><div class="notice">⚠️ 瀏覽器停用了 JavaScript，請用 Chrome 開啟。</div></noscript>
+<div id="storageNotice" class="notice soft" style="display:none">此畫面無法存檔（儲存空間被封鎖），可以操作，但關閉後資料會消失。請用 Chrome 開啟以保存紀錄。</div>
+<div id="errNotice" class="notice" style="display:none"></div>
+<script>window.addEventListener('error',function(e){try{var n=document.getElementById('errNotice');n.style.display='';n.textContent='程式錯誤：'+(e.message||e)+'（請截圖回報）';}catch(_){}});</script>
+<nav class="tabs">
+  <button data-tab="predict" class="active">預報</button>
+  <button data-tab="compare">對照</button>
+  <button data-tab="analysis">分析</button>
+  <button data-tab="records">紀錄</button>
+  <button data-tab="about">說明</button>
+</nav>
+
+<main>
+<section id="tab-predict" class="tab active">
+  <div id="liteView" class="lite-only">
+    <div class="lite-tgbox"><div class="lite-tg" id="liteTg"><svg id="liteSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="靶面（點一下記錄預報，雙指縮放）"></svg>
+      <div id="liteZoomBadge" class="lite-zbadge"></div></div></div>
+    <div class="lite-bar">
+      <button type="button" id="liteUndo">↶ 復原</button>
+      <span id="liteHint" class="lite-hint">點靶面記錄落點・雙指縮放</span>
+      <button type="button" id="liteFit">全靶</button>
+      <button type="button" id="liteThemeBtn" class="lite-thbtn" aria-label="更換 Lite 外觀" aria-haspopup="dialog" title="更換外觀"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg></button>
+    </div>
+    <div id="litePanel" class="lite-panel" role="group" aria-label="預報數據">
+      <div class="lp-glass" id="lpGBig" aria-hidden="true"></div><div class="lp-glass" id="lpGCnt" aria-hidden="true"></div><div class="lp-glass" id="lpGEst" aria-hidden="true"></div><div class="lp-glass" id="lpGSum" aria-hidden="true"></div>
+      <svg class="lp-shapes" viewBox="0 0 100 52" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs><linearGradient id="lpGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--score-hi,#fff)"/><stop offset="1" style="stop-color:var(--score,#3a4a5c)"/></linearGradient>
+          <linearGradient id="lpSheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" style="stop-opacity:var(--gp-sheen,.38)"/><stop offset=".48" stop-color="#fff" style="stop-opacity:var(--gp-sheen2,.08)"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+        <polygon id="lpBigBg" class="lp-s lp-s-big"/>
+        <polygon id="lpCntBg" class="lp-s lp-s-cnt"/>
+        <polygon id="lpEstBg" class="lp-s lp-s-est"/>
+        <polygon id="lpSumBg" class="lp-s lp-s-sum"/>
+        <polygon id="lpBigSh" class="lp-sheen"/><polygon id="lpCntSh" class="lp-sheen"/><polygon id="lpEstSh" class="lp-sheen"/><polygon id="lpSumSh" class="lp-sheen"/>
+      </svg>
+      <div class="lp-cell lp-c-big"><div class="lp-k" id="lpBigLbl">最新預報</div><div class="lp-v"><span id="lpBig">—</span></div></div>
+      <div class="lp-cell lp-c-cnt"><div class="lp-k">發數</div><div class="lp-v"><span id="lpCount">0</span></div></div>
+      <div class="lp-cell lp-c-est"><div class="lp-k">60發預估</div><div class="lp-v"><span id="lpEst">—</span></div></div>
+      <div class="lp-cell lp-c-sum"><div class="lp-k">總分</div><div class="lp-v"><span id="lpSum">0</span></div></div>
+    </div>
+    <button type="button" id="liteVerify" class="lite-verify glass"><span class="vlbl">按下對照 <span class="arr">›</span></span></button>
+  </div>
+  <div class="layout pro-only">
+    <div class="col-target">
+      <div class="readout" id="predReadout">每打一發，在靶面上點你感覺的落點（可按住拖曳微調，放開才記錄）</div>
+      <div class="svgwrap"><svg id="predSvg" class="target" xmlns="http://www.w3.org/2000/svg"><!--STATICSVG--></svg></div>
+      <div class="toolbar">
+        <span class="lbl">放大</span>
+        <button class="zoom" data-z="1">全靶</button><button class="zoom" data-z="2">2×</button><button class="zoom" data-z="4">4×</button><button class="zoom" data-z="8">8×</button>
+      </div>
+      <div class="toolbar">
+        <button id="undoPred">↶ 復原</button>
+        <button id="clearPred" class="warn">清除本組</button>
+        <button id="newSession" class="primary">＋ 新的一組</button>
+        <label class="chk"><input type="checkbox" id="liftCursor"> 落點上移（避免手指擋住）</label>
+      </div>
+    </div>
+    <div class="col-stats">
+      <h3>預報數據</h3>
+      <div id="predStats" class="stats"></div>
+      <details open><summary>逐發列表</summary><div id="predList"></div></details>
+    </div>
+  </div>
+</section>
+
+<section id="tab-compare" class="tab">
+  <div class="card">
+    <div class="row">
+      <b>實際彈著來源：</b>
+      <label><input type="radio" name="src" value="photo" checked> 拍靶紙／電子靶螢幕照片</label>
+      <label><input type="radio" name="src" value="vector"> 直接在靶面上點</label>
+    </div>
+    <div class="row"><b>配對方式：</b><select id="pairMode"><option value="optimal">最近配對（不需順序）</option><option value="order">依射擊順序</option></select></div>
+  </div>
+
+  <div id="photoPane" class="card">
+    <div class="row">
+      <label class="btn">📷 拍照<input type="file" id="photoCam" accept="image/*" capture="environment" hidden></label>
+      <label class="btn">🖼 從相簿選<input type="file" id="photoPick" accept="image/*" hidden></label>
+      <span class="lbl">偵測靈敏度</span><select id="sensSel"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
+    </div>
+    <div class="row">
+      <span class="lbl">照片放大</span>
+      <button class="pzoom" data-z="1">1×</button><button class="pzoom" data-z="2">2×</button><button class="pzoom" data-z="3">3×</button><button class="pzoom" data-z="5">5×</button>
+    </div>
+    <div class="row">
+      <button id="autoCal">自動校正</button><button id="redetect">重新偵測彈孔</button><button id="recal">手動校正</button><button id="rotL">轉正 ⟲1°</button><button id="rotR">轉正 ⟳1°</button>
+    </div>
+    <div class="row" id="calRingRow" style="display:none"><span class="lbl">手動校正用環：</span><select id="calRing"></select></div>
+    <div id="calHint" class="hint">請先拍照或選擇照片。</div>
+    <div id="photoBox" class="photobox"><div id="photoInner" class="photoinner"><img id="photoImg" alt=""><svg id="photoSvg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+  </div>
+
+  <div class="layout">
+    <div class="col-target">
+      <div class="readout" id="cmpReadout">藍＝預報，紅＝實際，依順序配對（第1發對第1發）</div>
+      <div class="svgwrap"><svg id="cmpSvg" class="target" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="toolbar">
+        <span class="lbl">放大</span>
+        <button class="czoom" data-z="1">全靶</button><button class="czoom" data-z="2">2×</button><button class="czoom" data-z="4">4×</button><button class="czoom" data-z="8">8×</button>
+      </div>
+      <div class="toolbar">
+        <button id="undoAct">↶ 復原實際</button>
+        <button id="clearAct" class="warn">清除實際</button>
+        <label class="chk"><input type="checkbox" id="showPred" checked> 顯示預報</label>
+        <label class="chk"><input type="checkbox" id="showAct" checked> 顯示實際</label>
+      </div>
+    </div>
+    <div class="col-stats">
+      <h3>預報準確度</h3>
+      <div id="cmpSummary" class="stats"></div>
+      <h3>實際成績</h3>
+      <div id="actStats" class="stats"></div>
+      <details open><summary>逐發對照</summary><div id="cmpList"></div></details>
+    </div>
+  </div>
+</section>
+
+<section id="tab-analysis" class="tab">
+  <div class="card ana-head">
+    <div class="row ana-namerow"><input id="anaName" class="ana-name" placeholder="自訂名稱（例：週二早上練習）" maxlength="60" aria-label="分析名稱"><select id="anaTarget" aria-label="分析靶種"></select></div>
+    <div class="row ana-meta"><span id="anaWhen" class="lbl"></span><span id="anaSaved" class="lbl"></span><button id="anaNew" type="button">＋ 新的分析</button></div>
+  </div>
+  <div class="card">
+    <div class="ana-actions">
+      <label class="btn ana-main">📷 拍下一張<input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label>
+      <label class="btn ana-main2">🖼 相簿（可多選）<input type="file" id="anaPick" accept="image/*" multiple hidden></label>
+    </div>
+    <div class="row"><span class="lbl">偵測靈敏度</span><select id="anaSens"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
+      <span class="lbl" id="anaQueue"></span></div>
+    <div id="anaChips" class="ana-chips" role="tablist" aria-label="靶紙"></div>
+  </div>
+  <div id="anaPhotoCard" class="card" style="display:none">
+    <div id="anaHint" class="hint"></div>
+    <div id="anaPhotoBox" class="photobox"><div id="anaPhotoInner" class="photoinner"><img id="anaImg" alt=""><svg id="anaPhotoSvg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+    <div class="row"><span class="lbl">照片放大</span><button class="apzoom" data-z="1">1×</button><button class="apzoom" data-z="2">2×</button><button class="apzoom" data-z="3">3×</button><button class="apzoom" data-z="5">5×</button></div>
+    <div class="row"><button id="anaAutoCal">自動校正</button><button id="anaRedetect">重新偵測</button><button id="anaManual">手動校正</button><button id="anaRotL">轉正 ⟲1°</button><button id="anaRotR">轉正 ⟳1°</button></div>
+    <div class="row" id="anaCalRingRow" style="display:none"><span class="lbl">手動校正用環：</span><select id="anaCalRing"></select></div>
+  </div>
+  <div class="layout">
+    <div class="col-target">
+      <div class="readout" id="anaReadout">拍下第一張靶紙開始分析。</div>
+      <div class="svgwrap"><svg id="anaSvg" class="target" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="toolbar">
+        <span class="lbl">放大</span>
+        <button class="azoom" data-z="1">全靶</button><button class="azoom" data-z="2">2×</button><button class="azoom" data-z="4">4×</button><button class="azoom" data-z="8">8×</button>
+      </div>
+      <div class="toolbar">
+        <button id="anaUndo" type="button">↶ 復原</button>
+        <button id="anaDelSheet" type="button" class="warn">刪除此張</button>
+        <label class="chk"><input type="checkbox" id="anaShowCenter" checked> 群中心</label>
+        <label class="chk"><input type="checkbox" id="anaShowOut" checked> 離群發</label>
+      </div>
+    </div>
+    <div class="col-stats">
+      <h3 id="anaStatsTitle">數據</h3>
+      <div id="anaStats" class="stats"></div>
+      <div id="anaExtra"></div>
+      <details open><summary>每張小計</summary><div id="anaSheetTable"></div></details>
+      <details><summary>逐發列表</summary><div id="anaList"></div></details>
+    </div>
+  </div>
+</section>
+
+<section id="tab-records" class="tab">
+  <div class="card">
+    <div class="row"><button id="newSession2" class="primary">＋ 新的一組</button><button id="exportAll">匯出全部（JSON）</button>
+    <label class="btn">匯入 JSON<input type="file" id="importFile" accept="application/json,.json" hidden></label></div>
+    <div class="row rec-cmp-row"><button id="recCmpBtn" class="primary" disabled>比較勾選的紀錄</button><button id="recCmpClear">取消勾選</button><span class="lbl" id="recCmpInfo">勾選 2 筆以上紀錄（分析或預報）即可比較</span></div>
+    <div class="hint">紀錄存在這台裝置的瀏覽器裡（localStorage）。照片不會保存，只保存換算後的彈著座標。清除瀏覽器資料會一起刪掉，重要的請先匯出。</div>
+  </div>
+  <div id="recCompare"></div>
+  <div id="recordList"></div>
+</section>
+
+<section id="tab-about" class="tab">
+  <div class="card lite-only" id="liteThemeCard"><div class="row"><b>Lite 外觀：</b>
+    <select id="liteThemeSel" aria-label="Lite 外觀"><option value="hud">1 戰術 HUD（深色霓虹）</option><option value="light">2 簡約亮色</option><option value="sport">3 運動風（深藍＋橘）</option><option value="glass">4 玻璃漸層</option></select></div></div>
+  <div class="card prose" id="aboutText"></div>
+</section>
+</main>
+<div id="liteThemeSheet" class="lt-sheet" role="dialog" aria-modal="true" aria-label="選擇 Lite 外觀" hidden>
+  <div class="lt-sheet-card">
+    <div class="lt-sheet-h">選擇外觀</div>
+    <div class="lt-sheet-list">
+      <button type="button" data-th="hud"><i class="sw sw-hud"></i><span><b>1 戰術 HUD</b><small>深色霓虹</small></span></button>
+      <button type="button" data-th="light"><i class="sw sw-light"></i><span><b>2 簡約亮色</b><small>白色磨砂</small></span></button>
+      <button type="button" data-th="sport"><i class="sw sw-sport"></i><span><b>3 運動風</b><small>深藍＋橘</small></span></button>
+      <button type="button" data-th="glass"><i class="sw sw-glass"></i><span><b>4 玻璃漸層</b><small>紫粉漸層</small></span></button>
+    </div>
+    <button type="button" class="lt-sheet-x">關閉</button>
+  </div>
+</div>
+<div id="toast"></div>
+<!--CORE--><script src="core.js"></script><!--/CORE-->
+<!--VISION--><script src="vision.js"></script><!--/VISION-->
+<!--APP--><script src="app.js"></script><!--/APP-->
+</body>
+</html>
