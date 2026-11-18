@@ -553,3 +553,102 @@ body.lite.lt-glass .lite-tg{background:rgba(209,247,255,.10);box-shadow:0 0 0 1p
 .sw-glass{background:linear-gradient(135deg,#241047,#6a1b9a 55%,#ff2a6d 56%,#ff8a3d)}
 /* 省電：使用者要求減少動態時關掉轉圈以外的過場 */
 @media (prefers-reduced-motion:reduce){body.lite *{transition:none!important}}
+
+/* =====================================================================================
+ * v1.3.1 按壓動效（只在 Lite；Pro 不變）
+ * - 按鈕：JS（press.js）按下加 .pz-down、放開換 .pz-up；沒有 JS 事件時用 :active 一樣有按下的樣子。
+ * - 只動 transform／box-shadow／background-position／opacity（GPU 友善、不改版面）。
+ * - 各款手感：運動風＝Switch 風「咕啵」軟壓＋彈回；簡約亮色＝金屬下沉＋表面微變形＋高光位移；
+ *   HUD＝俐落縮一下＋霓虹發光；玻璃＝柔和下壓＋輕微回彈。
+ * - 陰影：按下的陰影跟平常的陰影「層數與內外順序」一致，才能平滑過渡（不會跳）。
+ * ===================================================================================== */
+body.lite{--pz-in:.11s;--pz-in-ease:cubic-bezier(.3,.7,.4,1);--pz-out:.42s;--pz-out-ease:cubic-bezier(.34,1.56,.64,1);--pz-delay:.03s;
+  --pz-s:.95;--pz-y:1px;--pz-sh:inset 0 2px 6px rgba(0,0,0,.22),0 1px 2px rgba(0,0,0,.18)}
+body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button){
+  --pz-base:scale(1);-webkit-tap-highlight-color:transparent;
+  transform:var(--pz-base) translateY(0) scale(1);
+  transition:transform var(--pz-out) var(--pz-out-ease) var(--pz-delay),box-shadow .32s ease-out var(--pz-delay),background-position .45s ease-out,opacity .2s ease-out}
+body.lite.lt-sport #liteView .lite-verify{--pz-base:skewX(-10deg)}
+/* 按下（:active 是沒有 JS 時的備援） */
+body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button):is(:active,.pz-down):not(:disabled){
+  transform:var(--pz-base) translateY(var(--pz-y)) scale(var(--pz-s));filter:none;box-shadow:var(--pz-sh);
+  transition:transform var(--pz-in) var(--pz-in-ease),box-shadow var(--pz-in) ease-out,background-position .25s ease-out,opacity .1s}
+/* 大按鈕（下一步）：陰影層數跟原本一樣（3 內＋2 外） */
+body.lite #liteView .lite-verify:is(:active,.pz-down):not(:disabled){
+  box-shadow:inset 0 1px 0 var(--g-in),inset 0 -1px 0 rgba(255,255,255,.10),inset 0 5px 14px rgba(0,0,0,.20),0 3px 8px var(--g-sh),0 1px 2px rgba(0,0,0,.14)}
+
+/* --- 運動風（Gulf）：Switch 風「咕啵」——軟軟壓扁、放開後稍停一下再彈回（有過衝） --- */
+body.lite.lt-sport{--pz-s:.92;--pz-y:0px;--pz-in:.12s;--pz-in-ease:cubic-bezier(.25,.8,.35,1);--pz-out:.5s;--pz-out-ease:cubic-bezier(.3,1.8,.5,1);--pz-delay:.05s;
+  --pz-sh:inset 0 3px 8px rgba(0,10,40,.35),0 1px 2px rgba(0,10,40,.30)}
+body.lite.lt-sport :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button).pz-up{animation:pzPopSport .48s linear .05s backwards}
+@keyframes pzPopSport{
+  0%{transform:var(--pz-base) translateY(0) scale(.92);animation-timing-function:cubic-bezier(.2,.7,.4,1)}
+  36%{transform:var(--pz-base) translateY(0) scale(1.045,1.03);animation-timing-function:cubic-bezier(.5,0,.5,1)}
+  60%{transform:var(--pz-base) translateY(0) scale(.985,.99);animation-timing-function:cubic-bezier(.5,0,.5,1)}
+  80%{transform:var(--pz-base) translateY(0) scale(1.008);animation-timing-function:cubic-bezier(.5,0,.5,1)}
+  100%{transform:var(--pz-base) translateY(0) scale(1)}}
+
+/* --- 簡約亮色（Braun 拉絲鋁）：金屬往下沉、表面微微內凹變形、高光跟著移動 --- */
+body.lite.lt-light{--pz-in:.09s;--pz-in-ease:cubic-bezier(.4,0,.6,1);--pz-out:.34s;--pz-out-ease:cubic-bezier(.2,1.25,.4,1);--pz-delay:.02s;
+  --pz-sh:inset 0 2px 5px rgba(46,46,44,.30),inset 0 -1px 0 rgba(255,255,255,.7),0 0 0 rgba(46,46,44,0);
+  --pz-sheen:linear-gradient(105deg,rgba(255,255,255,0) 44%,rgba(255,255,255,.45) 50%,rgba(255,255,255,0) 56%)}
+body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button){
+  transform:var(--pz-base) perspective(600px) translateY(0) rotateX(0deg) scale(1,1)}
+body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button):is(:active,.pz-down):not(:disabled){
+  transform:var(--pz-base) perspective(600px) translateY(2px) rotateX(2.5deg) scale(.985,.965)}
+/* 拉絲鋁按鈕：髮絲紋＋一道斜高光（按下時高光從左緣滑到中間＝光線角度變了） */
+body.lite.lt-light :is(.lite-bar button,.lite-srcbtn:not(.lite-cam),.lite-s2.has-photo .lite-srcbtn,.lite-tools button:not(#liteDelHole),.lite-rounds button:not(.on),.lite-s3row button,.lite-finishrow button){
+  background-image:var(--pz-sheen),var(--tx-hair),linear-gradient(180deg,#fbfaf7,#e4e1da);
+  background-size:300% 100%,auto,auto,auto,auto;background-position:74% 0,0 0,0 0,0 0,0 0;background-repeat:no-repeat,repeat,repeat,repeat,no-repeat;
+  border-color:rgba(46,46,44,.22);color:#1a1a18}
+body.lite.lt-light :is(.lite-verify,.lite-srcbtn.lite-cam){background-image:var(--pz-sheen),linear-gradient(180deg,var(--g-a),var(--g-b));background-size:300% 100%,auto;background-position:74% 0,0 0;background-repeat:no-repeat}
+body.lite.lt-light .lite-s2.has-photo .lite-srcbtn.lite-cam{background-image:var(--pz-sheen),var(--tx-hair),linear-gradient(180deg,#fbfaf7,#e4e1da);background-size:300% 100%,auto,auto,auto,auto;background-position:74% 0,0 0,0 0,0 0,0 0}
+body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn):is(:active,.pz-down):not(:disabled){background-position:50% 0,0 0,0 0,0 0,0 0}
+body.lite.lt-light #liteView .lite-verify:is(:active,.pz-down):not(:disabled){
+  box-shadow:inset 0 2px 4px rgba(120,40,0,.35),inset 0 -1px 0 rgba(255,255,255,.35),0 0 0 1px rgba(22,32,43,.14),0 2px 4px rgba(40,60,110,.10),0 1px 1px rgba(40,60,110,.08)}
+
+/* --- 戰術 HUD：俐落縮一下（不回彈）、霓虹瞬間變亮再退 --- */
+body.lite.lt-hud{--pz-s:.965;--pz-y:0px;--pz-in:.07s;--pz-in-ease:linear;--pz-out:.22s;--pz-out-ease:cubic-bezier(.2,.9,.3,1);--pz-delay:0s;
+  --pz-sh:inset 0 0 14px rgba(0,245,255,.40),0 0 16px rgba(0,245,255,.50)}
+body.lite.lt-hud #liteView .lite-verify:is(:active,.pz-down):not(:disabled){
+  box-shadow:inset 0 1px 0 var(--g-in),inset 0 0 28px rgba(0,245,255,.50),0 0 0 1px rgba(0,245,255,.85),0 0 34px rgba(0,245,255,.70),0 4px 10px rgba(0,0,0,.5)}
+
+/* --- 玻璃漸層：柔和下壓、輕微回彈 --- */
+body.lite.lt-glass{--pz-s:.95;--pz-y:1px;--pz-in:.12s;--pz-out:.4s;--pz-out-ease:cubic-bezier(.25,1.35,.45,1);
+  --pz-sh:inset 0 2px 8px rgba(11,2,33,.35),0 1px 3px rgba(11,2,33,.30)}
+
+/* ---------- 上方四個資訊方塊：純手感，幅度比按鈕小、不觸發功能 ----------
+ * 每一塊有四層（玻璃底 div、SVG 色塊、SVG 高光、文字）；press.js 設好同一個縮放中心，四層一起動。
+ * SVG 的位移單位是 viewBox 單位：--pu＝每 1px 等於幾個 viewBox 單位。 */
+body.lite .lite-panel{-webkit-tap-highlight-color:transparent;--ib-s:.97;--ib-y:0px;--ib-out:.4s;--ib-out-ease:cubic-bezier(.34,1.56,.64,1);--ib-sheen:1}
+body.lite .lp-glass,body.lite .lp-cell{transform:translateY(0) scale(1);transition:transform var(--ib-out) var(--ib-out-ease) .03s}
+body.lite .lp-s,body.lite .lp-sheen{transform-box:fill-box;transform-origin:50% 50%;transform:translate(0,0) scale(1);transition:transform var(--ib-out) var(--ib-out-ease) .03s,fill .25s,opacity .3s ease-out}
+body.lite .lite-panel.ib-down-big :is(#lpGBig,.lp-c-big),body.lite .lite-panel.ib-down-cnt :is(#lpGCnt,.lp-c-cnt),
+body.lite .lite-panel.ib-down-est :is(#lpGEst,.lp-c-est),body.lite .lite-panel.ib-down-sum :is(#lpGSum,.lp-c-sum){
+  transform:translateY(var(--ib-y)) scale(var(--ib-s));transition:transform .1s cubic-bezier(.3,.7,.4,1)}
+body.lite .lite-panel.ib-down-big :is(#lpBigBg,#lpBigSh),body.lite .lite-panel.ib-down-cnt :is(#lpCntBg,#lpCntSh),
+body.lite .lite-panel.ib-down-est :is(#lpEstBg,#lpEstSh),body.lite .lite-panel.ib-down-sum :is(#lpSumBg,#lpSumSh){
+  transform:translate(0,calc(var(--ib-y) * var(--pu,.25))) scale(var(--ib-s));transition:transform .1s cubic-bezier(.3,.7,.4,1),fill .25s,opacity .1s}
+body.lite .lite-panel.ib-down-big #lpBigSh,body.lite .lite-panel.ib-down-cnt #lpCntSh,body.lite .lite-panel.ib-down-est #lpEstSh,body.lite .lite-panel.ib-down-sum #lpSumSh{opacity:var(--ib-sheen)}
+/* 運動風：小一號的「咕啵」 */
+body.lite.lt-sport .lite-panel{--ib-s:.965;--ib-out:.45s;--ib-out-ease:cubic-bezier(.3,1.8,.5,1)}
+body.lite.lt-sport .lite-panel.ib-up-big :is(#lpGBig,.lp-c-big,#lpBigBg,#lpBigSh),body.lite.lt-sport .lite-panel.ib-up-cnt :is(#lpGCnt,.lp-c-cnt,#lpCntBg,#lpCntSh),
+body.lite.lt-sport .lite-panel.ib-up-est :is(#lpGEst,.lp-c-est,#lpEstBg,#lpEstSh),body.lite.lt-sport .lite-panel.ib-up-sum :is(#lpGSum,.lp-c-sum,#lpSumBg,#lpSumSh){animation:ibPopSport .42s linear .04s backwards}
+@keyframes ibPopSport{0%{transform:scale(.965);animation-timing-function:cubic-bezier(.2,.7,.4,1)}40%{transform:scale(1.018,1.012);animation-timing-function:cubic-bezier(.5,0,.5,1)}70%{transform:scale(.995);animation-timing-function:cubic-bezier(.5,0,.5,1)}100%{transform:scale(1)}}
+/* 簡約亮色：金屬面板微微下沉、高光變暗 */
+body.lite.lt-light .lite-panel{--ib-s:.985;--ib-y:1.5px;--ib-out:.3s;--ib-out-ease:cubic-bezier(.2,1.2,.4,1);--ib-sheen:.35}
+/* HUD：縮一點點、數字像訊號閃一下 */
+body.lite.lt-hud .lite-panel{--ib-s:.98;--ib-out:.2s;--ib-out-ease:cubic-bezier(.2,.9,.3,1)}
+body.lite.lt-hud .lp-cell{transition:transform var(--ib-out) var(--ib-out-ease),opacity .25s ease-out}
+body.lite.lt-hud .lite-panel.ib-down-big .lp-c-big,body.lite.lt-hud .lite-panel.ib-down-cnt .lp-c-cnt,body.lite.lt-hud .lite-panel.ib-down-est .lp-c-est,body.lite.lt-hud .lite-panel.ib-down-sum .lp-c-sum{opacity:.72;transition:transform .07s linear,opacity .07s linear}
+/* 玻璃：柔和 */
+body.lite.lt-glass .lite-panel{--ib-s:.97;--ib-y:.5px;--ib-out:.38s;--ib-out-ease:cubic-bezier(.25,1.35,.45,1)}
+
+/* 減少動態：不位移、不彈，只用淡一點表示按到了 */
+@media (prefers-reduced-motion:reduce){
+  body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button),
+  body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button){transform:var(--pz-base)!important;animation:none!important}
+  body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button):is(:active,.pz-down):not(:disabled){opacity:.82}
+  body.lite .lp-glass,body.lite .lp-cell,body.lite .lp-s,body.lite .lp-sheen{transform:none!important;animation:none!important}
+  body.lite .lite-panel[class*="ib-down-"] .lp-cell{opacity:.85}
+}
