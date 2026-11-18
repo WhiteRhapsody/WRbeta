@@ -22,7 +22,7 @@
     '.rec,.stat,.ana-chip,.lite-card,.gh-rb,.gh-cell,[data-xh=box]';
 
   // 橘色（強調色）的按鈕上，橘色十字線看不清楚 → 改用深色（.alt）
-  var ACCENT = '.wr-fab,.pf-btn.pri,#wrNav button.active,.navc-dots button.on,.lite-verify,.gh-primary,.primary,.modetg button.on,.lite-steps button.on,.gh-seg button.on,.lite-srcbtn.lite-cam,.lite-rounds button.on,.modal .yes';
+  var ACCENT = '.wr-cam,.wr-seg button.on,.ana-chip.on,.lay-done,.wr-pop .pi.all,.wr-fab,.pf-btn.pri,#wrNav button.active,.navc-dots button.on,.lite-verify,.gh-primary,.primary,.modetg button.on,.lite-steps button.on,.gh-seg button.on,.lite-srcbtn.lite-cam,.lite-rounds button.on,.modal .yes';
   var root = null, clip = null, hl = null, vl = null, hole = null;
   var act = null;   // { id, el, mode:'box'|'full', x, y, t0, box:{l,t,w,h}, own }
   var raf = 0, hideT = 0;

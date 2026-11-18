@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v1.5.0">
+<link rel="manifest" href="manifest.webmanifest?v=v1.6.0">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.5.0"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.6.0"><link rel="stylesheet" href="themes.css?v=v1.6.0"><!--/STYLE-->
 </head>
 <body>
 <header>
@@ -100,7 +100,7 @@
       <div id="liteCodeInfo" class="lite-codeinfo"></div>
     </div>
     <button type="button" id="liteVerify" class="lite-verify glass"><span class="vlbl"><span id="liteGoLbl">下一步：拍照</span> <span class="arr">›</span></span></button>
-    <div id="liteDetail" class="lite-detail"></div>
+    <div id="liteDetail" class="lite-detail" data-lay="lite" data-lay-page="lite" data-lay-cols="1"></div><button type="button" class="lay-btn lite-laybtn" data-lay-page="lite" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button>
     <div class="lite-finishrow"><button type="button" id="liteFinish">✓ 完成這一組・開始新的一組</button></div>
   </div>
   <div class="layout pro-only">
@@ -117,8 +117,8 @@
       </div>
     </div>
     <div class="col-stats">
-      <h3>預報數據</h3>
-      <div id="predStats" class="stats"></div>
+      <h3 class="lay-head">預報數據<button type="button" class="lay-btn" data-lay-page="predict" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></h3>
+      <div id="predStats" class="stats" data-lay="predict" data-lay-page="predict"></div>
       <details open><summary>逐發列表</summary><div id="predList"></div></details>
     </div>
   </div>
@@ -170,61 +170,72 @@
     </div>
     <div class="col-stats">
       <h3>預報準確度</h3>
-      <div id="cmpSummary" class="stats"></div>
+      <div id="cmpSummary" class="stats" data-lay="predict.cmp" data-lay-page="predict"></div>
       <h3>實際成績</h3>
-      <div id="actStats" class="stats"></div>
+      <div id="actStats" class="stats" data-lay="predict.act" data-lay-page="predict"></div>
       <details open><summary>逐發對照</summary><div id="cmpList"></div></details>
     </div>
   </div>
 </section>
 
 <section id="tab-analysis" class="tab">
-  <div class="card ana-head">
-    <div class="row ana-namerow"><input id="anaName" class="ana-name" placeholder="自訂名稱（例：週二早上練習）" maxlength="60" aria-label="分析名稱"><select id="anaTarget" aria-label="分析靶種"></select></div>
-    <div class="row ana-meta"><span id="anaWhen" class="lbl"></span><span id="anaSaved" class="lbl"></span><button id="anaNew" type="button">＋ 新的分析</button></div>
+  <!-- v1.6.0 分析頁改版（docs/analysis_mock_*.png）：靶面當主角、左上資訊框、右下玻璃圓鈕、照片晶片、拇指列（相簿｜拍下一張｜檔案） -->
+  <div class="ana-top">
+    <div class="ana-id">
+      <label class="ana-nmrow"><input id="anaName" class="ana-name" placeholder="自訂名稱（例：週二早上練習）" maxlength="60" aria-label="分析名稱"><svg class="ana-pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></label>
+      <div class="ana-meta"><span id="anaWhen"></span><span class="ana-dotsep" aria-hidden="true">・</span><span id="anaSaved"></span></div>
+    </div>
+    <button id="anaNew" type="button" class="wr-pill"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>新分析</button>
   </div>
-  <div class="card">
-    <div class="ana-actions">
-      <label class="btn ana-main">📷 拍下一張<input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label>
-      <label class="btn ana-main2">🖼 相簿（可多選）<input type="file" id="anaPick" accept="image/*" multiple hidden></label>
+  <div class="pf-wrap ana-stage" id="anaWrap">
+    <div class="svgwrap pf-box ana-box" id="anaBox"><svg id="anaSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="分析靶面（點空白新增、點彈孔刪除；雙指縮放）"></svg>
+      <div id="anaPhotoCard" class="ana-photo" hidden><div id="anaPhotoBox" class="ana-photobox"><div id="anaPhotoInner" class="photoinner"><img id="anaImg" alt="" draggable="false"><svg id="anaPhotoSvg" xmlns="http://www.w3.org/2000/svg"></svg></div></div></div>
+      <div id="anaBusy" class="lite-busy ana-busy" hidden><i></i>分析照片中…</div>
     </div>
-    <div class="ana-actions ana-actions2">
-      <label class="btn ana-file" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器">📁 從檔案選（可多選）<input type="file" id="anaFile" accept="*/*" multiple hidden></label>
+    <div id="anaInfo" class="pf-info ana-info" aria-live="polite"></div>
+    <div id="anaViewSeg" class="wr-seg mini ana-view" role="group" aria-label="檢視"><button type="button" data-v="target" class="on" aria-pressed="true">靶面</button><button type="button" data-v="photo" aria-pressed="false">照片</button></div>
+    <button type="button" id="anaFit" class="pf-pinch ana-fit" aria-label="雙指縮放；放大時點這裡回到全靶"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l5 5M4 4h4M4 4v4M20 20l-5-5M20 20h-4M20 20v-4"/></svg><span>雙指縮放</span></button>
+    <div class="ana-tgl" role="group" aria-label="靶面標示">
+      <button type="button" id="anaTgCenter" class="wr-tg on" role="switch" aria-checked="true"><i class="dotg" aria-hidden="true"></i>群中心</button>
+      <button type="button" id="anaTgOut" class="wr-tg on" role="switch" aria-checked="true"><i class="dotr" aria-hidden="true"></i>離群</button>
+      <input type="checkbox" id="anaShowCenter" checked hidden><input type="checkbox" id="anaShowOut" checked hidden>
     </div>
-    <div class="hint pick-hint">相簿裡找不到靶紙照片？按「📁 從檔案選」，在選單裡選「相簿／圖庫」或到 DCIM › Camera 資料夾找。</div>
-    <div class="row"><span class="lbl">偵測靈敏度</span><select id="anaSens"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
-      <span class="lbl" id="anaQueue"></span></div>
-    <div id="anaChips" class="ana-chips" role="tablist" aria-label="靶紙"></div>
+    <div class="ana-rbtns" role="toolbar" aria-label="分析操作">
+      <button type="button" id="anaCalBtn" class="pf-btn ana-rb" aria-haspopup="true" aria-expanded="false" aria-controls="anaCalPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><b>校正</b></button>
+      <button type="button" id="anaUndo" class="pf-btn ana-rb" aria-label="復原"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><b>復原</b></button>
+      <button type="button" id="anaClearBtn" class="pf-btn ana-rb danger" aria-haspopup="true" aria-expanded="false" aria-controls="anaClearPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></svg><b>清除</b></button>
+    </div>
+    <div id="anaCalPop" class="wr-pop ana-pop" role="menu" aria-label="校正" hidden>
+      <div class="ph">校正這張照片</div>
+      <button type="button" id="anaAutoCal" role="menuitem" class="pi"><b>自動校正</b><small>重新找靶面與環</small></button>
+      <button type="button" id="anaRedetect" role="menuitem" class="pi"><b>重新偵測</b><small>重找彈孔（依靈敏度）</small></button>
+      <button type="button" id="anaManual" role="menuitem" class="pi"><b>手動校正</b><small>在照片上點靶心與四個邊</small></button>
+      <div class="pi-row"><button type="button" id="anaRotL" class="pi sm" aria-label="照片轉正，逆時針 1 度">⟲ 1°</button><button type="button" id="anaRotR" class="pi sm" aria-label="照片轉正，順時針 1 度">⟳ 1°</button></div>
+      <div class="pf" id="anaCalNote">要先選一張照片（下方晶片）</div>
+    </div>
+    <div id="anaClearPop" class="wr-pop ana-pop" role="menu" aria-label="清除哪些" hidden>
+      <div class="ph">清除哪些？</div>
+      <button type="button" id="anaDelSheet" role="menuitem" class="pi del"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 10l6 6M15 10l-6 6"/></svg><span><b>清除這張紀錄</b><small id="anaDelSub">先在下方選一張</small></span></button>
+      <button type="button" id="anaClearAll" role="menuitem" class="pi all"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="13" height="15" rx="2"/><path d="M4 6.5v13a2 2 0 0 0 2 2h10"/><path d="M11 7l5 5M16 7l-5 5"/></svg><span><b>清除所有紀錄</b><small id="anaAllSub">這次分析的全部照片</small></span></button>
+      <div class="pf">⚠ 按下後會再跳確認視窗</div>
+    </div>
   </div>
-  <div id="anaPhotoCard" class="card" style="display:none">
-    <div id="anaHint" class="hint"></div>
-    <div id="anaPhotoBox" class="photobox"><div id="anaPhotoInner" class="photoinner"><img id="anaImg" alt=""><svg id="anaPhotoSvg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
-    <div class="row"><span class="lbl">照片放大</span><button class="apzoom" data-z="1">1×</button><button class="apzoom" data-z="2">2×</button><button class="apzoom" data-z="3">3×</button><button class="apzoom" data-z="5">5×</button></div>
-    <div class="row"><button id="anaAutoCal">自動校正</button><button id="anaRedetect">重新偵測</button><button id="anaManual">手動校正</button><button id="anaRotL">轉正 ⟲1°</button><button id="anaRotR">轉正 ⟳1°</button></div>
-    <div class="row" id="anaCalRingRow" style="display:none"><span class="lbl">手動校正用環：</span><select id="anaCalRing"></select></div>
+  <div class="row ana-calring" id="anaCalRingRow" style="display:none"><span class="lbl">手動校正用環：</span><select id="anaCalRing"></select></div>
+  <div id="anaHint" class="ana-hint" hidden></div>
+  <div id="anaReadout" class="ana-readout" aria-live="polite"></div>
+  <div id="anaChips" class="ana-strip" role="tablist" aria-label="靶紙"></div>
+  <div class="ana-ctrl">
+    <span class="lbl">偵測靈敏度</span>
+    <div class="wr-seg" id="anaSensSeg" role="radiogroup" aria-label="偵測靈敏度"><button type="button" role="radio" data-v="1.3" aria-checked="false">保守</button><button type="button" role="radio" data-v="1" aria-checked="true" class="on">標準</button><button type="button" role="radio" data-v="0.75" aria-checked="false">靈敏</button></div>
+    <select id="anaSens" hidden aria-hidden="true" tabindex="-1"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
+    <span class="lbl" id="anaQueue"></span>
   </div>
-  <div class="layout">
-    <div class="col-target">
-      <div class="readout" id="anaReadout">拍下第一張靶紙開始分析。</div>
-      <div class="svgwrap"><svg id="anaSvg" class="target" xmlns="http://www.w3.org/2000/svg"></svg></div>
-      <div class="toolbar">
-        <span class="lbl">放大</span>
-        <button class="azoom" data-z="1">全靶</button><button class="azoom" data-z="2">2×</button><button class="azoom" data-z="4">4×</button><button class="azoom" data-z="8">8×</button>
-      </div>
-      <div class="toolbar">
-        <button id="anaUndo" type="button">↶ 復原</button>
-        <button id="anaDelSheet" type="button" class="warn">刪除此張</button>
-        <label class="chk"><input type="checkbox" id="anaShowCenter" checked> 群中心</label>
-        <label class="chk"><input type="checkbox" id="anaShowOut" checked> 離群發</label>
-      </div>
-    </div>
-    <div class="col-stats">
-      <h3 id="anaStatsTitle">數據</h3>
-      <div id="anaStats" class="stats"></div>
-      <div id="anaExtra"></div>
-      <details open><summary>每張小計</summary><div id="anaSheetTable"></div></details>
-      <details><summary>逐發列表</summary><div id="anaList"></div></details>
-    </div>
+  <div class="ana-dh lay-head"><span id="anaStatsTitle">數據</span><small class="ana-dh-sub">往下捲：每張小計・逐發・紀錄碼</small><button type="button" class="lay-btn" data-lay-page="analysis" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
+  <div id="anaMods" class="stats lay-grid" data-lay="analysis" data-lay-page="analysis">
+    <div id="anaStats" class="lay-contents"></div>
+    <div id="anaExtra" class="lay-contents"></div>
+    <div class="ana-card lay-full" data-mod="sheets" data-mod-name="每張小計"><div class="ana-ct">🗂 每張小計</div><div id="anaSheetTable"></div></div>
+    <div class="ana-card lay-full" data-mod="list" data-mod-name="逐發列表"><details class="ana-listd"><summary>逐發列表</summary><div id="anaList"></div></details></div>
   </div>
   <div class="card ana-code-card">
     <div class="ana-code-h">紀錄碼（可複製貼上備份，只有本 App 讀得懂）</div>
@@ -240,10 +251,17 @@
       <div class="row"><button type="button" id="anaPasteGo" class="primary">還原</button><button type="button" id="anaPasteCancel">取消</button></div>
     </div>
   </div>
+  <div class="ana-dock" id="anaDock">
+    <label class="wr-side" id="anaPickBtn"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4.5 3.5"/></svg><span><b>相簿</b><small>可多選</small></span><input type="file" id="anaPick" accept="image/*" multiple hidden></label>
+    <label class="wr-cam" id="anaCamBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.3l1.6-2.2h5.2l1.6 2.2h2.3a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/></svg><b>拍下一張</b><input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label>
+    <span class="wr-sidewrap"><label class="wr-side" id="anaFileBtn" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span><b>檔案</b><small>可多選</small></span><input type="file" id="anaFile" accept="*/*" multiple hidden></label><button type="button" class="wr-qi" id="anaPickInfo" aria-label="相簿找不到照片怎麼辦" aria-expanded="false" aria-controls="anaPickHint">i</button></span>
+    <div id="anaPickHint" class="wr-pop ana-pickhint" role="note" hidden>相簿裡找不到靶紙照片？按「檔案」，在選單裡選「相簿／圖庫」或到 <b>DCIM › Camera</b> 資料夾找。</div>
+  </div>
 </section>
 
 <section id="tab-ghost" class="tab">
   <div id="ghostView" class="gh" data-src="prev">
+    <button type="button" class="lay-btn pro-only gh-laybtn" data-lay-page="ghost" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button>
     <div id="ghHint" class="gh-hint">鬼影模式：60 發＝6 輪 × 10 發，按住靶面、放開記錄</div>
     <div class="gh-grid">
       <div class="gh-tgbox"><div class="gh-tg" id="ghTg"><svg id="ghSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="鬼影靶面（按住看落點，放開記錄；雙指縮放）"></svg>
@@ -278,18 +296,23 @@
 </section>
 
 <section id="tab-records" class="tab">
-  <div class="card">
+  <div class="lay-tophead"><button type="button" class="lay-btn" data-lay-page="records" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
+  <div class="lay-col" data-lay="records" data-lay-page="records" data-lay-cols="1">
+  <div class="card" data-mod="tools" data-mod-name="新增／匯出／比較">
     <div class="row"><button id="newSession2" class="primary">＋ 新的一組</button><button id="exportAll">匯出全部（JSON）</button>
     <label class="btn">匯入 JSON<input type="file" id="importFile" accept="application/json,.json" hidden></label></div>
     <div class="row rec-cmp-row"><button id="recCmpBtn" class="primary" disabled>比較勾選的紀錄</button><button id="recCmpClear">取消勾選</button><span class="lbl" id="recCmpInfo">勾選 2 筆以上紀錄（分析或預報）即可比較</span></div>
     <div class="hint">紀錄存在這台裝置的瀏覽器裡（localStorage）。照片不會保存，只保存換算後的彈著座標。清除瀏覽器資料會一起刪掉，重要的請先匯出。</div>
   </div>
-  <div id="recCompare"></div>
-  <div id="recordList"></div>
+  <div id="recCompare" data-mod="compare" data-mod-name="紀錄比較"></div>
+  <div id="recordList" data-mod="list" data-mod-name="紀錄清單"></div>
+  </div>
 </section>
 
 <section id="tab-about" class="tab">
-  <div class="card set-card" id="uiSetCard">
+  <div class="lay-tophead"><button type="button" class="lay-btn" data-lay-page="about" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
+  <div class="lay-col" data-lay="about" data-lay-page="about" data-lay-cols="1">
+  <div class="card set-card" id="uiSetCard" data-mod="ui" data-mod-name="介面設定">
     <div class="set-h">介面設定</div>
     <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／分析／紀錄／鬼影／說明」的方式</small></div>
       <div class="set-seg" id="navStyleSeg" role="radiogroup" aria-label="功能切換方式">
@@ -299,22 +322,32 @@
       </div></div>
     <label class="chk set-chk pro-only" id="navAutoHideRow"><input type="checkbox" id="navAutoHide" checked> 底部圖示列閒置 3 秒自動隱藏（在靶面以外輕輕一滑就出現）</label>
     <label class="chk set-chk"><input type="checkbox" id="liftCursor"> 按壓靶面時落點上移 60px（避免手指擋住）</label>
+    <label class="chk set-chk" id="fxAnimRow"><input type="checkbox" id="fxAnimTg" checked> 主題動畫（賽博龐克、電子世界的靶面、卡片與按鈕會動；按靶面時自動暫停 1.5 秒；系統設定「減少動態效果」時一律不動）</label>
   </div>
-  <div class="card" id="liteThemeCard"><div class="row"><b>外觀：</b>
-    <select id="liteThemeSel" aria-label="Lite 外觀"><option value="hud">1 戰術 HUD（TRON 黑＋青）</option><option value="light">2 簡約亮色（Braun 拉絲鋁）</option><option value="sport">3 運動風（Gulf 深藍＋橘，預設）</option><option value="glass">4 玻璃漸層（Synthwave）</option></select></div><div class="lbl pro-only">Pro 介面套用在功能列、靶面資訊框與圓鈕；Lite 套用整個畫面。</div></div>
-  <div class="card"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.3.0</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
-  <div class="card cloud-card" id="cloudCard"><div class="cloud-h">雲端帳號</div><div id="cloudBody"></div></div>
-  <div class="card prose" id="aboutText"></div>
+  <div class="card set-card" id="liteThemeCard" data-mod="theme" data-mod-name="主題"><div class="set-h">主題 <small class="set-sub">10 款・Pro 與 Lite 共用</small></div>
+    <div class="th-grid" id="themeGrid" role="radiogroup" aria-label="主題"><button type="button" role="radio" data-th="sport" aria-checked="false"><i class="sw sw-sport" aria-hidden="true"></i><b>運動風</b><small>深藍碳纖維＋橘（預設）</small></button><button type="button" role="radio" data-th="hud" aria-checked="false"><i class="sw sw-hud" aria-hidden="true"></i><b>戰術 HUD</b><small>黑碳纖維＋青光</small></button><button type="button" role="radio" data-th="light" aria-checked="false"><i class="sw sw-light" aria-hidden="true"></i><b>簡約亮色</b><small>拉絲鋁・戶外清楚</small></button><button type="button" role="radio" data-th="glass" aria-checked="false"><i class="sw sw-glass" aria-hidden="true"></i><b>玻璃漸層</b><small>夜空霓虹玻璃</small></button><button type="button" role="radio" data-th="cyberpunk" aria-checked="false"><i class="sw sw-cyberpunk" aria-hidden="true"></i><b>賽博龐克</b><small>霓虹故障・會動的靶面</small></button><button type="button" role="radio" data-th="tron" aria-checked="false"><i class="sw sw-tron" aria-hidden="true"></i><b>電子世界</b><small>光跡網格・會動的靶面</small></button><button type="button" role="radio" data-th="piano" aria-checked="false"><i class="sw sw-piano" aria-hidden="true"></i><b>鋼琴烤漆與霧面</b><small>黑白鋼琴漆</small></button><button type="button" role="radio" data-th="racing" aria-checked="false"><i class="sw sw-racing" aria-hidden="true"></i><b>賽車</b><small>碳纖維＋紅橘</small></button><button type="button" role="radio" data-th="appliance" aria-checked="false"><i class="sw sw-appliance" aria-hidden="true"></i><b>科技家電</b><small>霧面深藍＋暖橘點</small></button><button type="button" role="radio" data-th="luxury" aria-checked="false"><i class="sw sw-luxury" aria-hidden="true"></i><b>精密精品</b><small>黑金細線</small></button></div>
+    <select id="liteThemeSel" aria-label="主題（下拉選單）" hidden><option value="sport">1 運動風</option><option value="hud">2 戰術 HUD</option><option value="light">3 簡約亮色</option><option value="glass">4 玻璃漸層</option><option value="cyberpunk">5 賽博龐克</option><option value="tron">6 電子世界</option><option value="piano">7 鋼琴烤漆與霧面</option><option value="racing">8 賽車</option><option value="appliance">9 科技家電</option><option value="luxury">10 精密精品</option></select>
+    <div class="lbl">主題只改變畫面外觀；照片檢視與自動偵測彈孔不受影響。只有賽博龐克、電子世界會改畫靶面（環徑不變）。</div></div>
+  <div class="card" data-mod="ver" data-mod-name="版本與更新"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.3.0</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
+  <div class="card cloud-card" id="cloudCard" data-mod="cloud" data-mod-name="雲端帳號"><div class="cloud-h">雲端帳號</div><div id="cloudBody"></div></div>
+  <div class="card prose" id="aboutText" data-mod="help" data-mod-name="使用說明"></div>
+  </div>
 </section>
 </main>
-<div id="liteThemeSheet" class="lt-sheet" role="dialog" aria-modal="true" aria-label="選擇 Lite 外觀" hidden>
+<div id="liteThemeSheet" class="lt-sheet" role="dialog" aria-modal="true" aria-label="選擇主題" hidden>
   <div class="lt-sheet-card">
-    <div class="lt-sheet-h">選擇外觀</div>
-    <div class="lt-sheet-list">
-      <button type="button" data-th="hud"><i class="sw sw-hud"></i><span><b>1 戰術 HUD</b><small>TRON 黑碳纖維＋青光</small></span></button>
-      <button type="button" data-th="light"><i class="sw sw-light"></i><span><b>2 簡約亮色</b><small>Braun 拉絲鋁・戶外清楚</small></span></button>
-      <button type="button" data-th="sport"><i class="sw sw-sport"></i><span><b>3 運動風</b><small>Gulf 深藍碳纖維＋橘</small></span></button>
-      <button type="button" data-th="glass"><i class="sw sw-glass"></i><span><b>4 玻璃漸層</b><small>Synthwave 夜空玻璃</small></span></button>
+    <div class="lt-sheet-h">選擇主題</div>
+    <div class="lt-sheet-list lt-th-list">
+      <button type="button" data-th="sport"><i class="sw sw-sport"></i><span><b>1 運動風</b><small>深藍碳纖維＋橘（預設）</small></span></button>
+      <button type="button" data-th="hud"><i class="sw sw-hud"></i><span><b>2 戰術 HUD</b><small>黑碳纖維＋青光</small></span></button>
+      <button type="button" data-th="light"><i class="sw sw-light"></i><span><b>3 簡約亮色</b><small>拉絲鋁・戶外清楚</small></span></button>
+      <button type="button" data-th="glass"><i class="sw sw-glass"></i><span><b>4 玻璃漸層</b><small>夜空霓虹玻璃</small></span></button>
+      <button type="button" data-th="cyberpunk"><i class="sw sw-cyberpunk"></i><span><b>5 賽博龐克</b><small>霓虹故障・會動的靶面</small></span></button>
+      <button type="button" data-th="tron"><i class="sw sw-tron"></i><span><b>6 電子世界</b><small>光跡網格・會動的靶面</small></span></button>
+      <button type="button" data-th="piano"><i class="sw sw-piano"></i><span><b>7 鋼琴烤漆與霧面</b><small>黑白鋼琴漆</small></span></button>
+      <button type="button" data-th="racing"><i class="sw sw-racing"></i><span><b>8 賽車</b><small>碳纖維＋紅橘</small></span></button>
+      <button type="button" data-th="appliance"><i class="sw sw-appliance"></i><span><b>9 科技家電</b><small>霧面深藍＋暖橘點</small></span></button>
+      <button type="button" data-th="luxury"><i class="sw sw-luxury"></i><span><b>10 精密精品</b><small>黑金細線</small></span></button>
     </div>
     <button type="button" class="lt-sheet-x">關閉</button>
   </div>
@@ -340,15 +373,17 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v1.5.0"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v1.5.0"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v1.5.0"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v1.5.0"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v1.5.0"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v1.5.0"></script><!--/CLOUD-->
-<!--GHOST--><script src="ghost.js?v=v1.5.0"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v1.5.0"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v1.5.0"></script><!--/XHAIR-->
-<!--APP--><script src="app.js?v=v1.5.0"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v1.6.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v1.6.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v1.6.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v1.6.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v1.6.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v1.6.0"></script><!--/CLOUD-->
+<!--GHOST--><script src="ghost.js?v=v1.6.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v1.6.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v1.6.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v1.6.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v1.6.0"></script><!--/LAYOUT-->
+<!--APP--><script src="app.js?v=v1.6.0"></script><!--/APP-->
 </body>
 </html>

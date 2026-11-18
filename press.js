@@ -11,7 +11,7 @@
   var MOVE_CANCEL = 12;   // 手指移動超過這個距離＝在捲動，放開按壓
   var BTN_SEL = '#liteView button, #liteView .lite-srcbtn, #liteSteps button, .lt-sheet button, #ghostView button'; // v1.4.0：鬼影模式的按鈕也有
   // v1.5.0：Pro 新的功能列（A／B／C）、靶面右下圓鈕、縮放提示、介面設定的三個選項——Pro 和 Lite 都有按壓動效
-  var ANY_SEL = '#wrNav button, #wrFab, .pf-btn, .pf-pinch, #wrNavC button, #navStyleSeg button';
+  var ANY_SEL = '#wrNav button, #wrFab, .pf-btn, .pf-pinch, #wrNavC button, #navStyleSeg button, .wr-cam, .wr-side, .wr-pill, .wr-tg, .wr-seg button, .ana-chip, .wr-pop .pi, .lay-btn, .lay-bar button, .lay-ctl button, #themeGrid button';
   var BLOCKS = [['big', 'Big'], ['cnt', 'Cnt'], ['est', 'Est'], ['sum', 'Sum']];
   var CELL = { big: '.lp-c-big', cnt: '.lp-c-cnt', est: '.lp-c-est', sum: '.lp-c-sum' };
 
