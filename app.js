@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.4.0';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.5.0';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
@@ -164,35 +164,65 @@
     return h + '</table>';
   }
 
-  // ---------- 預報分頁 ----------
-  var predSvg = $('predSvg'), predZoom = 1;
+  // ---------- 預報分頁（v1.5.0：與對照合併成「預報·對照」；只用雙指縮放；左上資訊框；右下玻璃圓鈕） ----------
+  var predSvg = $('predSvg'), predView = null, predTid = null, predPrev = null;
+  // 靶面檢視 {cx,cy,E}（SVG 座標，y 向下）；Pro 預報與對照靶面共用這套（各自一份）
+  function cardBounds() { var c = tgt().cardSize; return { x0: -c / 2, y0: -c / 2, w: c, h: c }; }
+  function inCard(p) { var half = tgt().cardSize / 2 + 1; return Math.abs(p.x) <= half && Math.abs(p.y) <= half; }
+  function mkView(svg, fitBtn) {
+    var V = { v: null, tid: null };
+    V.reset = function () { var c = tgt().cardSize; V.v = { cx: 0, cy: 0, E: c }; V.tid = cur.targetId; };
+    V.ensure = function () { if (!V.v || V.tid !== cur.targetId) V.reset(); };
+    V.clamp = function () { zClamp(V.v, cardBounds(), 10); };
+    V.apply = function () {
+      V.ensure(); var v = V.v; svg.setAttribute('viewBox', (v.cx - v.E / 2) + ' ' + (v.cy - v.E / 2) + ' ' + v.E + ' ' + v.E); svg.dataset.extent = v.E;
+      var z = tgt().cardSize / v.E, zoomed = z > 1.05, sp = fitBtn.querySelector('span');
+      fitBtn.classList.toggle('zoomed', zoomed); sp.textContent = zoomed ? (Math.round(z * 10) / 10) + '×・全靶' : '雙指縮放';
+    };
+    V.zoom = function (z) { var c = tgt().cardSize; V.v = { cx: 0, cy: 0, E: c / Math.max(1, z) }; V.tid = cur.targetId; V.clamp(); };
+    return V;
+  }
+  var PV = mkView(predSvg, $('predFit'));
+  function predInfo(p, pending) {
+    var box = $('predInfo'), n = cur.preds.length;
+    var q = p ? C.scoreShot(tgt(), p.x, p.y) : null, num = pending ? n + 1 : n;
+    box.classList.toggle('live', !!pending); box.classList.toggle('empty', !q);
+    box.innerHTML = q ? '<span class="n">第 ' + num + ' 發</span><span class="s">' + q.ring + '</span><span class="d">(' + f1(q.dec) + ')</span>' + (q.inner ? '<span class="x">內十</span>' : '')
+      : '<span class="n">第 1 發</span><span class="s">—</span><span class="d">點靶面記錄</span>';
+  }
   function renderPredict() {
     var t = tgt();
-    drawTarget(predSvg, t, predZoom);
+    drawTarget(predSvg, t, 1); PV.ensure(); PV.clamp(); PV.apply();
     var g = predSvg.querySelector('#marks');
     cur.preds.forEach(function (p, i) { drawShot(g, predSvg, p, i + 1, 'pred-c', t.pellet); });
+    if (predPrev) previewMark(predSvg, predPrev, 'pred-c', t);
     var st = C.computeStats(t, cur.preds);
     renderStats($('predStats'), t, st);
     $('predList').innerHTML = shotTable(st.shots);
-    document.querySelectorAll('.zoom').forEach(function (b) { b.classList.toggle('on', +b.dataset.z === predZoom); });
+    if (predPrev) predInfo(predPrev, true); else predInfo(cur.preds[cur.preds.length - 1], false);
+    $('undoPred').disabled = !cur.preds.length; $('clearPred').disabled = !cur.preds.length;
     renderLite();
   }
-  attachTapper(predSvg, function (p) {
-    previewMark(predSvg, p, 'pred-c', tgt());
-    if (p) { var s = C.scoreShot(tgt(), p.x, p.y); $('predReadout').innerHTML = '第 ' + (cur.preds.length + 1) + ' 發預報：<b>' + s.ring + '（' + f1(s.dec) + '）</b>' + (s.inner ? ' 內十' : '') + '　' + offsetText(p.x, p.y); }
-  }, function (p) {
-    var E = +predSvg.dataset.extent; if (Math.abs(p.x) > E / 2 + 1 || Math.abs(p.y) > E / 2 + 1) return;
-    var q = { x: C.round(p.x, 3), y: C.round(p.y, 3), t: Date.now() }; if (cur.round > 0) q.r = cur.round; // Lite 多輪：標記目前這一輪
-    cur.preds.push(q); persist(); renderPredict();
-    var s = C.scoreShot(tgt(), p.x, p.y);
-    $('predReadout').innerHTML = '已記錄第 ' + cur.preds.length + ' 發：<b>' + s.ring + '（' + f1(s.dec) + '）</b>' + (s.inner ? ' 內十' : '');
-    if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {}
-  }, function () { return $('liftCursor').checked; });
-  document.querySelectorAll('.zoom').forEach(function (b) { b.onclick = function () { predZoom = +b.dataset.z; renderPredict(); }; });
+  attachZoom(predSvg, {
+    active: function () { return true; },
+    view: function () { PV.ensure(); return PV.v; }, clamp: PV.clamp, apply: PV.apply, render: function () { renderPredict(); },
+    lift: function () { return liftPx(); },
+    down: function (r) { this.move(r); },
+    move: function (r) { predPrev = { x: r.x, y: -r.y }; previewMark(predSvg, predPrev, 'pred-c', tgt()); predInfo(predPrev, true); },
+    up: function (r) {
+      var p = { x: r.x, y: -r.y }; predPrev = null;
+      if (!inCard(p)) { renderPredict(); return; }
+      var q = { x: C.round(p.x, 3), y: C.round(p.y, 3), t: Date.now() }; if (cur.round > 0) q.r = cur.round; // Lite 多輪：標記目前這一輪
+      cur.preds.push(q); persist(); renderPredict(); renderCompare(); vib();
+    },
+    cancel: function () { predPrev = null; renderPredict(); }
+  });
+  $('predFit').onclick = function () { PV.reset(); renderPredict(); };
   $('undoPred').onclick = function () { if (cur.preds.length) { cur.preds.pop(); persist(); renderPredict(); renderCompare(); } };
   $('clearPred').onclick = function () { if (cur.preds.length) ask('清除本組全部 ' + cur.preds.length + ' 發預報？', function () { cur.preds = []; persist(); renderAll(); }); };
   function startNew() { cur = newSession(cur.targetId); sessions.unshift(cur); persist(); photo.reset(); renderAll(); toast('已開始新的一組'); showTab('predict'); }
   $('newSession').onclick = startNew; $('newSession2').onclick = startNew;
+  // 「落點上移」從預報頁移到「說明 › 介面設定」（同一個設定，Pro／Lite／鬼影共用）
   $('liftCursor').checked = !!prefs.lift; $('liftCursor').onchange = function () { prefs.lift = this.checked; savePrefs(); };
 
   // ---------- Lite 介面：三步驟「1 預報 → 2 拍照 → 3 結果」（資料與 Pro 共用 cur；每輪用 r 標記，見 liteflow.js） ----------
@@ -631,7 +661,7 @@
       liteDrag = null; litePreview = null; renderLite();
     }
   };
-  function liftPx() { return $('liftCursor').checked ? 60 : 0; }
+  function liftPx() { return prefs.lift ? 60 : 0; }
   attachZoom(liteSvg, {
     active: function () { return !liteShowsPhoto(); },
     view: function () { return liteView; }, clamp: liteClamp,
@@ -999,12 +1029,12 @@
     document.body.classList.toggle('lite', m === 'lite');
     document.querySelectorAll('#modeToggle button').forEach(function (b) { var on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     if (prefs.ui !== m) { prefs.ui = m; savePrefs(); }
-    if (m === 'lite' && !document.body.classList.contains('on-predict') && document.querySelector('.tab.active#tab-compare')) showTab('predict'); // Lite 沒有對照分頁（併入第 2、3 步）
+    if (typeof nav !== 'undefined' && nav) nav.modeChanged(); // v1.5.0：功能列只在 Pro（Lite 有自己的步驟列）
     if (document.body.classList.contains('on-ghost')) renderGhost();
     if (!quiet) { renderPredict(); liteLayout(); toast(m === 'lite' ? '已切換到 Lite 介面' : '已切換到 Pro 介面'); }
   }
   document.querySelectorAll('#modeToggle button').forEach(function (b) { b.onclick = function () { setMode(b.dataset.mode); }; });
-  $('liteThemeSel').onchange = function () { setLiteTheme(this.value); toast('Lite 外觀已更換'); };
+  $('liteThemeSel').onchange = function () { setLiteTheme(this.value); toast('外觀已更換'); };
   // Lite 預報頁右下的調色盤按鈕 → 底部單手選單（說明分頁的下拉選單也保留）
   (function () {
     var sh = $('liteThemeSheet'), names = { hud: '戰術 HUD', light: '簡約亮色', sport: '運動風', glass: '玻璃漸層' };
@@ -1013,7 +1043,7 @@
     sh.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { setLiteTheme(b.dataset.th); liteLayout(); toast('外觀：' + names[b.dataset.th]); close(); }; });
     sh.querySelector('.lt-sheet-x').onclick = close;
     sh.addEventListener('click', function (e) { if (e.target === sh) close(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sh.hidden) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Tab') keyboard = true; if (e.key === 'Escape' && !sh.hidden) close(); });
   })();
   // Lite 底部「更多」：外觀、紀錄、多張分析、說明與帳號、切到 Pro（Lite 隱藏上方分頁列，都從這裡進）
   (function () {
@@ -1030,7 +1060,7 @@
     });
     sh.querySelector('.lt-sheet-x').onclick = close;
     sh.addEventListener('click', function (e) { if (e.target === sh) close(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sh.hidden) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Tab') keyboard = true; if (e.key === 'Escape' && !sh.hidden) close(); });
   })();
 
   // 選照片：「從檔案選」可以選到任何檔案，先確認是圖片；HEIC（三星「高效率相片」）Chrome 多半無法解碼，給清楚的說明
@@ -1195,7 +1225,7 @@
   function srcMode() { return document.querySelector('input[name=src]:checked').value; }
   function renderCompare() {
     var t = tgt();
-    drawTarget(cmpSvg, t, cmpZoom);
+    drawTarget(cmpSvg, t, 1); CV.ensure(); CV.clamp(); CV.apply();
     var lines = cmpSvg.querySelector('#lines'), g = cmpSvg.querySelector('#marks');
     var sp = $('showPred').checked, sa = $('showAct').checked;
     var E = +cmpSvg.dataset.extent;
@@ -1225,22 +1255,30 @@
       tb += '</table>';
     }
     $('cmpList').innerHTML = tb + (st.n ? '<p><b>實際彈著明細</b></p>' + shotTable(st.shots) : '');
-    document.querySelectorAll('.czoom').forEach(function (b) { b.classList.toggle('on', +b.dataset.z === cmpZoom); });
     $('photoPane').style.display = srcMode() === 'photo' ? '' : 'none';
     $('cmpReadout').innerHTML = (srcMode() === 'vector' ? '在下方靶面點實際彈著（紅）。' : '藍＝預報，紅＝實際，橘線＝配對。') +
       (pairMode() === 'optimal' ? '配對：照片看不出射擊順序，程式用「總距離最短」把預報和彈孔一一配對；紅點數字＝配到的預報編號（?＝沒配到）。' : '配對：依射擊順序（第1發對第1發）。');
     photo.draw(); photo.hint();
   }
-  attachTapper(cmpSvg, function (p) {
-    if (srcMode() !== 'vector') return;
-    previewMark(cmpSvg, p, 'act-c', tgt());
-    if (p) { var s = C.scoreShot(tgt(), p.x, p.y); $('cmpReadout').innerHTML = '第 ' + (cur.actuals.length + 1) + ' 發實際：<b>' + s.ring + '（' + f1(s.dec) + '）</b>'; }
-  }, function (p) {
-    if (srcMode() !== 'vector') return;
-    var E = +cmpSvg.dataset.extent; if (Math.abs(p.x) > E / 2 + 1 || Math.abs(p.y) > E / 2 + 1) return;
-    cur.actuals.push({ x: C.round(p.x, 3), y: C.round(p.y, 3), src: 'vector' }); persist(); renderCompare();
-  }, function () { return $('liftCursor').checked; });
-  document.querySelectorAll('.czoom').forEach(function (b) { b.onclick = function () { cmpZoom = +b.dataset.z; renderCompare(); }; });
+  var CV = mkView(cmpSvg, $('cmpFit')), cmpPrev = null;
+  attachZoom(cmpSvg, {
+    active: function () { return true; },
+    view: function () { CV.ensure(); return CV.v; }, clamp: CV.clamp, apply: CV.apply, render: function () { renderCompare(); },
+    lift: function () { return liftPx(); },
+    down: function (r) { this.move(r); },
+    move: function (r) {
+      if (srcMode() !== 'vector') return;
+      cmpPrev = { x: r.x, y: -r.y }; previewMark(cmpSvg, cmpPrev, 'act-c', tgt());
+      var s = C.scoreShot(tgt(), cmpPrev.x, cmpPrev.y); $('cmpReadout').innerHTML = '第 ' + (cur.actuals.length + 1) + ' 發實際：<b>' + s.ring + '（' + f1(s.dec) + '）</b>';
+    },
+    up: function (r) {
+      cmpPrev = null; if (srcMode() !== 'vector') return;
+      var p = { x: r.x, y: -r.y }; if (!inCard(p)) { renderCompare(); return; }
+      cur.actuals.push({ x: C.round(p.x, 3), y: C.round(p.y, 3), src: 'vector' }); persist(); renderCompare();
+    },
+    cancel: function () { if (cmpPrev) { cmpPrev = null; renderCompare(); } }
+  });
+  $('cmpFit').onclick = function () { CV.reset(); renderCompare(); };
   document.querySelectorAll('input[name=src]').forEach(function (r) { r.onchange = renderCompare; });
   $('pairMode').onchange = function () { cur.pairMode = this.value; persist(); renderCompare(); };
   $('showPred').onchange = renderCompare; $('showAct').onchange = renderCompare;
@@ -1402,7 +1440,7 @@
     var sh = selSheet(); if (!sh) { toast('先在上方選一張靶紙，再點靶面修改'); return; }
     var E = +anaSvg.dataset.extent; if (Math.abs(p.x) > E / 2 + 1 || Math.abs(p.y) > E / 2 + 1) return;
     anaToggleHole(sh, p);
-  }, function () { return $('liftCursor').checked; });
+  }, function () { return !!prefs.lift; });
   document.querySelectorAll('.azoom').forEach(function (b) { b.onclick = function () { anaZoom = +b.dataset.z; renderAnalysis(); }; });
   $('anaShowCenter').onchange = function () { renderAnalysis(); }; $('anaShowOut').onchange = function () { renderAnalysis(); };
   $('anaUndo').onclick = function () {
@@ -1773,10 +1811,12 @@
     var rows = function (t) { var h = ''; for (var n = 10; n >= 1; n--) h += '<tr><td>' + n + '</td><td>' + t.ringDiam[n] + '</td><td>' + f2(t.ringDiam[n] / 2 + t.pellet / 2) + '</td></tr>'; return h; };
     $('aboutText').innerHTML =
       '<p class="appver"><b>' + APP_NAME + '</b> 版本 beta ' + APP_VERSION + '</p>' +
-      '<h3>怎麼用</h3><ol><li>上方選靶種。</li><li><b>預報</b>：每打一發，在靶面點你感覺的落點。按住可拖曳微調，放開才記錄。小靶可用 2×–8× 放大。</li>' +
-      '<li><b>對照</b>：拉回靶紙後拍照，程式會<b>自動找黑區校正、自動找彈孔</b>。綠圈要對齊靶環；紫色虛線要穿過上下左右的環數數字，歪了按「轉正」。找錯的彈孔點一下刪除，漏掉的點空白處新增。自動失敗時可按「手動校正」（點靶心＋某環上右下左）。電子靶也可以改選「直接在靶面上點」。</li>' +
+      '<h3>怎麼用</h3><ol><li>上方選靶種。</li>' +
+      '<li><b>切換功能</b>（Pro）：預設是畫面下方的<b>圖示列</b>（預報·對照、分析、紀錄、鬼影、說明），閒置 3 秒會淡出；在靶面以外輕輕一滑（或從畫面最下方往上滑）就會出現。也可以在本頁「介面設定」改成 <b>B 浮動按鈕</b>（右下角圓鈕）或 <b>C 左右滑動</b>（在靶面以外左右滑）。</li>' +
+      '<li><b>預報·對照</b>：每打一發，在靶面點你感覺的落點。按住可拖曳微調，放開才記錄；兩指縮放（右上角按一下回到全靶）。左上角顯示最新一發的分數，右下角是「新的一組／清除本組／復原」。打完往下捲就是<b>對照</b>。</li>' +
+      '<li><b>對照</b>（在預報下面）：拉回靶紙後拍照，程式會<b>自動找黑區校正、自動找彈孔</b>。綠圈要對齊靶環；紫色虛線要穿過上下左右的環數數字，歪了按「轉正」。找錯的彈孔點一下刪除，漏掉的點空白處新增。自動失敗時可按「手動校正」（點靶心＋某環上右下左）。電子靶也可以改選「直接在靶面上點」。</li>' +
       '<li><b>分析</b>：不需要預報。一張打完拍一張（發數不限），程式自動校正、找彈孔並算出每張與合併數據：校正建議（群中心偏移 mm 與修正方向）、穩定度（標準差、去掉最差一發的平均）、離群發、趨勢圖、小數分分布。不確定的彈孔以橘色虛線＋「?」標示，點一下就能刪除，漏掉的點空白處新增（照片或下方靶面都可以點）。分析自動存到「紀錄」，可自訂名稱。可用「複製紀錄碼」把彈孔座標壓成一串只有本 App 讀得懂的字，貼到備忘錄或 LINE 備份，下次「貼上還原」就能畫回靶面（不含照片）。</li>' +
-      '<li><b>鬼影模式</b>（Pro 上方「鬼影」分頁；Lite 在「更多 → 👻 鬼影模式」）：60 發＝6 輪 × 10 發，按住靶面看預估分數、放開記錄。灰色孔＝上一次訓練的同一發，虛線圈＝下一發；右側比較上次與這次的平均。來源可改成「本次上一輪」，也可以挑別筆紀錄。存成一般紀錄，紀錄碼照常可用。</li>' +
+      '<li><b>鬼影模式</b>（Pro 功能列的「鬼影」；Lite 在「更多 → 👻 鬼影模式」）：60 發＝6 輪 × 10 發，按住靶面看預估分數、放開記錄。灰色孔＝上一次訓練的同一發，虛線圈＝下一發；右側比較上次與這次的平均。來源可改成「本次上一輪」，也可以挑別筆紀錄。存成一般紀錄，紀錄碼照常可用。</li>' +
       '<li><b>按壓十字線</b>：手指按住任何按鈕、資訊方塊或清單時，按的位置會出現十字線（跟預報同款），放開就消失；不影響點擊與捲動。</li>' +
       '<li><b>紀錄比較</b>：在「紀錄」勾選 2 筆以上（分析或預報），按「比較」看平均、群大小、偏移、標準差、內十數與跨日期趨勢。</li>' +
       '<li>照片看不出射擊順序，所以預設用「最近配對」（總距離最短的一對一配對）；直接在靶面依序點時可改成「依射擊順序」。程式會算出每發預報差距、平均誤差與預報的系統性偏向。</li><li><b>紀錄</b>：每組自動存在這台裝置，可匯出備份。</li></ol>' +
@@ -1801,8 +1841,13 @@
     document.body.appendChild(bg);
   }
   function toast(msg, ms) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, ms || (String(msg).length > 24 ? 2800 : 1800)); }
+  // showTab：v1.5.0 起「預報」與「對照」合併成「預報·對照」（Pro 在預報下面直接接對照）；showTab('compare') 仍可用＝回到預報·對照並捲到對照區
+  var curTab = 'predict';
   function showTab(name) {
-    document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
+    var toCmp = name === 'compare'; if (toCmp) name = 'predict';
+    if (!$('tab-' + name)) name = 'predict';
+    curTab = name;
+    document.querySelectorAll('#wrNav button[data-tab]').forEach(function (b) { var on = b.dataset.tab === name; b.classList.toggle('active', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     document.querySelectorAll('.tab').forEach(function (s) { s.classList.toggle('active', s.id === 'tab-' + name); });
     if (name === 'records') renderRecords();
     if (name === 'analysis') renderAnalysis();
@@ -1814,8 +1859,165 @@
     if (document.body.classList.contains('lite')) renderLite();
     if (name === 'predict') liteLayout();
     if (name === 'ghost') ghLayout();
+    if (nav) nav.sync(name);
+    if (toCmp && !document.body.classList.contains('lite')) { var hc = $('cmpHead'); if (hc && hc.scrollIntoView) hc.scrollIntoView({ block: 'start' }); }
   }
-  document.querySelectorAll('.tabs button').forEach(function (b) { b.onclick = function () { showTab(b.dataset.tab); }; });
+
+  // ---------- v1.5.0 功能切換（只在 Pro；Lite 用底部步驟列）：A 底部圖示列／B 浮動按鈕／C 左右滑動 ----------
+  // A（預設）：閒置 3 秒淡出（opacity 300ms，隱藏時不能按）；在靶面以外輕輕一滑（或從畫面下方往上滑）就淡入。點靶面、雙指縮放不會叫出來。
+  // B：右下角浮動圓鈕，按一下往上展開 5 個功能。C：在靶面以外左右滑動換功能，上方小圓點顯示目前位置。
+  // 設定存在 prefs.nav（'a'｜'b'｜'c'）與 prefs.navAutoHide（預設 true）。
+  var NAV_ORDER = ['predict', 'analysis', 'records', 'ghost', 'about'];
+  var NAV_NAME = { predict: '預報·對照', analysis: '分析', records: '紀錄', ghost: '鬼影', about: '說明' };
+  var nav = (function () {
+    var N = $('wrNav'), H = $('wrNavHandle'), fab = $('wrFab'), scrim = $('wrFabScrim'), B = document.body, M = document.querySelector('main');
+    var HIDE_MS = 3000, hideT = 0, holding = false, keyboard = false, style = 'a', autoHide = prefs.navAutoHide !== false, g = null, anim = 0;
+    // 不算「滑動」的起點：靶面、照片、彈出視窗、可橫向捲動的區塊、輸入元件、功能列本身
+    var NO_SWIPE = 'svg.target,svg.lite-photo,.photobox,.lt-sheet,.modal-bg,input,textarea,select,#wrNav,.wr-fab-wrap,.wr-navc,table,.ana-chips,.lite-rounds,.gh-strip';
+    function pro() { return !B.classList.contains('lite'); }
+    function reduced() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+    function isHidden() { return B.classList.contains('nav-hidden'); }
+    function setHidden(h) { B.classList.toggle('nav-hidden', !!h); N.setAttribute('aria-hidden', h ? 'true' : 'false'); }
+    function arm() {
+      clearTimeout(hideT);
+      if (style !== 'a' || !autoHide) return;
+      hideT = setTimeout(function () {
+        if (holding || (keyboard && N.contains(document.activeElement)) || !pro()) { arm(); return; }
+        setHidden(true);
+      }, HIDE_MS);
+    }
+    function reveal() { if (style !== 'a') return; setHidden(false); arm(); }
+    function openFab(o) {
+      o = !!o && style === 'b';
+      B.classList.toggle('fab-open', o); fab.setAttribute('aria-expanded', o ? 'true' : 'false');
+      if (o) { var a = N.querySelector('button.active') || N.querySelector('button'); if (a) try { a.focus({ preventScroll: true }); } catch (e) {} }
+    }
+    function syncSettings() {
+      document.querySelectorAll('#navStyleSeg [data-nav]').forEach(function (b) { var on = b.dataset.nav === style; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+      var ah = $('navAutoHide'); if (ah) { ah.checked = autoHide; ah.disabled = style !== 'a'; }
+      var row = $('navAutoHideRow'); if (row) row.classList.toggle('dim', style !== 'a');
+    }
+    function setStyle(st, quiet) {
+      st = ['a', 'b', 'c'].indexOf(st) >= 0 ? st : 'a'; style = st;
+      ['a', 'b', 'c'].forEach(function (k) { B.classList.toggle('nav-' + k, k === st); });
+      openFab(false); cDragEnd(true); setHidden(false); arm(); syncSettings();
+      if (prefs.nav !== st) { prefs.nav = st; savePrefs(); }
+      if (!quiet) toast({ a: '功能切換：A 底部圖示列', b: '功能切換：B 浮動按鈕（右下角）', c: '功能切換：C 左右滑動' }[st]);
+    }
+    function setAuto(on) { autoHide = !!on; prefs.navAutoHide = autoHide; savePrefs(); syncSettings(); setHidden(false); arm(); }
+    function sync(name) {
+      var i = NAV_ORDER.indexOf(name); if (i < 0) return;
+      var btn = N.querySelector('button[data-tab="' + name + '"]');
+      // B：圓鈕顯示目前功能的圖示＋名稱
+      var ic = fab.querySelector('.wr-fab-ic'), sv = btn && btn.querySelector('svg');
+      if (ic && sv) ic.innerHTML = sv.outerHTML;
+      $('wrFabLbl').textContent = NAV_NAME[name]; fab.setAttribute('aria-label', '功能選單（目前：' + NAV_NAME[name] + '）');
+      // C：目前頁名＋兩側淡淡顯示左右鄰居
+      $('navcCur').textContent = NAV_NAME[name];
+      $('navcPrev').textContent = i > 0 ? '‹ ' + NAV_NAME[NAV_ORDER[i - 1]] : '';
+      $('navcNext').textContent = i < NAV_ORDER.length - 1 ? NAV_NAME[NAV_ORDER[i + 1]] + ' ›' : '';
+      document.querySelectorAll('#wrNavC .navc-dots button').forEach(function (d) { var on = d.dataset.tab === name; d.classList.toggle('on', on); d.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      if (style === 'a' && !isHidden()) arm();
+    }
+    function go(name) { openFab(false); var old = curTab; showTab(name); if (old !== name || name === 'predict') window.scrollTo(0, 0); }
+    N.querySelectorAll('button[data-tab]').forEach(function (b) { b.onclick = function () { go(b.dataset.tab); if (style === 'b' || style === 'c') window.scrollTo(0, 0); }; });
+    document.querySelectorAll('#wrNavC .navc-dots button').forEach(function (b) { b.onclick = function () { go(b.dataset.tab); window.scrollTo(0, 0); }; });
+    $('navcPrev').onclick = function () { cStep(-1); }; $('navcNext').onclick = function () { cStep(1); };
+    fab.onclick = function () { openFab(!B.classList.contains('fab-open')); };
+    scrim.onclick = function () { openFab(false); };
+    H.onclick = function () { reveal(); };
+    document.addEventListener('keydown', function (e) { if (e.key === 'Tab') keyboard = true; if (e.key === 'Escape' && B.classList.contains('fab-open')) { openFab(false); try { fab.focus({ preventScroll: true }); } catch (x) {} } });
+    // 按著功能列時不要淡出；放開後重新計時
+    N.addEventListener('pointerdown', function () { keyboard = false; holding = true; clearTimeout(hideT); }, { passive: true });
+    document.addEventListener('pointerup', function () { if (holding) { holding = false; arm(); } }, { passive: true, capture: true });
+    document.addEventListener('pointercancel', function () { if (holding) { holding = false; arm(); } }, { passive: true, capture: true });
+    N.addEventListener('focusin', function () { if (style === 'a') reveal(); });
+    N.addEventListener('focusout', function () { arm(); });
+
+    // --- C：左右滑動的畫面跟手（只動 main 的 transform／opacity） ---
+    function cDrag(dx) {
+      if (reduced()) return;
+      var i = NAV_ORDER.indexOf(curTab), edge = (dx > 0 && i === 0) || (dx < 0 && i === NAV_ORDER.length - 1);
+      var d = edge ? dx * 0.18 : dx * 0.55;
+      M.style.transition = 'none'; M.style.transform = 'translateX(' + d.toFixed(1) + 'px)'; M.style.opacity = String(1 - Math.min(0.35, Math.abs(d) / (window.innerWidth || 400)));
+      B.classList.toggle('navc-peek-prev', dx > 24 && !edge); B.classList.toggle('navc-peek-next', dx < -24 && !edge);
+    }
+    function cDragEnd(instant) {
+      B.classList.remove('navc-peek-prev', 'navc-peek-next');
+      if (!M.style.transform && !M.style.opacity) return;
+      if (instant || reduced()) { M.style.transition = ''; M.style.transform = ''; M.style.opacity = ''; return; }
+      M.style.transition = 'transform .22s cubic-bezier(.2,.8,.3,1),opacity .22s'; M.style.transform = ''; M.style.opacity = '';
+      clearTimeout(anim); anim = setTimeout(function () { M.style.transition = ''; }, 260);
+    }
+    function cStep(dir) {
+      var i = NAV_ORDER.indexOf(curTab) + dir;
+      if (i < 0 || i >= NAV_ORDER.length) { cDragEnd(); return false; }
+      var to = NAV_ORDER[i];
+      B.classList.remove('navc-peek-prev', 'navc-peek-next');
+      if (reduced()) { M.style.transform = ''; M.style.opacity = ''; showTab(to); window.scrollTo(0, 0); return true; }
+      clearTimeout(anim);
+      M.style.transition = 'transform .15s ease-in,opacity .15s ease-in'; M.style.transform = 'translateX(' + (-dir * 38) + '%)'; M.style.opacity = '0';
+      anim = setTimeout(function () {
+        showTab(to); window.scrollTo(0, 0);
+        M.style.transition = 'none'; M.style.transform = 'translateX(' + (dir * 30) + '%)'; void M.offsetWidth;
+        M.style.transition = 'transform .24s cubic-bezier(.2,.8,.3,1),opacity .24s'; M.style.transform = ''; M.style.opacity = '';
+        anim = setTimeout(function () { M.style.transition = ''; }, 280);
+      }, 150);
+      return true;
+    }
+
+    // --- 手勢（觸控事件，全部 passive，不擋捲動與靶面縮放） ---
+    function canStart(el, x) {
+      if (!el || !el.closest) return false;
+      if (el.closest(NO_SWIPE)) return false;
+      return true;
+    }
+    document.addEventListener('touchstart', function (e) {
+      if (!pro() || e.touches.length !== 1) { if (g && g.dir === 'h') cDragEnd(); g = null; return; }
+      var t = e.touches[0], W = window.innerWidth || 400;
+      g = { x: t.clientX, y: t.clientY, t: Date.now(), ok: canStart(e.target), edge: t.clientX < 18 || t.clientX > W - 18, bottom: t.clientY > (window.innerHeight || 800) - 96, dir: null, done: false };
+      // 從畫面最下方（功能列的位置）開始的一滑，即使起點剛好在別的元素上也算
+      if (!g.ok && g.bottom && !(e.target.closest && e.target.closest('svg.target,svg.lite-photo,.photobox,.modal-bg,.lt-sheet'))) g.ok = true;
+    }, { passive: true, capture: true });
+    document.addEventListener('touchmove', function (e) {
+      if (!g) return;
+      if (e.touches.length !== 1) { if (g.dir === 'h') cDragEnd(); g = null; return; }
+      var t = e.touches[0], dx = t.clientX - g.x, dy = t.clientY - g.y;
+      if (style === 'a') {
+        if (!g.done && g.ok && isHidden() && (Math.hypot(dx, dy) >= 18 || (g.bottom && dy <= -10))) { g.done = true; reveal(); }
+        else if (!g.done && g.ok && !isHidden() && Math.hypot(dx, dy) >= 18) { g.done = true; arm(); }
+      } else if (style === 'c' && g.ok && !g.edge) {
+        if (!g.dir) { if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) g.dir = 'h'; else if (Math.abs(dy) > 12) g.dir = 'v'; }
+        if (g.dir === 'h') cDrag(dx);
+      }
+    }, { passive: true, capture: true });
+    function tEnd(e) {
+      if (!g) return; var G = g; g = null;
+      if (style !== 'c' || G.dir !== 'h') return;
+      var t = e.changedTouches && e.changedTouches[0]; if (!t || e.type === 'touchcancel') { cDragEnd(); return; }
+      var dx = t.clientX - G.x, dt = Math.max(1, Date.now() - G.t), W = window.innerWidth || 400;
+      if (Math.abs(dx) > Math.max(56, W * 0.2) || (Math.abs(dx) > 32 && Math.abs(dx) / dt > 0.45)) cStep(dx < 0 ? 1 : -1); else cDragEnd();
+    }
+    document.addEventListener('touchend', tEnd, { passive: true, capture: true });
+    document.addEventListener('touchcancel', tEnd, { passive: true, capture: true });
+    // 電腦（滑鼠）：滑到畫面最下方、或在靶面以外捲動滾輪＝叫出功能列
+    document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse' && style === 'a' && pro() && isHidden() && e.clientY > (window.innerHeight || 800) - 56) reveal(); }, { passive: true }); // 只算真的滑鼠（觸控點擊產生的相容滑鼠事件不算）
+    document.addEventListener('wheel', function (e) { if (style === 'a' && pro() && isHidden() && canStart(e.target)) reveal(); }, { passive: true });
+
+    // 設定（說明 › 介面設定）
+    document.querySelectorAll('#navStyleSeg [data-nav]').forEach(function (b) { b.onclick = function () { setStyle(b.dataset.nav); }; });
+    $('navAutoHide').onchange = function () { setAuto(this.checked); toast(this.checked ? '底部圖示列：閒置自動隱藏' : '底部圖示列：一直顯示'); };
+    function modeChanged() { openFab(false); cDragEnd(true); setHidden(false); arm(); setHdr(); }
+    // C 的小圓點列黏在標題列下面：量一下標題列實際高度（含瀏海安全區）
+    function setHdr() { var h = document.querySelector('header'); if (h) document.documentElement.style.setProperty('--hdr-h', h.offsetHeight + 'px'); }
+    window.addEventListener('resize', setHdr); setHdr();
+    setStyle(prefs.nav, true);
+    return {
+      get style() { return style; }, get hidden() { return isHidden(); }, get autoHide() { return autoHide; }, get fabOpen() { return B.classList.contains('fab-open'); },
+      setStyle: setStyle, setAutoHide: setAuto, reveal: reveal, hide: function () { clearTimeout(hideT); if (style === 'a') setHidden(true); },
+      openFab: openFab, sync: sync, step: cStep, modeChanged: modeChanged, go: go, HIDE_MS: HIDE_MS
+    };
+  })();
   function fillCalRing() {
     var t = tgt(), sel = $('calRing'); sel.innerHTML = '';
     for (var n = 1; n <= 9; n++) { var o = document.createElement('option'); o.value = n; o.textContent = n + ' 環（外徑 ' + t.ringDiam[n] + 'mm）' + (t.ringDiam[n] === t.blackDiam ? '＝黑區邊緣' : ''); sel.appendChild(o); }
@@ -1825,7 +2027,7 @@
   Object.keys(T).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = T[k].name; tsel.appendChild(o); });
   tsel.onchange = function () {
     var id = tsel.value;
-    function go() { prefs.targetId = id; savePrefs(); persist(); photo.reset(); predZoom = 1; cmpZoom = 1; renderAll(); }
+    function go() { prefs.targetId = id; savePrefs(); persist(); photo.reset(); PV.reset(); CV.reset(); renderAll(); }
     if (cur.preds.length || cur.actuals.length) {
       tsel.value = cur.targetId;
       ask('目前這組已有紀錄。換靶種會開始新的一組，舊的保留在「紀錄」。繼續？', function () { cur = newSession(id); sessions.unshift(cur); go(); });
@@ -1834,8 +2036,8 @@
   function renderAll() { renderAnalysis(); tsel.value = cur.targetId; $('pairMode').value = cur.pairMode || (cur.actuals.some(function (a) { return a.src === 'auto'; }) ? 'optimal' : 'order'); fillCalRing(); renderPredict(); renderCompare(); renderRecords(); if (document.body.classList.contains('on-ghost')) renderGhost(); }
   try { var nj = $('nojsNotice'); if (nj) nj.style.display = 'none'; } catch (e) {}
   if (!storageOK) { var sw = $('storageNotice'); if (sw) sw.style.display = ''; }
-  setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); renderAbout(); persist(true); renderAll(); liteLayout();
-  window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; }, get liteStep() { return liteStep(); }, setLiteStep: setLiteStep, get litePhoto() { return lp; }, get liteSel() { return liteSel; }, renderLite: function () { renderLite(); }, get gcur() { return gcur; }, renderGhost: function () { renderGhost(); }, showTab: function (n) { showTab(n); }, get ghostPreview() { return ghPrev; } };
+  setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); nav.sync('predict'); renderAbout(); persist(true); renderAll(); liteLayout();
+  window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; }, get liteStep() { return liteStep(); }, setLiteStep: setLiteStep, get litePhoto() { return lp; }, get liteSel() { return liteSel; }, renderLite: function () { renderLite(); }, get gcur() { return gcur; }, renderGhost: function () { renderGhost(); }, showTab: function (n) { showTab(n); }, get ghostPreview() { return ghPrev; }, nav: nav, get tab() { return curTab; }, predZoom: function (z) { PV.zoom(z); renderPredict(); }, cmpZoom: function (z) { CV.zoom(z); renderCompare(); }, get predView() { return PV.v; } };
 
   // ---------- 雲端帳號（備註4，Firebase；沒有設定檔時只顯示「即將推出」） ----------
   (function () {

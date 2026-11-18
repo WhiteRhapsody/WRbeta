@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v1.4.0">
+<link rel="manifest" href="manifest.webmanifest?v=v1.5.0">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.4.0"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.5.0"><!--/STYLE-->
 </head>
 <body>
 <header>
@@ -23,14 +23,24 @@
 <div id="storageNotice" class="notice soft" style="display:none">此畫面無法存檔（儲存空間被封鎖），可以操作，但關閉後資料會消失。請用 Chrome 開啟以保存紀錄。</div>
 <div id="errNotice" class="notice" style="display:none"></div>
 <script>window.addEventListener('error',function(e){try{var n=document.getElementById('errNotice');n.style.display='';n.textContent='程式錯誤：'+(e.message||e)+'（請截圖回報）';}catch(_){}});</script>
-<nav class="tabs">
-  <button data-tab="predict" class="active">預報</button>
-  <button data-tab="compare">對照</button>
-  <button data-tab="analysis">分析</button>
-  <button data-tab="ghost">鬼影</button>
-  <button data-tab="records">紀錄</button>
-  <button data-tab="about">說明</button>
+<!-- v1.5.0 功能切換（Pro）：A 底部圖示列（預設，閒置自動淡出、輕滑淡入）／B 浮動按鈕／C 左右滑動；在「說明 › 介面設定」切換 -->
+<nav id="wrNav" class="tabs wr-nav pro-only" aria-label="功能">
+  <div class="wr-nav-in">
+    <button type="button" data-tab="predict" data-ic="fc" class="active" aria-current="page"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>預報·對照</span></button>
+    <button type="button" data-tab="analysis" data-ic="an"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M6 17v-5M10.5 17V7M15 17v-7.5M19.5 17V4.5"/></svg><span>分析</span></button>
+    <button type="button" data-tab="records" data-ic="rec"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="3" width="15" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>紀錄</span></button>
+    <button type="button" data-tab="ghost" data-ic="gh"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20.5V11a7 7 0 0 1 14 0v9.5l-2.4-1.8-2.3 1.8-2.3-1.8-2.3 1.8-2.3-1.8z"/><circle cx="9.5" cy="11" r="1" fill="currentColor"/><circle cx="14.5" cy="11" r="1" fill="currentColor"/></svg><span>鬼影</span></button>
+    <button type="button" data-tab="about" data-ic="help"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 0 1 5.2 1c0 1.9-2.6 2.2-2.6 3.9"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg><span>說明</span></button>
+  </div>
 </nav>
+<button type="button" id="wrNavHandle" class="wr-nav-handle pro-only" aria-label="顯示功能列" tabindex="-1"><i></i></button>
+<div id="wrFabScrim" class="wr-fab-scrim pro-only" aria-hidden="true"></div>
+<div id="wrFabWrap" class="wr-fab-wrap pro-only"><span id="wrFabLbl" class="wr-fab-lbl" aria-hidden="true">預報·對照</span><button type="button" id="wrFab" class="wr-fab" aria-label="功能選單（目前：預報·對照）" aria-expanded="false" aria-controls="wrNav"><span class="wr-fab-ic"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><span class="wr-fab-x"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></span></button></div>
+<div id="wrNavC" class="wr-navc pro-only" aria-label="功能（左右滑動切換）">
+  <span class="navc-side navc-prev" id="navcPrev"></span>
+  <span class="navc-mid"><b id="navcCur">預報·對照</b><span class="navc-dots" role="tablist"><button type="button" role="tab" data-tab="predict" aria-label="預報·對照" class="on" aria-selected="true"></button><button type="button" role="tab" data-tab="analysis" aria-label="分析" aria-selected="false"></button><button type="button" role="tab" data-tab="records" aria-label="紀錄" aria-selected="false"></button><button type="button" role="tab" data-tab="ghost" aria-label="鬼影" aria-selected="false"></button><button type="button" role="tab" data-tab="about" aria-label="說明" aria-selected="false"></button></span></span>
+  <span class="navc-side navc-next" id="navcNext"></span>
+</div>
 
 <main>
 <section id="tab-predict" class="tab active">
@@ -95,17 +105,15 @@
   </div>
   <div class="layout pro-only">
     <div class="col-target">
-      <div class="readout" id="predReadout">每打一發，在靶面上點你感覺的落點（可按住拖曳微調，放開才記錄）</div>
-      <div class="svgwrap"><svg id="predSvg" class="target" xmlns="http://www.w3.org/2000/svg"><!--STATICSVG--></svg></div>
-      <div class="toolbar">
-        <span class="lbl">放大</span>
-        <button class="zoom" data-z="1">全靶</button><button class="zoom" data-z="2">2×</button><button class="zoom" data-z="4">4×</button><button class="zoom" data-z="8">8×</button>
-      </div>
-      <div class="toolbar">
-        <button id="undoPred">↶ 復原</button>
-        <button id="clearPred" class="warn">清除本組</button>
-        <button id="newSession" class="primary">＋ 新的一組</button>
-        <label class="chk"><input type="checkbox" id="liftCursor"> 落點上移（避免手指擋住）</label>
+      <div class="pf-wrap" id="predWrap">
+        <div class="svgwrap pf-box"><svg id="predSvg" class="target" xmlns="http://www.w3.org/2000/svg"><!--STATICSVG--></svg></div>
+        <div id="predInfo" class="pf-info" aria-live="polite"><span class="n">第 1 發</span><span class="s">—</span><span class="d"></span></div>
+        <button type="button" id="predFit" class="pf-pinch" aria-label="雙指縮放；放大時點這裡回到全靶"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l5 5M4 4h4M4 4v4M20 20l-5-5M20 20h-4M20 20v-4"/></svg><span>雙指縮放</span></button>
+        <div class="pf-acts" role="toolbar" aria-label="本組操作">
+          <button type="button" id="newSession" class="pf-btn pri a3" aria-label="新的一組"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><b>新的一組</b></button>
+          <button type="button" id="clearPred" class="pf-btn a2" aria-label="清除本組"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></svg><b>清除本組</b></button>
+          <button type="button" id="undoPred" class="pf-btn a1" aria-label="復原"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><b>復原</b></button>
+        </div>
       </div>
     </div>
     <div class="col-stats">
@@ -117,6 +125,7 @@
 </section>
 
 <section id="tab-compare" class="tab">
+  <div class="cmp-head pro-only" id="cmpHead"><b>對照</b><span>打完拍照（或在靶面點實際彈著），和上面的預報逐發比對</span></div>
   <div class="card">
     <div class="row">
       <b>實際彈著來源：</b>
@@ -148,10 +157,9 @@
   <div class="layout">
     <div class="col-target">
       <div class="readout" id="cmpReadout">藍＝預報，紅＝實際，依順序配對（第1發對第1發）</div>
-      <div class="svgwrap"><svg id="cmpSvg" class="target" xmlns="http://www.w3.org/2000/svg"></svg></div>
-      <div class="toolbar">
-        <span class="lbl">放大</span>
-        <button class="czoom" data-z="1">全靶</button><button class="czoom" data-z="2">2×</button><button class="czoom" data-z="4">4×</button><button class="czoom" data-z="8">8×</button>
+      <div class="pf-wrap" id="cmpWrap">
+        <div class="svgwrap pf-box"><svg id="cmpSvg" class="target" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <button type="button" id="cmpFit" class="pf-pinch" aria-label="雙指縮放；放大時點這裡回到全靶"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l5 5M4 4h4M4 4v4M20 20l-5-5M20 20h-4M20 20v-4"/></svg><span>雙指縮放</span></button>
       </div>
       <div class="toolbar">
         <button id="undoAct">↶ 復原實際</button>
@@ -281,8 +289,19 @@
 </section>
 
 <section id="tab-about" class="tab">
-  <div class="card lite-only" id="liteThemeCard"><div class="row"><b>Lite 外觀：</b>
-    <select id="liteThemeSel" aria-label="Lite 外觀"><option value="hud">1 戰術 HUD（TRON 黑＋青）</option><option value="light">2 簡約亮色（Braun 拉絲鋁）</option><option value="sport">3 運動風（Gulf 深藍＋橘，預設）</option><option value="glass">4 玻璃漸層（Synthwave）</option></select></div></div>
+  <div class="card set-card" id="uiSetCard">
+    <div class="set-h">介面設定</div>
+    <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／分析／紀錄／鬼影／說明」的方式</small></div>
+      <div class="set-seg" id="navStyleSeg" role="radiogroup" aria-label="功能切換方式">
+        <button type="button" role="radio" data-nav="a" aria-checked="true"><i class="ns-ill ns-a" aria-hidden="true"><s></s><s></s><s></s><s></s><s></s></i><b>A 底部圖示列</b><small>預設・閒置自動隱藏</small></button>
+        <button type="button" role="radio" data-nav="b" aria-checked="false"><i class="ns-ill ns-b" aria-hidden="true"><s></s></i><b>B 浮動按鈕</b><small>右下角圓鈕展開</small></button>
+        <button type="button" role="radio" data-nav="c" aria-checked="false"><i class="ns-ill ns-c" aria-hidden="true"><s></s><s></s><s></s><s></s><s></s></i><b>C 左右滑動</b><small>靶面以外左右滑</small></button>
+      </div></div>
+    <label class="chk set-chk pro-only" id="navAutoHideRow"><input type="checkbox" id="navAutoHide" checked> 底部圖示列閒置 3 秒自動隱藏（在靶面以外輕輕一滑就出現）</label>
+    <label class="chk set-chk"><input type="checkbox" id="liftCursor"> 按壓靶面時落點上移 60px（避免手指擋住）</label>
+  </div>
+  <div class="card" id="liteThemeCard"><div class="row"><b>外觀：</b>
+    <select id="liteThemeSel" aria-label="Lite 外觀"><option value="hud">1 戰術 HUD（TRON 黑＋青）</option><option value="light">2 簡約亮色（Braun 拉絲鋁）</option><option value="sport">3 運動風（Gulf 深藍＋橘，預設）</option><option value="glass">4 玻璃漸層（Synthwave）</option></select></div><div class="lbl pro-only">Pro 介面套用在功能列、靶面資訊框與圓鈕；Lite 套用整個畫面。</div></div>
   <div class="card"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.3.0</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
   <div class="card cloud-card" id="cloudCard"><div class="cloud-h">雲端帳號</div><div id="cloudBody"></div></div>
   <div class="card prose" id="aboutText"></div>
@@ -321,15 +340,15 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v1.4.0"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v1.4.0"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v1.4.0"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v1.4.0"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v1.4.0"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v1.4.0"></script><!--/CLOUD-->
-<!--GHOST--><script src="ghost.js?v=v1.4.0"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v1.4.0"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v1.4.0"></script><!--/XHAIR-->
-<!--APP--><script src="app.js?v=v1.4.0"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v1.5.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v1.5.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v1.5.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v1.5.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v1.5.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v1.5.0"></script><!--/CLOUD-->
+<!--GHOST--><script src="ghost.js?v=v1.5.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v1.5.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v1.5.0"></script><!--/XHAIR-->
+<!--APP--><script src="app.js?v=v1.5.0"></script><!--/APP-->
 </body>
 </html>

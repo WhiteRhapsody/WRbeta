@@ -1,4 +1,4 @@
-// WRbeta 按壓手感（v1.3.1，只用在 Lite；Pro 不受影響）
+// WRbeta 按壓手感（v1.3.1 起用在 Lite；v1.5.0 起 Pro 的新功能列／靶面圓鈕也有，其他 Pro 按鈕不受影響）
 // - 按鈕：按下加 .pz-down，放開換成 .pz-up（回彈動畫）；樣式依主題寫在 style.css 的「v1.3.1 按壓動效」區塊。
 //   CSS 也有 :active 備援（沒有 JS 事件時一樣有按下的樣子）。
 // - 上方四個資訊方塊：純手感，按下時那一塊微縮（幅度比按鈕小），不觸發任何功能、不擋捲動或其他手勢。
@@ -10,6 +10,8 @@
   var POP_MS = 520;       // 回彈動畫長度（比 CSS 動畫稍長，結束後清掉 class）
   var MOVE_CANCEL = 12;   // 手指移動超過這個距離＝在捲動，放開按壓
   var BTN_SEL = '#liteView button, #liteView .lite-srcbtn, #liteSteps button, .lt-sheet button, #ghostView button'; // v1.4.0：鬼影模式的按鈕也有
+  // v1.5.0：Pro 新的功能列（A／B／C）、靶面右下圓鈕、縮放提示、介面設定的三個選項——Pro 和 Lite 都有按壓動效
+  var ANY_SEL = '#wrNav button, #wrFab, .pf-btn, .pf-pinch, #wrNavC button, #navStyleSeg button';
   var BLOCKS = [['big', 'Big'], ['cnt', 'Cnt'], ['est', 'Est'], ['sum', 'Sum']];
   var CELL = { big: '.lp-c-big', cnt: '.lp-c-cnt', est: '.lp-c-est', sum: '.lp-c-sum' };
 
@@ -20,7 +22,7 @@
   var cur = null; // { el, t0, x, y, id }
   function pressable(t) {
     if (!t || !t.closest) return null;
-    var el = t.closest(BTN_SEL);
+    var el = t.closest(ANY_SEL) || (isLite() ? t.closest(BTN_SEL) : null);
     if (!el || el.disabled || el.getAttribute('aria-disabled') === 'true') return null;
     return el;
   }
@@ -121,11 +123,11 @@
 
   // ---------- 事件（全部 passive，不攔截） ----------
   function onDown(e) {
-    if (!isLite()) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (e.isPrimary === false) { up(true); blockUp(true); return; } // 第二根手指（縮放）＝取消
     var el = pressable(e.target);
     if (el) { down(el, e); return; }
+    if (!isLite()) return;
     var panel = e.target.closest && e.target.closest('#litePanel');
     if (panel) { var h = hitBlock(panel, e); if (h) blockDown(panel, h, e); }
   }

@@ -3,9 +3,6 @@ html,body{margin:0;padding:0;background:#eef1f4;color:#1b2430;font-family:-apple
 header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));background:#1b2a3a;color:#fff;position:sticky;top:0;z-index:5}
 .title{font-weight:700;font-size:17px}.beta{font-size:11px;background:#f5a623;color:#222;border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 header select{font-size:15px;padding:6px;border-radius:6px;border:0}
-.tabs{display:flex;background:#24394f;position:sticky;top:48px;z-index:4}
-.tabs button{flex:1;background:none;border:0;color:#b8c7d6;padding:10px 0;font-size:15px;border-bottom:3px solid transparent}
-.tabs button.active{color:#fff;border-bottom-color:#f5a623;font-weight:700}
 main{padding:10px;max-width:1200px;margin:0 auto}
 .tab{display:none}.tab.active{display:block}
 .layout{display:flex;flex-direction:column;gap:12px}
@@ -828,3 +825,174 @@ body.lite.lt-sport #ghostView .gh-primary .vlbl{display:inline-block;transform:s
 .gh-chk input{width:20px;height:20px}
 #ghostView .lbl{color:var(--card-sub)}
 .b-gh{background:#ece7fb;color:#4b2fa8}
+
+/* =====================================================================================
+ * v1.5.0 Pro 介面改版（依使用者手繪草圖）
+ * - 拿掉上方文字分頁列 → 三種功能切換方式（說明 › 介面設定）：A 底部圖示列（預設，閒置淡出）／B 浮動按鈕／C 左右滑動
+ * - 預報＋對照合併成「預報·對照」；靶面左上資訊框；右下玻璃圓鈕（復原／清除本組／新的一組）；只用雙指縮放
+ * - 顏色跟著四款主題（body.lt-*）；預設＝運動風（Gulf 深藍碳纖維＋橘）
+ * ===================================================================================== */
+body{
+  --nv-base:linear-gradient(180deg,rgba(0,39,118,.93),rgba(0,22,66,.96));
+  --nv-tx:linear-gradient(27deg,rgba(6,27,68,.55) 5px,transparent 5px) 0 5px/20px 20px,linear-gradient(207deg,rgba(6,27,68,.55) 5px,transparent 5px) 10px 0/20px 20px,linear-gradient(27deg,rgba(16,48,104,.5) 5px,transparent 5px) 0 10px/20px 20px,linear-gradient(207deg,rgba(16,48,104,.5) 5px,transparent 5px) 10px 5px/20px 20px;
+  --nv-bd:rgba(185,217,235,.42);--nv-fg:#9fb6c9;--nv-on-bg:linear-gradient(180deg,#ff8c3c,#ff6319);--nv-on-fg:#001a4f;--nv-glow:rgba(255,99,25,.55);--nv-acc:#ff8c3c;
+  --nv-btn:linear-gradient(180deg,rgba(0,39,118,.84),rgba(0,26,79,.80));--nv-btn-bd:rgba(185,217,235,.62);--nv-btn-fg:#fff;--nv-sub:#d9ecf6;--nv-sh:0 4px 12px rgba(0,8,30,.42);--nv-in:inset 0 1px 0 rgba(255,255,255,.3);
+  --nv-scrim:rgba(0,10,34,.55);--nv-handle:rgba(0,26,79,.55)}
+body.lt-hud{
+  --nv-base:linear-gradient(180deg,rgba(10,20,30,.94),rgba(5,10,14,.97));
+  --nv-tx:linear-gradient(27deg,rgba(7,9,12,.7) 5px,transparent 5px) 0 5px/20px 20px,linear-gradient(207deg,rgba(7,9,12,.7) 5px,transparent 5px) 10px 0/20px 20px,linear-gradient(27deg,rgba(20,27,34,.7) 5px,transparent 5px) 0 10px/20px 20px,linear-gradient(207deg,rgba(20,27,34,.7) 5px,transparent 5px) 10px 5px/20px 20px;
+  --nv-bd:rgba(0,245,255,.55);--nv-fg:#80e8f0;--nv-on-bg:linear-gradient(180deg,rgba(0,200,222,.95),rgba(0,112,132,.97));--nv-on-fg:#f2feff;--nv-glow:rgba(0,245,255,.45);--nv-acc:#00f5ff;
+  --nv-btn:linear-gradient(180deg,rgba(10,20,30,.88),rgba(5,10,14,.86));--nv-btn-bd:rgba(0,245,255,.7);--nv-btn-fg:#cffaff;--nv-sub:#80e8f0;--nv-sh:0 0 12px rgba(0,245,255,.22);--nv-in:inset 0 0 0 1px rgba(0,245,255,.12);
+  --nv-scrim:rgba(0,5,8,.62);--nv-handle:rgba(0,245,255,.55)}
+body.lt-light{
+  --nv-base:linear-gradient(180deg,#fbfaf7,#e4e1da);
+  --nv-tx:repeating-linear-gradient(0deg,rgba(255,255,255,0) 0,rgba(255,255,255,.55) 1px,rgba(255,255,255,0) 2px),repeating-linear-gradient(0deg,rgba(0,0,0,0) 0,rgba(0,0,0,.045) 1px,rgba(0,0,0,0) 3px);
+  --nv-bd:rgba(46,46,44,.2);--nv-fg:#6a6965;--nv-on-bg:linear-gradient(180deg,#f67a42,#f2642a);--nv-on-fg:#fff;--nv-glow:rgba(242,100,42,.35);--nv-acc:#f2642a;
+  --nv-btn:repeating-linear-gradient(0deg,rgba(255,255,255,0) 0,rgba(255,255,255,.55) 1px,rgba(255,255,255,0) 2px),linear-gradient(180deg,rgba(255,255,255,.96),rgba(234,231,224,.94));--nv-btn-bd:rgba(46,46,44,.22);--nv-btn-fg:#1a1a18;--nv-sub:#55544f;--nv-sh:0 3px 10px rgba(46,46,44,.22);--nv-in:inset 0 1px 0 #fff;
+  --nv-scrim:rgba(230,228,222,.6);--nv-handle:rgba(46,46,44,.45)}
+body.lt-glass{
+  --nv-base:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.08)),rgba(30,20,70,.55);
+  --nv-tx:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,0) 50%);
+  --nv-bd:rgba(255,255,255,.42);--nv-fg:rgba(255,255,255,.82);--nv-on-bg:linear-gradient(100deg,#ff6a88,#ff9a5a);--nv-on-fg:#fff;--nv-glow:rgba(255,106,136,.5);--nv-acc:#ff9a5a;
+  --nv-btn:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,.1)),rgba(40,26,90,.5);--nv-btn-bd:rgba(255,255,255,.55);--nv-btn-fg:#fff;--nv-sub:rgba(255,255,255,.85);--nv-sh:0 8px 20px rgba(10,5,40,.35);--nv-in:inset 0 1px 0 rgba(255,255,255,.5);
+  --nv-scrim:rgba(20,10,50,.5);--nv-handle:rgba(255,255,255,.7)}
+.nv-ic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.wr-nav,.wr-nav-handle,.wr-fab-wrap,.wr-fab-scrim,.wr-navc{display:none}
+
+/* ---------- A 底部圖示列 ---------- */
+body:not(.lite).nav-a main{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+body:not(.lite).nav-a #toast{bottom:calc(90px + env(safe-area-inset-bottom))}
+body:not(.lite).nav-a .wr-nav{display:block;position:fixed;left:0;right:0;bottom:0;z-index:25;pointer-events:none;
+  padding:6px calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+  opacity:1;transition:opacity .3s ease}
+body:not(.lite).nav-a .wr-nav-in{pointer-events:auto;max-width:560px;margin:0 auto;height:62px;display:flex;gap:2px;border-radius:18px;padding:4px;
+  background:var(--nv-tx),var(--nv-base);border:1px solid var(--nv-bd);box-shadow:var(--nv-in),0 -6px 18px rgba(0,0,0,.28);
+  -webkit-backdrop-filter:blur(12px) saturate(160%);backdrop-filter:blur(12px) saturate(160%)}
+body:not(.lite).nav-a .wr-nav button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0;border:0;border-radius:14px;
+  background:none;color:var(--nv-fg);font-size:11px;font-weight:700;letter-spacing:.2px;position:relative;white-space:nowrap}
+body:not(.lite).nav-a .wr-nav button.active{color:var(--nv-on-fg);background:var(--nv-on-bg);box-shadow:0 0 14px var(--nv-glow),inset 0 1px 0 rgba(255,255,255,.45)}
+body:not(.lite).nav-a .wr-nav button.active::after{content:"";position:absolute;top:-8px;left:50%;width:22px;height:3px;margin-left:-11px;border-radius:2px;background:var(--nv-acc);box-shadow:0 0 8px var(--nv-glow)}
+/* 隱藏＝淡出（300ms），隱藏時完全不能按（點不到、不擋下面的內容） */
+body:not(.lite).nav-a.nav-hidden .wr-nav{opacity:0}
+body:not(.lite).nav-a.nav-hidden .wr-nav-in{pointer-events:none}
+/* 隱藏時留一條細線提示「這裡可以滑出來」 */
+body:not(.lite).nav-a .wr-nav-handle{display:block;position:fixed;left:50%;bottom:calc(2px + env(safe-area-inset-bottom));width:132px;height:24px;margin-left:-66px;padding:0;border:0;border-radius:12px;background:none;z-index:24;
+  opacity:0;pointer-events:none;transition:opacity .3s ease}
+body:not(.lite).nav-a .wr-nav-handle i{display:block;width:46px;height:4px;margin:10px auto 0;border-radius:3px;background:var(--nv-handle);box-shadow:0 0 0 1px rgba(255,255,255,.35)}
+body:not(.lite).nav-a.nav-hidden .wr-nav-handle{opacity:1;pointer-events:auto}
+
+/* ---------- B 浮動按鈕 ---------- */
+body:not(.lite).nav-b main{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+body:not(.lite).nav-b #toast{bottom:calc(96px + env(safe-area-inset-bottom))}
+body:not(.lite).nav-b .wr-fab-wrap{display:flex;align-items:center;gap:8px;position:fixed;z-index:28;right:calc(14px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom))}
+.wr-fab{width:62px;height:62px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,214,180,.9);color:var(--nv-on-fg);
+  background:var(--nv-on-bg);box-shadow:0 0 0 4px rgba(255,255,255,.08),0 8px 22px var(--nv-glow),inset 0 1px 0 rgba(255,255,255,.5);position:relative;overflow:hidden}
+.wr-fab::before{content:"";position:absolute;left:3px;right:3px;top:2px;height:48%;border-radius:50% 50% 40% 40%;background:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0));pointer-events:none}
+.wr-fab .nv-ic{width:28px;height:28px;stroke-width:2.1}
+.wr-fab-ic,.wr-fab-x{display:flex}.wr-fab-x{display:none}
+body.fab-open .wr-fab-ic{display:none}body.fab-open .wr-fab-x{display:flex}
+body.fab-open .wr-fab{background:var(--nv-btn);color:var(--nv-btn-fg);border-color:var(--nv-btn-bd);box-shadow:var(--nv-sh),var(--nv-in)}
+.wr-fab-lbl{font-size:12px;font-weight:800;color:var(--nv-btn-fg);padding:5px 10px;border-radius:999px;background:var(--nv-btn);border:1px solid var(--nv-btn-bd);box-shadow:var(--nv-sh);white-space:nowrap;transition:opacity .2s}
+body.fab-open .wr-fab-lbl{opacity:0}
+body:not(.lite).nav-b .wr-fab-scrim{display:block;position:fixed;inset:0;z-index:26;background:var(--nv-scrim);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .22s ease}
+body:not(.lite).nav-b.fab-open .wr-fab-scrim{opacity:1;pointer-events:auto}
+body:not(.lite).nav-b .wr-nav{display:block;position:fixed;z-index:27;right:calc(21px + env(safe-area-inset-right));bottom:calc(92px + env(safe-area-inset-bottom));opacity:0;pointer-events:none;transition:opacity .2s ease}
+body:not(.lite).nav-b.fab-open .wr-nav{opacity:1;pointer-events:auto}
+body:not(.lite).nav-b .wr-nav-in{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+body:not(.lite).nav-b .wr-nav button{display:flex;flex-direction:row-reverse;align-items:center;gap:10px;padding:0;border:0;background:none;color:var(--nv-btn-fg);font-size:13px;font-weight:800;
+  transform:translateY(14px) scale(.9);opacity:0;transition:transform .22s cubic-bezier(.2,.9,.3,1.2),opacity .18s}
+body:not(.lite).nav-b.fab-open .wr-nav button{transform:none;opacity:1}
+body:not(.lite).nav-b.fab-open .wr-nav button:nth-child(5){transition-delay:.0s}
+body:not(.lite).nav-b.fab-open .wr-nav button:nth-child(4){transition-delay:.03s}
+body:not(.lite).nav-b.fab-open .wr-nav button:nth-child(3){transition-delay:.06s}
+body:not(.lite).nav-b.fab-open .wr-nav button:nth-child(2){transition-delay:.09s}
+body:not(.lite).nav-b.fab-open .wr-nav button:nth-child(1){transition-delay:.12s}
+body:not(.lite).nav-b .wr-nav button .nv-ic{box-sizing:content-box;padding:12px;border-radius:50%;background:var(--nv-btn);border:1px solid var(--nv-btn-bd);box-shadow:var(--nv-sh),var(--nv-in)}
+body:not(.lite).nav-b .wr-nav button span{padding:5px 11px;border-radius:9px;background:var(--nv-btn);border:1px solid var(--nv-btn-bd);box-shadow:var(--nv-sh)}
+body:not(.lite).nav-b .wr-nav button.active .nv-ic{background:var(--nv-on-bg);color:var(--nv-on-fg);border-color:rgba(255,214,180,.9);box-shadow:0 0 16px var(--nv-glow)}
+body:not(.lite).nav-b .wr-nav button.active span{border-color:var(--nv-acc)}
+body:not(.lite).nav-b .wr-nav button.active span::after{content:" 目前";font-size:10px;color:var(--nv-acc)}
+
+/* ---------- C 左右滑動 ---------- */
+body:not(.lite).nav-c .wr-navc{display:flex;align-items:center;gap:6px;position:sticky;top:var(--hdr-h,50px);z-index:4;height:36px;padding:0 calc(10px + env(safe-area-inset-right)) 0 calc(10px + env(safe-area-inset-left));
+  background:var(--nv-tx),var(--nv-base);border-bottom:1px solid var(--nv-bd);color:var(--nv-btn-fg);font-size:13px;user-select:none;-webkit-user-select:none}
+.navc-mid{flex:none;display:flex;align-items:center;gap:8px;margin:0 auto}
+.navc-mid b{font-weight:900;font-style:italic;letter-spacing:.5px;min-width:4.6em;text-align:right}
+.navc-side{flex:1;min-width:0;font-size:11.5px;font-weight:700;color:var(--nv-fg);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:opacity .15s,color .15s}
+.navc-prev{text-align:left}.navc-next{text-align:right}
+body.navc-peek-prev .navc-prev,body.navc-peek-next .navc-next{opacity:1;color:var(--nv-acc)}
+.navc-dots{display:flex;align-items:center;gap:2px}
+.navc-dots button{width:16px;height:28px;padding:0;border:0;background:none;position:relative;border-radius:6px}
+.navc-dots button::before{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:4px;background:var(--nv-fg);opacity:.55;transition:width .2s,margin .2s,background .2s,opacity .2s}
+.navc-dots button.on{width:28px}
+.navc-dots button.on::before{width:22px;margin-left:-11px;background:var(--nv-on-bg);opacity:1;box-shadow:0 0 8px var(--nv-glow)}
+body:not(.lite).nav-c main{will-change:auto}
+
+/* ---------- 預報·對照（Pro）：靶面與覆蓋在上面的控制 ---------- */
+body:not(.lite).on-predict #tab-compare{display:block}
+.pf-wrap{position:relative;width:min(100%,72vh);margin:0 auto}
+.pf-box{border-radius:8px}
+.pf-box svg.target{max-height:none}
+.pf-info{position:absolute;left:7px;top:7px;display:flex;align-items:baseline;gap:7px;padding:5px 11px 6px;border-radius:10px;pointer-events:none;
+  background:var(--nv-btn);border:1px solid var(--nv-btn-bd);box-shadow:var(--nv-sh),var(--nv-in);color:var(--nv-btn-fg);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-variant-numeric:tabular-nums;max-width:calc(100% - 120px)}
+.pf-info .n{font-size:12.5px;font-weight:700;color:var(--nv-sub);white-space:nowrap}
+.pf-info .s{font-size:25px;font-weight:900;font-style:italic;line-height:1;color:var(--nv-acc)}
+.pf-info .d{font-size:13.5px;font-weight:800;white-space:nowrap}
+.pf-info .x{font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:999px;border:1px solid var(--nv-acc);color:var(--nv-acc)}
+.pf-info.empty .d{font-size:12px;font-weight:700;color:var(--nv-sub)}
+.pf-info.live{box-shadow:0 0 0 2px var(--nv-acc),var(--nv-sh)}
+.pf-pinch{position:absolute;right:7px;top:7px;display:flex;align-items:center;gap:4px;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.2;
+  background:var(--nv-btn);border:1px solid var(--nv-btn-bd);color:var(--nv-sub);opacity:.88;box-shadow:var(--nv-in)}
+.pf-pinch .nv-ic{width:15px;height:15px}
+.pf-pinch.zoomed{opacity:1;color:var(--nv-btn-fg);border-color:var(--nv-acc)}
+.pf-acts{position:absolute;right:0;bottom:0;width:112px;height:112px;pointer-events:none}
+.pf-btn{position:absolute;width:48px;height:48px;padding:0;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;pointer-events:auto;
+  background:var(--nv-btn);border:1px solid var(--nv-btn-bd);color:var(--nv-btn-fg);box-shadow:var(--nv-sh),var(--nv-in);overflow:hidden;
+  -webkit-backdrop-filter:blur(10px) saturate(160%);backdrop-filter:blur(10px) saturate(160%)}
+.pf-btn::before{content:"";position:absolute;left:3px;right:3px;top:2px;height:46%;border-radius:50% 50% 40% 40%;background:linear-gradient(180deg,rgba(255,255,255,.32),rgba(255,255,255,0));pointer-events:none}
+.pf-btn .nv-ic{width:18px;height:18px;stroke-width:2}
+.pf-btn b{font-size:8.5px;font-weight:800;line-height:1;white-space:nowrap;color:var(--nv-sub)}
+.pf-btn.a1{right:7px;bottom:7px}.pf-btn.a2{right:63px;bottom:7px}.pf-btn.a3{right:7px;bottom:63px}
+.pf-btn.pri{background:var(--nv-on-bg);color:var(--nv-on-fg);border-color:rgba(255,214,180,.9);box-shadow:0 4px 14px var(--nv-glow),inset 0 1px 0 rgba(255,255,255,.5)}
+.pf-btn.pri b{color:var(--nv-on-fg)}
+.pf-btn:disabled{opacity:.45;cursor:default}
+.cmp-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:14px 0 8px;padding:8px 10px;border-radius:10px;background:var(--nv-tx),var(--nv-base);color:var(--nv-btn-fg);border:1px solid var(--nv-bd);scroll-margin-top:calc(var(--hdr-h,50px) + 44px)}
+.cmp-head b{font-size:16px;font-style:italic;font-weight:900;padding-left:8px;border-left:4px solid var(--nv-acc)}
+.cmp-head span{font-size:12.5px;color:var(--nv-sub)}
+
+/* ---------- 說明 › 介面設定 ---------- */
+.set-h{font-weight:800;font-size:16px;margin-bottom:8px}
+.set-row{margin-bottom:10px}
+.set-k{display:flex;flex-direction:column;margin-bottom:6px}.set-k small{font-size:12px;color:#667}
+.set-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.set-seg button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 8px;border-radius:12px;border:1.5px solid #c9d3dd;background:#fff;color:#1b2430;min-height:44px}
+.set-seg button b{font-size:13px}.set-seg button small{font-size:10.5px;color:#667;line-height:1.25;text-align:center}
+.set-seg button.on{border-color:#ff6319;box-shadow:0 0 0 3px rgba(255,99,25,.18);background:#fff8f3}
+.set-chk{margin:8px 0;font-size:14px;line-height:1.4;align-items:flex-start}.set-chk input{margin-top:3px;width:18px;height:18px;flex:none}
+.set-chk.dim{opacity:.5}
+.ns-ill{position:relative;display:block;width:44px;height:60px;border-radius:8px;border:2px solid #1b2a3a;background:#e9eef3;margin-bottom:3px;overflow:hidden}
+.ns-a s{position:absolute;bottom:3px;width:6px;height:6px;border-radius:2px;background:#1b2a3a}
+.ns-a s:nth-child(1){left:3px;background:#ff6319}.ns-a s:nth-child(2){left:11px}.ns-a s:nth-child(3){left:19px}.ns-a s:nth-child(4){left:27px}.ns-a s:nth-child(5){left:35px}
+.ns-b s{position:absolute;right:3px;bottom:3px;width:12px;height:12px;border-radius:50%;background:#ff6319}
+.ns-c s{position:absolute;top:4px;width:4px;height:4px;border-radius:2px;background:#1b2a3a}
+.ns-c s:nth-child(1){left:9px;width:9px;background:#ff6319}.ns-c s:nth-child(2){left:20px}.ns-c s:nth-child(3){left:25px}.ns-c s:nth-child(4){left:30px}.ns-c s:nth-child(5){left:35px}
+.ns-c::after{content:"⟷";position:absolute;left:0;right:0;top:24px;text-align:center;font-size:14px;color:#1b2a3a}
+
+/* ---------- 新控制的按壓動效（press.js 加 .pz-down／.pz-up；沒有 JS 時 :active 備援） ---------- */
+:is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#wrNavC button,#navStyleSeg button){-webkit-tap-highlight-color:transparent;
+  transition:transform .42s cubic-bezier(.34,1.56,.64,1) .03s,box-shadow .3s ease-out,filter .2s,opacity .3s ease}
+:is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#wrNavC button,#navStyleSeg button):is(:active,.pz-down):not(:disabled){transform:scale(.9);filter:brightness(.95);transition:transform .11s cubic-bezier(.3,.7,.4,1),box-shadow .11s,filter .11s}
+body:not(.lite).nav-b .wr-nav button:is(:active,.pz-down){transform:scale(.93)}
+body.lt-sport :is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#navStyleSeg button).pz-up,body:not(.lt-hud):not(.lt-light):not(.lt-glass) :is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#navStyleSeg button).pz-up{animation:pzNvPop .46s linear .04s backwards}
+@keyframes pzNvPop{0%{transform:scale(.9)}36%{transform:scale(1.06)}60%{transform:scale(.98)}80%{transform:scale(1.01)}100%{transform:scale(1)}}
+body.lt-light :is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#navStyleSeg button):is(:active,.pz-down):not(:disabled){transform:translateY(2px) scale(.96);box-shadow:inset 0 2px 5px rgba(46,46,44,.3),inset 0 -1px 0 rgba(255,255,255,.7)}
+body.lt-hud :is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#navStyleSeg button):is(:active,.pz-down):not(:disabled){transform:scale(.95);filter:brightness(1.35) drop-shadow(0 0 6px rgba(0,245,255,.6))}
+body.lt-glass :is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#navStyleSeg button):is(:active,.pz-down):not(:disabled){transform:translateY(1px) scale(.94)}
+@media (prefers-reduced-motion:reduce){
+  :is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#wrNavC button,#navStyleSeg button){transform:none!important;animation:none!important}
+  body:not(.lite).nav-b .wr-nav button{transition:opacity .15s}
+}
+@media (min-width:820px){body:not(.lite).nav-b .wr-fab-wrap{right:calc(24px + env(safe-area-inset-right));bottom:calc(24px + env(safe-area-inset-bottom))}}
+/* C 左右滑動：關掉瀏覽器「左右滑＝上一頁／下一頁」（overscroll 手勢），App 自己處理左右滑；頁面本來就不會橫向捲動 */
+html,body{overscroll-behavior-x:none}
