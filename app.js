@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.0.0', APP_LABEL = 'beta v2.0'; // v2.0.0：畫面上顯示「beta v2.0」
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.0.1', APP_LABEL = 'beta v2.0.1'; // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = APP_LABEL; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = APP_LABEL + '（' + APP_VERSION + '）'; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
