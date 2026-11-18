@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v1.6.0">
+<link rel="manifest" href="manifest.webmanifest?v=v1.7.0">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.6.0"><link rel="stylesheet" href="themes.css?v=v1.6.0"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.7.0"><link rel="stylesheet" href="themes.css?v=v1.7.0"><!--/STYLE-->
 </head>
 <body>
 <header>
@@ -23,14 +23,14 @@
 <div id="storageNotice" class="notice soft" style="display:none">此畫面無法存檔（儲存空間被封鎖），可以操作，但關閉後資料會消失。請用 Chrome 開啟以保存紀錄。</div>
 <div id="errNotice" class="notice" style="display:none"></div>
 <script>window.addEventListener('error',function(e){try{var n=document.getElementById('errNotice');n.style.display='';n.textContent='程式錯誤：'+(e.message||e)+'（請截圖回報）';}catch(_){}});</script>
-<!-- v1.5.0 功能切換（Pro）：A 底部圖示列（預設，閒置自動淡出、輕滑淡入）／B 浮動按鈕／C 左右滑動；在「說明 › 介面設定」切換 -->
+<!-- v1.5.0 功能切換（Pro）：A 底部圖示列（預設，閒置自動淡出、輕滑淡入）／B 浮動按鈕／C 左右滑動；在「設定/說明 › 設定」切換 -->
 <nav id="wrNav" class="tabs wr-nav pro-only" aria-label="功能">
   <div class="wr-nav-in">
     <button type="button" data-tab="predict" data-ic="fc" class="active" aria-current="page"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>預報·對照</span></button>
     <button type="button" data-tab="analysis" data-ic="an"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M6 17v-5M10.5 17V7M15 17v-7.5M19.5 17V4.5"/></svg><span>分析</span></button>
     <button type="button" data-tab="records" data-ic="rec"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="3" width="15" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>紀錄</span></button>
     <button type="button" data-tab="ghost" data-ic="gh"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20.5V11a7 7 0 0 1 14 0v9.5l-2.4-1.8-2.3 1.8-2.3-1.8-2.3 1.8-2.3-1.8z"/><circle cx="9.5" cy="11" r="1" fill="currentColor"/><circle cx="14.5" cy="11" r="1" fill="currentColor"/></svg><span>鬼影</span></button>
-    <button type="button" data-tab="about" data-ic="help"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 0 1 5.2 1c0 1.9-2.6 2.2-2.6 3.9"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg><span>說明</span></button>
+    <button type="button" data-tab="about" data-ic="help"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 0 1 5.2 1c0 1.9-2.6 2.2-2.6 3.9"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg><span>設定/說明</span></button>
   </div>
 </nav>
 <button type="button" id="wrNavHandle" class="wr-nav-handle pro-only" aria-label="顯示功能列" tabindex="-1"><i></i></button>
@@ -38,7 +38,7 @@
 <div id="wrFabWrap" class="wr-fab-wrap pro-only"><span id="wrFabLbl" class="wr-fab-lbl" aria-hidden="true">預報·對照</span><button type="button" id="wrFab" class="wr-fab" aria-label="功能選單（目前：預報·對照）" aria-expanded="false" aria-controls="wrNav"><span class="wr-fab-ic"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><span class="wr-fab-x"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></span></button></div>
 <div id="wrNavC" class="wr-navc pro-only" aria-label="功能（左右滑動切換）">
   <span class="navc-side navc-prev" id="navcPrev"></span>
-  <span class="navc-mid"><b id="navcCur">預報·對照</b><span class="navc-dots" role="tablist"><button type="button" role="tab" data-tab="predict" aria-label="預報·對照" class="on" aria-selected="true"></button><button type="button" role="tab" data-tab="analysis" aria-label="分析" aria-selected="false"></button><button type="button" role="tab" data-tab="records" aria-label="紀錄" aria-selected="false"></button><button type="button" role="tab" data-tab="ghost" aria-label="鬼影" aria-selected="false"></button><button type="button" role="tab" data-tab="about" aria-label="說明" aria-selected="false"></button></span></span>
+  <span class="navc-mid"><b id="navcCur">預報·對照</b><span class="navc-dots" role="tablist"><button type="button" role="tab" data-tab="predict" aria-label="預報·對照" class="on" aria-selected="true"></button><button type="button" role="tab" data-tab="analysis" aria-label="分析" aria-selected="false"></button><button type="button" role="tab" data-tab="records" aria-label="紀錄" aria-selected="false"></button><button type="button" role="tab" data-tab="ghost" aria-label="鬼影" aria-selected="false"></button><button type="button" role="tab" data-tab="about" aria-label="設定/說明" aria-selected="false"></button></span></span>
   <span class="navc-side navc-next" id="navcNext"></span>
 </div>
 
@@ -251,12 +251,15 @@
       <div class="row"><button type="button" id="anaPasteGo" class="primary">還原</button><button type="button" id="anaPasteCancel">取消</button></div>
     </div>
   </div>
-  <div class="ana-dock" id="anaDock">
-    <label class="wr-side" id="anaPickBtn"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4.5 3.5"/></svg><span><b>相簿</b><small>可多選</small></span><input type="file" id="anaPick" accept="image/*" multiple hidden></label>
-    <label class="wr-cam" id="anaCamBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.3l1.6-2.2h5.2l1.6 2.2h2.3a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/></svg><b>拍下一張</b><input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label>
-    <span class="wr-sidewrap"><label class="wr-side" id="anaFileBtn" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span><b>檔案</b><small>可多選</small></span><input type="file" id="anaFile" accept="*/*" multiple hidden></label><button type="button" class="wr-qi" id="anaPickInfo" aria-label="相簿找不到照片怎麼辦" aria-expanded="false" aria-controls="anaPickHint">i</button></span>
+  <div class="ana-dock" id="anaDock" data-edge="home">
+    <button type="button" class="dk-home" id="dockHome" aria-label="拍照按鈕回到預設位置" title="回到預設位置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg></button>
+    <label class="wr-side dk-it" id="anaPickBtn"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4.5 3.5"/></svg><span><b>相簿</b><small>可多選</small></span><input type="file" id="anaPick" accept="image/*" multiple hidden></label>
+    <label class="wr-cam dk-it" id="anaCamBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.3l1.6-2.2h5.2l1.6 2.2h2.3a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/></svg><b>拍下一張</b><input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label>
+    <span class="wr-sidewrap dk-it"><label class="wr-side" id="anaFileBtn" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span><b>檔案</b><small>可多選</small></span><input type="file" id="anaFile" accept="*/*" multiple hidden></label><button type="button" class="wr-qi" id="anaPickInfo" aria-label="相簿找不到照片怎麼辦" aria-expanded="false" aria-controls="anaPickHint">i</button></span>
     <div id="anaPickHint" class="wr-pop ana-pickhint" role="note" hidden>相簿裡找不到靶紙照片？按「檔案」，在選單裡選「相簿／圖庫」或到 <b>DCIM › Camera</b> 資料夾找。</div>
   </div>
+  <!-- v1.7.0：拍照按鈕收到邊緣後留下的小圓（兩隻眼睛會眨眼、偶爾往內看）；點它或從它往內滑＝叫出按鈕 -->
+  <button type="button" class="dk-eye" id="anaEye" data-edge="left" aria-label="顯示拍照按鈕（相簿／拍下一張／檔案）" hidden><span class="dk-face"><i class="dk-e"></i><i class="dk-e"></i></span></button>
 </section>
 
 <section id="tab-ghost" class="tab">
@@ -309,12 +312,23 @@
   </div>
 </section>
 
-<section id="tab-about" class="tab">
+<section id="tab-about" class="tab" data-sub="set">
+  <!-- v1.7.0：「設定/說明」分成兩個子標籤；樣式跟主題變色，切換方式跟 A/B/C（A 底線分頁、B 膠囊、C 可左右滑＋小圓點） -->
+  <div class="st-head">
+  <div class="st-tabs" id="stTabs" role="tablist" aria-label="設定/說明">
+    <button type="button" role="tab" id="stTabSet" data-sub="set" aria-controls="stPaneSet" aria-selected="true" class="on"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/></svg><span>設定</span></button>
+    <button type="button" role="tab" id="stTabHelp" data-sub="help" aria-controls="stPaneHelp" aria-selected="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5a2 2 0 0 1 2-2h5v16H6a2 2 0 0 0-2 2z"/><path d="M20 5.5a2 2 0 0 0-2-2h-5v16h5a2 2 0 0 1 2 2z"/></svg><span>說明</span></button>
+    <i class="st-ink" aria-hidden="true"></i>
+  </div>
+  <div class="st-dots" aria-hidden="true"><i data-sub="set" class="on"></i><i data-sub="help"></i><small>左右滑動切換</small></div>
+  </div>
+  <div class="st-panes" id="stPanes">
+  <div class="st-pane" id="stPaneSet" role="tabpanel" aria-labelledby="stTabSet">
   <div class="lay-tophead"><button type="button" class="lay-btn" data-lay-page="about" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
   <div class="lay-col" data-lay="about" data-lay-page="about" data-lay-cols="1">
   <div class="card set-card" id="uiSetCard" data-mod="ui" data-mod-name="介面設定">
     <div class="set-h">介面設定</div>
-    <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／分析／紀錄／鬼影／說明」的方式</small></div>
+    <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／分析／紀錄／鬼影／設定/說明」的方式</small></div>
       <div class="set-seg" id="navStyleSeg" role="radiogroup" aria-label="功能切換方式">
         <button type="button" role="radio" data-nav="a" aria-checked="true"><i class="ns-ill ns-a" aria-hidden="true"><s></s><s></s><s></s><s></s><s></s></i><b>A 底部圖示列</b><small>預設・閒置自動隱藏</small></button>
         <button type="button" role="radio" data-nav="b" aria-checked="false"><i class="ns-ill ns-b" aria-hidden="true"><s></s></i><b>B 浮動按鈕</b><small>右下角圓鈕展開</small></button>
@@ -323,14 +337,23 @@
     <label class="chk set-chk pro-only" id="navAutoHideRow"><input type="checkbox" id="navAutoHide" checked> 底部圖示列閒置 3 秒自動隱藏（在靶面以外輕輕一滑就出現）</label>
     <label class="chk set-chk"><input type="checkbox" id="liftCursor"> 按壓靶面時落點上移 60px（避免手指擋住）</label>
     <label class="chk set-chk" id="fxAnimRow"><input type="checkbox" id="fxAnimTg" checked> 主題動畫（賽博龐克、電子世界的靶面、卡片與按鈕會動；按靶面時自動暫停 1.5 秒；系統設定「減少動態效果」時一律不動）</label>
+    <label class="chk set-chk" id="dockAutoHideRow"><input type="checkbox" id="dockAutoHide" checked> 分析頁「相簿／拍下一張／檔案」閒置 3 秒自動收到螢幕邊緣（留下會眨眼的小圓，點它或從它往內滑就出來）</label>
+    <div class="set-row" id="dockResetRow"><button type="button" id="dockResetSet" class="set-btn">拍照按鈕回到預設位置（下方中間）</button></div>
   </div>
   <div class="card set-card" id="liteThemeCard" data-mod="theme" data-mod-name="主題"><div class="set-h">主題 <small class="set-sub">10 款・Pro 與 Lite 共用</small></div>
     <div class="th-grid" id="themeGrid" role="radiogroup" aria-label="主題"><button type="button" role="radio" data-th="sport" aria-checked="false"><i class="sw sw-sport" aria-hidden="true"></i><b>運動風</b><small>深藍碳纖維＋橘（預設）</small></button><button type="button" role="radio" data-th="hud" aria-checked="false"><i class="sw sw-hud" aria-hidden="true"></i><b>戰術 HUD</b><small>黑碳纖維＋青光</small></button><button type="button" role="radio" data-th="light" aria-checked="false"><i class="sw sw-light" aria-hidden="true"></i><b>簡約亮色</b><small>拉絲鋁・戶外清楚</small></button><button type="button" role="radio" data-th="glass" aria-checked="false"><i class="sw sw-glass" aria-hidden="true"></i><b>玻璃漸層</b><small>夜空霓虹玻璃</small></button><button type="button" role="radio" data-th="cyberpunk" aria-checked="false"><i class="sw sw-cyberpunk" aria-hidden="true"></i><b>賽博龐克</b><small>霓虹故障・會動的靶面</small></button><button type="button" role="radio" data-th="tron" aria-checked="false"><i class="sw sw-tron" aria-hidden="true"></i><b>電子世界</b><small>光跡網格・會動的靶面</small></button><button type="button" role="radio" data-th="piano" aria-checked="false"><i class="sw sw-piano" aria-hidden="true"></i><b>鋼琴烤漆與霧面</b><small>黑白鋼琴漆</small></button><button type="button" role="radio" data-th="racing" aria-checked="false"><i class="sw sw-racing" aria-hidden="true"></i><b>賽車</b><small>碳纖維＋紅橘</small></button><button type="button" role="radio" data-th="appliance" aria-checked="false"><i class="sw sw-appliance" aria-hidden="true"></i><b>科技家電</b><small>霧面深藍＋暖橘點</small></button><button type="button" role="radio" data-th="luxury" aria-checked="false"><i class="sw sw-luxury" aria-hidden="true"></i><b>精密精品</b><small>黑金細線</small></button></div>
     <select id="liteThemeSel" aria-label="主題（下拉選單）" hidden><option value="sport">1 運動風</option><option value="hud">2 戰術 HUD</option><option value="light">3 簡約亮色</option><option value="glass">4 玻璃漸層</option><option value="cyberpunk">5 賽博龐克</option><option value="tron">6 電子世界</option><option value="piano">7 鋼琴烤漆與霧面</option><option value="racing">8 賽車</option><option value="appliance">9 科技家電</option><option value="luxury">10 精密精品</option></select>
     <div class="lbl">主題只改變畫面外觀；照片檢視與自動偵測彈孔不受影響。只有賽博龐克、電子世界會改畫靶面（環徑不變）。</div></div>
-  <div class="card" data-mod="ver" data-mod-name="版本與更新"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.3.0</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
   <div class="card cloud-card" id="cloudCard" data-mod="cloud" data-mod-name="雲端帳號"><div class="cloud-h">雲端帳號</div><div id="cloudBody"></div></div>
+  </div>
+  </div>
+  <div class="st-pane" id="stPaneHelp" role="tabpanel" aria-labelledby="stTabHelp" hidden>
+  <div class="lay-tophead"><button type="button" class="lay-btn" data-lay-page="about" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
+  <div class="lay-col" data-lay="aboutHelp" data-lay-page="about" data-lay-cols="1">
+  <div class="card" data-mod="ver" data-mod-name="版本與更新"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.3.0</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
   <div class="card prose" id="aboutText" data-mod="help" data-mod-name="使用說明"></div>
+  </div>
+  </div>
   </div>
 </section>
 </main>
@@ -366,24 +389,25 @@
       <button type="button" data-act="records"><b>🗂 紀錄</b><small>存檔、比較、匯出</small></button>
       <button type="button" data-act="ghost"><b>👻 鬼影模式</b><small>60 發，和上一次同一發比</small></button>
       <button type="button" data-act="analysis"><b>📈 多張分析</b><small>不預報，連拍多張</small></button>
-      <button type="button" data-act="about"><b>☁️ 說明・帳號</b><small>使用方法、雲端、更新</small></button>
+      <button type="button" data-act="about"><b>⚙️ 設定/說明</b><small>外觀、雲端帳號、使用方法、更新</small></button>
       <button type="button" data-act="pro"><b>⚙️ 切到 Pro</b><small>完整功能</small></button>
     </div>
     <button type="button" class="lt-sheet-x">關閉</button>
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v1.6.0"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v1.6.0"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v1.6.0"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v1.6.0"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v1.6.0"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v1.6.0"></script><!--/CLOUD-->
-<!--GHOST--><script src="ghost.js?v=v1.6.0"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v1.6.0"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v1.6.0"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v1.6.0"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v1.6.0"></script><!--/LAYOUT-->
-<!--APP--><script src="app.js?v=v1.6.0"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v1.7.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v1.7.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v1.7.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v1.7.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v1.7.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v1.7.0"></script><!--/CLOUD-->
+<!--GHOST--><script src="ghost.js?v=v1.7.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v1.7.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v1.7.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v1.7.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v1.7.0"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v1.7.0"></script><!--/DOCK-->
+<!--APP--><script src="app.js?v=v1.7.0"></script><!--/APP-->
 </body>
 </html>

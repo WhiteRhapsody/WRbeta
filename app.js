@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.6.0';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.7.0';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
@@ -1978,7 +1978,9 @@
     $('aboutText').innerHTML =
       '<p class="appver"><b>' + APP_NAME + '</b> 版本 beta ' + APP_VERSION + '</p>' +
       '<h3>怎麼用</h3><ol><li>上方選靶種。</li>' +
-      '<li><b>切換功能</b>（Pro）：預設是畫面下方的<b>圖示列</b>（預報·對照、分析、紀錄、鬼影、說明），閒置 3 秒會淡出；在靶面以外輕輕一滑（或從畫面最下方往上滑）就會出現。也可以在本頁「介面設定」改成 <b>B 浮動按鈕</b>（右下角圓鈕）或 <b>C 左右滑動</b>（在靶面以外左右滑）。</li>' +
+      '<li><b>切換功能</b>（Pro）：預設是畫面下方的<b>圖示列</b>（預報·對照、分析、紀錄、鬼影、設定/說明），閒置 3 秒會淡出；在靶面以外輕輕一滑（或從畫面最下方往上滑）就會出現。也可以在「設定」子標籤的「介面設定」改成 <b>B 浮動按鈕</b>（右下角圓鈕）或 <b>C 左右滑動</b>（在靶面以外左右滑）。</li>' +
+      '<li><b>設定/說明</b>：上方分成「設定」與「說明」兩個子標籤，會記住你上次看的那一個。用 C 左右滑動時，在這一頁左右滑會先換子標籤；已經在「設定」再往右滑，才會回到「鬼影」。</li>' +
+      '<li><b>分析頁的拍照按鈕</b>（相簿／拍下一張／檔案）：閒置 3 秒會滑到螢幕邊緣收起來，只留一顆會眨眼的小圓。點小圓、或從小圓往畫面裡滑，按鈕就會出來（滑出來的位置跟著手指）。按住任一顆按鈕拖到（或甩到）左、右、上、下任何一邊，就會改收在那一邊；按鈕組左下角的「⌂」小鈕回到預設位置。不想自動收起可在「設定 › 介面設定」關掉。</li>' +
       '<li><b>預報·對照</b>：每打一發，在靶面點你感覺的落點。按住可拖曳微調，放開才記錄；兩指縮放（右上角按一下回到全靶）。左上角顯示最新一發的分數，右下角是「新的一組／清除本組／復原」。打完往下捲就是<b>對照</b>。</li>' +
       '<li><b>對照</b>（在預報下面）：拉回靶紙後拍照，程式會<b>自動找黑區校正、自動找彈孔</b>。綠圈要對齊靶環；紫色虛線要穿過上下左右的環數數字，歪了按「轉正」。找錯的彈孔點一下刪除，漏掉的點空白處新增。自動失敗時可按「手動校正」（點靶心＋某環上右下左）。電子靶也可以改選「直接在靶面上點」。</li>' +
       '<li><b>分析</b>：不需要預報。一張打完拍一張（發數不限），程式自動校正、找彈孔並算出每張與合併數據：校正建議（群中心偏移 mm 與修正方向）、穩定度（標準差、去掉最差一發的平均）、離群發、趨勢圖、小數分分布。不確定的彈孔以橘色虛線＋「?」標示，點一下就能刪除，漏掉的點空白處新增（照片或下方靶面都可以點）。分析自動存到「紀錄」，可自訂名稱。可用「複製紀錄碼」把彈孔座標壓成一串只有本 App 讀得懂的字，貼到備忘錄或 LINE 備份，下次「貼上還原」就能畫回靶面（不含照片）。</li>' +
@@ -2023,6 +2025,7 @@
     document.body.classList.toggle('on-analysis', name === 'analysis');
     if (name !== 'ghost') { try { ghPrev = null; } catch (e) {} }
     if (name === 'ghost') renderGhost();
+    if (window.WRDock) { if (name === 'analysis') WRDock.shown(); else WRDock.left(); }
     document.querySelectorAll('#liteMoreSheet [data-act]').forEach(function (b) { b.classList.toggle('on', b.dataset.act === name); });
     if (document.body.classList.contains('lite')) renderLite();
     if (name === 'predict') liteLayout();
@@ -2031,17 +2034,49 @@
     if (toCmp && !document.body.classList.contains('lite')) { var hc = $('cmpHead'); if (hc && hc.scrollIntoView) hc.scrollIntoView({ block: 'start' }); }
   }
 
+  // ---------- v1.7.0「設定/說明」子標籤：設定｜說明（記住上次看的；樣式跟主題，切換方式跟 A/B/C） ----------
+  // A／B／Lite：點標籤切換（A 底線分頁、B 膠囊）；C：點標籤或在頁面上左右滑（標籤下有小圓點），規則見 nav 的 tEnd。
+  var ST_SUBS = ['set', 'help'];
+  var stSub = (function () {
+    var S = $('tab-about'), P = $('stPanes'), cur = prefs.aboutSub === 'help' ? 'help' : 'set', anim = 0;
+    function reduced() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+    function set(name, o) {
+      o = o || {}; if (ST_SUBS.indexOf(name) < 0) name = 'set';
+      var old = cur; cur = name; S.setAttribute('data-sub', name);
+      document.querySelectorAll('#stTabs [data-sub]').forEach(function (b) { var on = b.dataset.sub === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; });
+      document.querySelectorAll('#tab-about .st-dots i').forEach(function (d) { d.classList.toggle('on', d.dataset.sub === name); });
+      $('stPaneSet').hidden = name !== 'set'; $('stPaneHelp').hidden = name !== 'help';
+      if (prefs.aboutSub !== name) { prefs.aboutSub = name; savePrefs(); }
+      if (old !== name && o.dir && !reduced()) {
+        clearTimeout(anim); P.style.transition = 'none'; P.style.transform = 'translateX(' + (o.dir * 22) + '%)'; P.style.opacity = '0.2'; void P.offsetWidth;
+        P.style.transition = 'transform .26s cubic-bezier(.2,.8,.3,1),opacity .22s'; P.style.transform = ''; P.style.opacity = '';
+        anim = setTimeout(function () { P.style.transition = ''; }, 300);
+      }
+      if (old !== name && !o.noScroll && curTab === 'about') { var h = $('stTabs'), top = h.getBoundingClientRect().top; if (top < 0) window.scrollTo(0, Math.max(0, window.scrollY + top - 70)); }
+    }
+    function canStep(dir) { var i = ST_SUBS.indexOf(cur) + dir; return i >= 0 && i < ST_SUBS.length; }
+    function step(dir) { if (!canStep(dir)) return false; set(ST_SUBS[ST_SUBS.indexOf(cur) + dir], { dir: dir }); return true; }
+    function drag(dx) { if (reduced()) return; P.style.transition = 'none'; P.style.transform = 'translateX(' + (dx * 0.5).toFixed(1) + 'px)'; P.style.opacity = String(1 - Math.min(0.4, Math.abs(dx) / 600)); }
+    function dragEnd() { if (!P.style.transform && !P.style.opacity) return; P.style.transition = 'transform .2s cubic-bezier(.2,.8,.3,1),opacity .2s'; P.style.transform = ''; P.style.opacity = ''; clearTimeout(anim); anim = setTimeout(function () { P.style.transition = ''; }, 240); }
+    document.querySelectorAll('#stTabs [data-sub]').forEach(function (b) {
+      b.onclick = function () { var d = ST_SUBS.indexOf(b.dataset.sub) - ST_SUBS.indexOf(cur); set(b.dataset.sub, { dir: d }); };
+      b.onkeydown = function (e) { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); if (step(e.key === 'ArrowRight' ? 1 : -1)) document.querySelector('#stTabs [data-sub="' + cur + '"]').focus(); } };
+    });
+    set(cur, { noScroll: true });
+    return { get cur() { return cur; }, set: set, step: step, canStep: canStep, drag: drag, dragEnd: dragEnd };
+  })();
+
   // ---------- v1.5.0 功能切換（只在 Pro；Lite 用底部步驟列）：A 底部圖示列／B 浮動按鈕／C 左右滑動 ----------
   // A（預設）：閒置 3 秒淡出（opacity 300ms，隱藏時不能按）；在靶面以外輕輕一滑（或從畫面下方往上滑）就淡入。點靶面、雙指縮放不會叫出來。
   // B：右下角浮動圓鈕，按一下往上展開 5 個功能。C：在靶面以外左右滑動換功能，上方小圓點顯示目前位置。
   // 設定存在 prefs.nav（'a'｜'b'｜'c'）與 prefs.navAutoHide（預設 true）。
   var NAV_ORDER = ['predict', 'analysis', 'records', 'ghost', 'about'];
-  var NAV_NAME = { predict: '預報·對照', analysis: '分析', records: '紀錄', ghost: '鬼影', about: '說明' };
+  var NAV_NAME = { predict: '預報·對照', analysis: '分析', records: '紀錄', ghost: '鬼影', about: '設定/說明' };
   var nav = (function () {
     var N = $('wrNav'), H = $('wrNavHandle'), fab = $('wrFab'), scrim = $('wrFabScrim'), B = document.body, M = document.querySelector('main');
     var HIDE_MS = 3000, hideT = 0, holding = false, keyboard = false, style = 'a', autoHide = prefs.navAutoHide !== false, g = null, anim = 0;
     // 不算「滑動」的起點：靶面、照片、彈出視窗、可橫向捲動的區塊、輸入元件、功能列本身
-    var NO_SWIPE = 'svg.target,svg.lite-photo,.photobox,.lt-sheet,.modal-bg,input,textarea,select,#wrNav,.wr-fab-wrap,.wr-navc,table,.ana-chips,.ana-strip,.ana-photobox,.ana-dock,.wr-pop,.lay-bar,.lay-editing [data-mod],.lite-rounds,.gh-strip';
+    var NO_SWIPE = 'svg.target,svg.lite-photo,.photobox,.lt-sheet,.modal-bg,input,textarea,select,#wrNav,.wr-fab-wrap,.wr-navc,table,.ana-chips,.ana-strip,.ana-photobox,.ana-dock,.wr-pop,.lay-bar,.lay-editing [data-mod],.lite-rounds,.gh-strip,.dk-eye';
     function pro() { return !B.classList.contains('lite'); }
     function reduced() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
     function isHidden() { return B.classList.contains('nav-hidden'); }
@@ -2066,7 +2101,7 @@
       var row = $('navAutoHideRow'); if (row) row.classList.toggle('dim', style !== 'a');
     }
     function setStyle(st, quiet) {
-      st = ['a', 'b', 'c'].indexOf(st) >= 0 ? st : 'a'; style = st;
+      st = ['a', 'b', 'c'].indexOf(st) >= 0 ? st : 'a'; style = st; $('stTabs').setAttribute('data-nav', st);
       ['a', 'b', 'c'].forEach(function (k) { B.classList.toggle('nav-' + k, k === st); });
       openFab(false); cDragEnd(true); setHidden(false); arm(); syncSettings();
       if (prefs.nav !== st) { prefs.nav = st; savePrefs(); }
@@ -2121,6 +2156,7 @@
       var i = NAV_ORDER.indexOf(curTab) + dir;
       if (i < 0 || i >= NAV_ORDER.length) { cDragEnd(); return false; }
       var to = NAV_ORDER[i];
+      if (to === 'about') stSub.set(dir > 0 ? 'set' : 'help', { noScroll: true }); // 從左邊滑進來＝先到「設定」（最靠近的子標籤）
       B.classList.remove('navc-peek-prev', 'navc-peek-next');
       if (reduced()) { M.style.transform = ''; M.style.opacity = ''; showTab(to); window.scrollTo(0, 0); return true; }
       clearTimeout(anim);
@@ -2141,7 +2177,7 @@
       return true;
     }
     document.addEventListener('touchstart', function (e) {
-      if (!pro() || e.touches.length !== 1) { if (g && g.dir === 'h') cDragEnd(); g = null; return; }
+      if (!pro() || e.touches.length !== 1) { if (g && g.dir === 'h') { cDragEnd(); stSub.dragEnd(); } g = null; return; }
       var t = e.touches[0], W = window.innerWidth || 400;
       g = { x: t.clientX, y: t.clientY, t: Date.now(), ok: canStart(e.target), edge: t.clientX < 18 || t.clientX > W - 18, bottom: t.clientY > (window.innerHeight || 800) - 96, dir: null, done: false };
       // 從畫面最下方（功能列的位置）開始的一滑，即使起點剛好在別的元素上也算
@@ -2149,22 +2185,23 @@
     }, { passive: true, capture: true });
     document.addEventListener('touchmove', function (e) {
       if (!g) return;
-      if (e.touches.length !== 1) { if (g.dir === 'h') cDragEnd(); g = null; return; }
+      if (e.touches.length !== 1) { if (g.dir === 'h') { cDragEnd(); stSub.dragEnd(); } g = null; return; }
       var t = e.touches[0], dx = t.clientX - g.x, dy = t.clientY - g.y;
       if (style === 'a') {
         if (!g.done && g.ok && isHidden() && (Math.hypot(dx, dy) >= 18 || (g.bottom && dy <= -10))) { g.done = true; reveal(); }
         else if (!g.done && g.ok && !isHidden() && Math.hypot(dx, dy) >= 18) { g.done = true; arm(); }
       } else if (style === 'c' && g.ok && !g.edge) {
         if (!g.dir) { if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) g.dir = 'h'; else if (Math.abs(dy) > 12) g.dir = 'v'; }
-        if (g.dir === 'h') cDrag(dx);
+        if (g.dir === 'h') { if (curTab === 'about' && stSub.canStep(dx < 0 ? 1 : -1)) { g.sub = true; cDragEnd(true); stSub.drag(dx); } else { if (g.sub) { g.sub = false; stSub.dragEnd(); } cDrag(dx); } }
       }
     }, { passive: true, capture: true });
     function tEnd(e) {
       if (!g) return; var G = g; g = null;
       if (style !== 'c' || G.dir !== 'h') return;
-      var t = e.changedTouches && e.changedTouches[0]; if (!t || e.type === 'touchcancel') { cDragEnd(); return; }
+      var t = e.changedTouches && e.changedTouches[0]; if (!t || e.type === 'touchcancel') { cDragEnd(); stSub.dragEnd(); return; }
       var dx = t.clientX - G.x, dt = Math.max(1, Date.now() - G.t), W = window.innerWidth || 400;
-      if (Math.abs(dx) > Math.max(56, W * 0.2) || (Math.abs(dx) > 32 && Math.abs(dx) / dt > 0.45)) cStep(dx < 0 ? 1 : -1); else cDragEnd();
+      // v1.7.0：在「設定/說明」裡左右滑＝先換子標籤（設定 ⇄ 說明）；已經在最邊的子標籤再往外滑，才換到相鄰的功能頁
+      if (Math.abs(dx) > Math.max(56, W * 0.2) || (Math.abs(dx) > 32 && Math.abs(dx) / dt > 0.45)) { var dir = dx < 0 ? 1 : -1; if (curTab === 'about' && stSub.step(dir)) { cDragEnd(true); return; } stSub.dragEnd(); cStep(dir); } else { cDragEnd(); stSub.dragEnd(); }
     }
     document.addEventListener('touchend', tEnd, { passive: true, capture: true });
     document.addEventListener('touchcancel', tEnd, { passive: true, capture: true });
@@ -2172,7 +2209,7 @@
     document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse' && style === 'a' && pro() && isHidden() && e.clientY > (window.innerHeight || 800) - 56) reveal(); }, { passive: true }); // 只算真的滑鼠（觸控點擊產生的相容滑鼠事件不算）
     document.addEventListener('wheel', function (e) { if (style === 'a' && pro() && isHidden() && canStart(e.target)) reveal(); }, { passive: true });
 
-    // 設定（說明 › 介面設定）
+    // 設定（設定/說明 › 設定 › 介面設定）
     document.querySelectorAll('#navStyleSeg [data-nav]').forEach(function (b) { b.onclick = function () { setStyle(b.dataset.nav); }; });
     $('navAutoHide').onchange = function () { setAuto(this.checked); toast(this.checked ? '底部圖示列：閒置自動隱藏' : '底部圖示列：一直顯示'); };
     function modeChanged() { openFab(false); cDragEnd(true); setHidden(false); arm(); setHdr(); }
@@ -2209,9 +2246,18 @@
   if (!storageOK) { var sw = $('storageNotice'); if (sw) sw.style.display = ''; }
   setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); nav.sync('predict'); renderAbout(); persist(true); renderAll(); liteLayout();
   if (window.WRLayout) WRLayout.init({ toast: toast, ask: ask });
+  // v1.7.0：分析頁拍照按鈕自動收邊（dock.js）；設定在「設定/說明 › 設定 › 介面設定」
+  if (window.WRDock) {
+    WRDock.init({ enabled: prefs.dockAutoHide !== false, active: function () { return curTab === 'analysis'; }, toast: toast });
+    $('dockAutoHide').checked = prefs.dockAutoHide !== false;
+    $('dockAutoHide').onchange = function () { prefs.dockAutoHide = this.checked; savePrefs(); WRDock.setEnabled(this.checked); toast(this.checked ? '拍照按鈕：閒置自動收到邊緣' : '拍照按鈕：一直顯示'); };
+    $('dockResetSet').onclick = function () { WRDock.home(); };
+  }
   window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; }, get liteStep() { return liteStep(); }, setLiteStep: setLiteStep, get litePhoto() { return lp; }, get liteSel() { return liteSel; }, renderLite: function () { renderLite(); }, get gcur() { return gcur; }, renderGhost: function () { renderGhost(); }, showTab: function (n) { showTab(n); }, get ghostPreview() { return ghPrev; }, nav: nav, get tab() { return curTab; }, predZoom: function (z) { PV.zoom(z); renderPredict(); }, cmpZoom: function (z) { CV.zoom(z); renderCompare(); }, get predView() { return PV.v; },
     // v1.6.0
-    get anaView() { return anaView; }, setAnaView: function (v) { anaSetView(v); }, anaZoom: function (z) { AV.zoom(z); renderAnalysis(); }, get anaViewBox() { return AV.v; }, get anaPZ() { return anaPZ; }, themes: LITE_THEMES.slice(), themeName: THEME_NAME, get theme() { return liteTheme; } };
+    get anaView() { return anaView; }, setAnaView: function (v) { anaSetView(v); }, anaZoom: function (z) { AV.zoom(z); renderAnalysis(); }, get anaViewBox() { return AV.v; }, get anaPZ() { return anaPZ; }, themes: LITE_THEMES.slice(), themeName: THEME_NAME, get theme() { return liteTheme; },
+    // v1.7.0
+    stSub: stSub, get aboutSub() { return stSub.cur; }, dock: window.WRDock };
 
   // ---------- 雲端帳號（備註4，Firebase；沒有設定檔時只顯示「即將推出」） ----------
   (function () {
@@ -2256,7 +2302,7 @@
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (!hadCtl || reloaded) { hadCtl = true; return; }
         reloaded = true;
-        try { if (sessionStorage.getItem('wr_reloaded') === APP_VERSION) { toast('有新版本，點「說明 › 強制重新載入」更新'); return; } sessionStorage.setItem('wr_reloaded', APP_VERSION); } catch (e) {}
+        try { if (sessionStorage.getItem('wr_reloaded') === APP_VERSION) { toast('有新版本，點「設定/說明 › 說明 › 檢查更新」更新'); return; } sessionStorage.setItem('wr_reloaded', APP_VERSION); } catch (e) {}
         location.reload();
       });
       navigator.serviceWorker.register('sw.js?v=' + APP_VERSION, { updateViaCache: 'none' }).then(function (reg) {

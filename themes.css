@@ -1124,3 +1124,101 @@ body.lay-editing .wr-nav,body.lay-editing .wr-fab-wrap,body.lay-editing .ana-doc
 
 /* 分析頁：提示訊息在拇指列上方 */
 body.on-analysis:not(.lite) #toast,body.lite.on-analysis #toast{bottom:calc(var(--dock-b,80px) + 108px)}
+
+/* =====================================================================================
+ * v1.7.0「設定/說明」子標籤（設定｜說明）：顏色、材質跟主題（--w-*）；樣式跟功能切換方式
+ *   A（與 Lite）＝底線分頁；B＝膠囊；C＝底線分頁＋小圓點（可左右滑）
+ * ===================================================================================== */
+.st-head{margin:2px 0 10px}
+.st-tabs{position:relative;display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--w-line);isolation:isolate}
+.st-tabs button{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:7px;min-height:48px;padding:6px 8px;border:0;border-radius:0;background:none;box-shadow:none;
+  color:var(--w-tx2);font-size:15.5px;font-weight:800;font-family:var(--w-sans);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:color .2s}
+.st-tabs button .nv-ic{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.st-tabs button.on{color:var(--w-accTxt)}
+.st-ink{position:absolute;z-index:0;left:0;bottom:-1px;width:50%;height:3px;border-radius:3px 3px 0 0;background:var(--w-acc);box-shadow:0 0 10px var(--w-accSh);transition:transform .28s cubic-bezier(.2,.8,.3,1);pointer-events:none}
+#tab-about[data-sub="help"] .st-ink{transform:translateX(100%)}
+.st-dots{display:none;align-items:center;justify-content:center;gap:6px;padding:7px 0 0}
+.st-dots i{width:7px;height:7px;border-radius:4px;background:var(--w-tx2);opacity:.45;transition:width .2s,opacity .2s,background .2s}
+.st-dots i.on{width:20px;background:var(--w-acc);opacity:1;box-shadow:0 0 8px var(--w-accSh)}
+.st-dots small{font-size:10.5px;color:var(--w-tx2);margin-left:6px}
+.st-panes{will-change:auto}
+.st-pane[hidden]{display:none!important}
+/* B：膠囊（目前那一個是主題色的實心膠囊） */
+body:not(.lite).nav-b .st-tabs{border:1px solid var(--w-segBd);background:var(--w-segBg);border-radius:999px;padding:4px;box-shadow:var(--w-glassSh)}
+body:not(.lite).nav-b .st-tabs button{min-height:44px;border-radius:999px}
+body:not(.lite).nav-b .st-tabs button.on{color:var(--w-accTx)}
+body:not(.lite).nav-b .st-ink{top:4px;bottom:4px;left:4px;width:calc(50% - 4px);height:auto;border-radius:999px;background:linear-gradient(180deg,var(--w-camA),var(--w-camB));box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 3px 10px var(--w-accSh)}
+/* C：底線分頁＋小圓點（提示可以左右滑） */
+body:not(.lite).nav-c .st-dots{display:flex}
+/* 各主題的小個性（只改質感，不改結構） */
+body.lt-sport .st-tabs button,body.lt-racing .st-tabs button{font-style:italic}
+body.lt-hud .st-tabs button,body.lt-tron .st-tabs button{letter-spacing:1px}
+body.lt-cyberpunk .st-ink{background:#e8ff1a;box-shadow:2px 0 0 #ff2b8c,-2px 0 0 #00f0ff,0 0 12px rgba(232,255,26,.6)}
+body.lt-cyberpunk .st-tabs button.on{color:#e8ff1a;text-shadow:1.5px 0 #ff2b8c,-1.5px 0 #00f0ff}
+body.lt-cyberpunk:not(.lite).nav-b .st-tabs button.on{color:#14001f;text-shadow:none}
+body.lt-cyberpunk:not(.lite).nav-b .st-ink{background:#e8ff1a;clip-path:polygon(0 0,100% 0,100% 70%,92% 100%,0 100%)}
+body.lt-cyberpunk:not(.lite).nav-b .st-tabs{border-radius:4px}
+body.lt-cyberpunk:not(.lite).nav-b .st-tabs button{border-radius:3px}
+body.lt-tron .st-ink{box-shadow:0 0 6px #46d2ff,0 0 16px rgba(70,210,255,.7)}
+body.lt-tron:not(.lite).nav-b .st-tabs,body.lt-tron:not(.lite).nav-b .st-tabs button,body.lt-tron:not(.lite).nav-b .st-ink{border-radius:3px}
+body.lt-luxury .st-ink{height:1.5px}
+body.lt-luxury .st-tabs button{font-family:"WR Playfair",var(--w-sans);letter-spacing:.5px}
+body.lt-light .st-ink,body.lt-piano .st-ink,body.lt-appliance .st-ink{box-shadow:none}
+@media (prefers-reduced-motion:reduce){.st-ink,.st-dots i,.st-tabs button{transition:none}}
+
+/* =====================================================================================
+ * v1.7.0 分析頁拍照按鈕自動收邊（dock.js）＋會眨眼的小圓
+ * ===================================================================================== */
+.ana-dock .dk-it,.ana-dock .dk-it *{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ana-dock::before{transition:opacity .3s}
+.ana-dock.dk-out::before{opacity:0}
+.ana-dock.dk-hidden{visibility:hidden}
+.ana-dock.dk-hidden>*{pointer-events:none}
+.ana-dock.dk-drag .dk-it{filter:drop-shadow(0 10px 16px rgba(0,0,0,.35))}
+/* 自由位置（被甩到某一邊之後）：固定在畫面上；左右邊＝直排 */
+.ana-dock.dk-free{position:fixed;z-index:19;margin:0;padding:8px;gap:12px;bottom:auto;transition:none}
+.ana-dock.dk-free::before{display:none}
+.ana-dock.dk-col{flex-direction:column}
+.ana-dock.dk-col .wr-side{width:122px;justify-content:flex-start}
+/* 回到預設位置的小鈕：按鈕組左下角（只有換過位置才出現） */
+.dk-home{display:none;position:absolute;z-index:2;left:-2px;bottom:-4px;width:30px;height:30px;min-height:0;padding:0;border-radius:50%;
+  background:var(--w-qiBg);color:var(--w-qiTx);border:1.5px solid var(--w-page0);box-shadow:0 3px 8px rgba(0,0,0,.35);cursor:pointer;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.dk-home svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.dk-home::after{content:"";position:absolute;inset:-8px}
+.ana-dock.dk-free .dk-home{display:flex}
+/* 小圓：直徑 58px，露出約一半；兩隻黑眼睛（主題色底） */
+.dk-eye{position:fixed;z-index:19;width:58px;height:58px;min-height:0;padding:0;border-radius:50%;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;
+  background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.35),transparent 55%),linear-gradient(180deg,var(--w-camA),var(--w-camB));
+  border:1.5px solid var(--w-camBd);box-shadow:0 4px 14px var(--w-camSh),0 0 0 4px var(--w-camRing)}
+.dk-eye[hidden]{display:none}
+.dk-eye::after{content:"";position:absolute;inset:-14px}
+.dk-face{position:absolute;display:flex;gap:6px;align-items:center;justify-content:center;width:24px;height:16px;pointer-events:none}
+.dk-face{margin:-8px 0 0 -12px}
+.dk-eye[data-edge="left"] .dk-face{left:43px;top:29px}
+.dk-eye[data-edge="right"] .dk-face{left:15px;top:29px}
+.dk-eye[data-edge="top"] .dk-face{left:29px;top:43px}
+.dk-eye[data-edge="bottom"] .dk-face{left:29px;top:15px}
+.dk-e{position:relative;display:block;width:7px;height:10px;border-radius:50%;background:#0b0b0b;transform-origin:50% 55%}
+.dk-e::after{content:"";position:absolute;left:1.5px;top:1.8px;width:2.2px;height:2.2px;border-radius:50%;background:#fff;opacity:.9}
+.dk-eye{--lx:3px;--ly:0px}
+.dk-eye[data-edge="right"]{--lx:-3px}
+.dk-eye[data-edge="top"]{--lx:0px;--ly:3px}
+.dk-eye[data-edge="bottom"]{--lx:0px;--ly:-3px}
+/* 動畫（主題動畫開、沒有減少動態效果）：眨眼（偶爾連眨兩下）、往畫面裡瞄、出現時探頭 */
+body.fx-anim .dk-e{animation:dkBlink 4.7s infinite}
+body.fx-anim .dk-face{animation:dkLook 9.3s ease-in-out 1.2s infinite}
+body.fx-anim .dk-eye.dk-eye-in{animation:dkPeek .55s cubic-bezier(.2,1.5,.4,1) both}
+body.fx-anim .dk-eye.dk-eye-out{animation:dkBye .2s ease-in both}
+@keyframes dkBlink{0%,43%,47%,86%,89.5%,93%,100%{transform:scaleY(1)}45%,88%,91%{transform:scaleY(.08)}}
+@keyframes dkLook{0%,62%,100%{translate:0 0}66%,80%{translate:var(--lx) var(--ly)}84%{translate:calc(var(--lx) * -.3) calc(var(--ly) * -.3)}}
+.dk-eye[data-edge="left"]{--px:-30px;--py:0px}.dk-eye[data-edge="right"]{--px:30px;--py:0px}.dk-eye[data-edge="top"]{--px:0px;--py:-30px}.dk-eye[data-edge="bottom"]{--px:0px;--py:30px}
+@keyframes dkPeek{from{translate:var(--px) var(--py)}to{translate:0 0}}
+@keyframes dkBye{to{translate:var(--px) var(--py);opacity:0}}
+.dk-eye:active{filter:brightness(1.12)}
+body.lt-cyberpunk .dk-eye{box-shadow:0 0 14px rgba(255,43,140,.6),0 0 0 4px rgba(0,240,255,.18)}
+body.lt-tron .dk-eye{box-shadow:0 0 16px rgba(255,138,31,.8),0 0 0 4px rgba(70,210,255,.18)}
+body.lay-editing .dk-eye,body:not(.on-analysis) .dk-eye{visibility:hidden}
+@media (prefers-reduced-motion:reduce){.dk-e,.dk-face,.dk-eye{animation:none!important}}
+.dk-eye[data-edge="top"]{z-index:4}
+/* v1.7.0 修正：C 小圓點列「目前那一點」被通用的 button.on 樣式塗成橘色方塊（v1.6.0 起）；圓點本身由 ::before 畫 */
+.wr-navc .navc-dots button,.wr-navc .navc-dots button.on{background:none;box-shadow:none;border:0;min-height:0}
