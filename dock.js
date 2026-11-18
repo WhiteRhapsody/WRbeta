@@ -200,7 +200,7 @@
     var after = l.map(function (el) { return el.getBoundingClientRect(); });
     l.forEach(function (el, i) { tr(el, before[i].left - after[i].left, before[i].top - after[i].top); });
     void D.offsetWidth;
-    if (opts.enabled) { hidden = false; hide(); opts.toast({ left: '拍照按鈕收到左邊', right: '拍照按鈕收到右邊', top: '拍照按鈕收到上面', bottom: '拍照按鈕收到下面' }[edge] + '（從眼睛那裡拉出來）'); }
+    if (opts.enabled) { hidden = false; hide(); opts.toast(wrT('dock.pull_it_out_from_the', [{ left: wrT('dock.camera_buttons_tucked_to_the'), right: wrT('dock.camera_buttons_tucked_to_the_2'), top: wrT('dock.camera_buttons_tucked_to_the_3'), bottom: wrT('dock.camera_buttons_tucked_to_the_4') }[edge]])); }
     else { var live = lively(); l.forEach(function (el, i) { el.style.transition = 'translate ' + (live ? 420 : 220) + 'ms ' + (live ? 'cubic-bezier(.2,1.3,.4,1)' : 'ease-out') + ' ' + (live ? i * 50 : 0) + 'ms'; tr(el, 0, 0); }); }
   }
   function home(quiet) {
@@ -217,7 +217,7 @@
       void D.offsetWidth;
       l.forEach(function (el, i) { el.style.transition = 'translate .46s cubic-bezier(.2,1.25,.4,1) ' + (i * 50) + 'ms'; tr(el, 0, 0); });
     }
-    if (!quiet) opts.toast('拍照按鈕回到預設位置');
+    if (!quiet) opts.toast(wrT('dock.camera_buttons_back_to_default'));
     arm();
   }
   if (HB) HB.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); home(); });

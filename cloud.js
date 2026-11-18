@@ -8,6 +8,7 @@
  *   records 只能有 id／kind／targetId／created／updated／name／v／data／size（墓碑＝id／updated／deleted）。
  *   新增：pending()（這台裝置待上傳幾筆）、deleteAccount()（刪雲端紀錄＋個人資料文件＋Firebase 帳號）。
  * v2.0.0：on(fn)（登入狀態變化通知其他模組）、fb()（給 member.js 用的 Firestore／Auth）；刪帳號前先呼叫 WRMember.purge() 清掉會員、好友、分享資料。 */
+if (typeof wrT === 'undefined' && typeof require === 'function') { try { require('./i18n/i18n.js'); } catch (e) {} } // v2.2.0：在 Node（測試）也有 wrT（預設繁體中文）
 (function (root) {
   'use strict';
   var SDK = '13.4.0', BASE = 'https://www.gstatic.com/firebasejs/' + SDK + '/';
@@ -112,7 +113,7 @@
     return Promise.all(['firebase-app', 'firebase-auth', 'firebase-firestore'].map(function (n) { return import(BASE + n + '.js'); }))
       .then(function (m) {
         M = { A: m[0], U: m[1], F: m[2] }; app = M.A.initializeApp(cfg); auth = M.U.getAuth(app); db = M.F.getFirestore(app);
-        try { auth.languageCode = 'zh-TW'; } catch (e) {}
+        try { auth.languageCode = (root.wrT && wrT.isEn()) ? 'en' : 'zh-TW'; } catch (e) {}
         state.sdk = SDK; root.WRCloud._ready = true;
       });
   }
@@ -136,7 +137,7 @@
     load().then(function () {
       M.U.onAuthStateChanged(auth, onUser);
       M.U.getRedirectResult(auth).catch(function (e) { setErr(e); emit(); });
-    }).catch(function (e) { state.status = 'signed-out'; setErr({ message: '無法載入雲端模組（離線？）' }); emit(); });
+    }).catch(function (e) { state.status = 'signed-out'; setErr({ message: wrT('cloud.couldnt_load_the_cloud_module') }); emit(); });
   }
   function provider(p) {
     if (p === 'apple') { var a = new M.U.OAuthProvider('apple.com'); a.addScope('email'); a.addScope('name'); a.setCustomParameters({ locale: 'zh_TW' }); return a; }
@@ -161,7 +162,7 @@
    * Firebase 規定刪帳號前要「最近登入過」：登入超過 4 分鐘就先重新確認 Google 帳號（要在按鈕的點擊裡直接呼叫，彈出視窗才不會被擋）。
    * 這台裝置的紀錄（與紀錄碼）不受影響。回傳 Promise。 */
   function deleteAccount() {
-    if (!user || !auth) return Promise.reject({ code: 'not-signed-in', message: '還沒登入' });
+    if (!user || !auth) return Promise.reject({ code: 'not-signed-in', message: wrT('cloud.not_signed_in') });
     var u = user, uid = u.uid, prov = (u.providerData && u.providerData[0] && u.providerData[0].providerId) || 'google.com';
     var last = Date.parse(u.metadata && u.metadata.lastSignInTime) || 0;
     var reauth = Date.now() - last > 4 * 60 * 1000
@@ -220,7 +221,7 @@
         ops.forEach(function (o) { if (o[1].updated > maxPull) maxPull = o[1].updated; });
         ls(LS_META, { uid: uid, lastPull: maxPull, lastPush: startedAt, lastSync: new Date().toISOString() });
         state.lastSync = new Date().toISOString();
-        if (skipped) state.error = skipped + ' 筆太大或格式不符，沒有上傳';
+        if (skipped) state.error = wrT('cloud.too_large_or_invalid_not', [skipped]);
       });
     }).catch(function (e) { setErr(e); }).then(function () {
       busy = false; state.syncing = false; emit();

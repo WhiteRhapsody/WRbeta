@@ -1,9 +1,9 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.0.1', APP_LABEL = 'beta v2.0.1'; // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.2.0', APP_LABEL = 'beta v2.2'; // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
-  try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = APP_LABEL; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = APP_LABEL + '（' + APP_VERSION + '）'; document.title = APP_NAME; } catch (e) {}
+  try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = APP_LABEL; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = wrT('app.x', [APP_LABEL, APP_VERSION]); document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
   var $ = function (id) { return document.getElementById(id); };
   var f1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); };
@@ -19,7 +19,7 @@
     set: function (k, v) { memStore[k] = String(v); if (storageOK) { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } } return false; }
   };
   function loadSessions() { try { return JSON.parse(store.get(LS_SESS)) || []; } catch (e) { return []; } }
-  function saveSessions(list) { var ok = store.set(LS_SESS, JSON.stringify(list)); if (!ok && storageOK) toast('儲存失敗（空間不足？）'); cloudDirty(); }
+  function saveSessions(list) { var ok = store.set(LS_SESS, JSON.stringify(list)); if (!ok && storageOK) toast(wrT('app.save_failed_out_of_storage')); cloudDirty(); }
   // 雲端同步（備註4）：本機 localStorage 永遠是主要資料；登入後才在背景上傳／下載（見 cloud.js）
   function cloudDirty() { try { if (window.WRCloud && window.WRCloud.markDirty) window.WRCloud.markDirty(); } catch (e) {} }
   var prefs = (function () { try { return JSON.parse(store.get(LS_PREF)) || {}; } catch (e) { return {}; } })();
@@ -142,27 +142,27 @@
   // ---------- 數據面板 ----------
   function stat(k, v, s, wide, id) { return '<div class="stat' + (wide ? ' wide' : '') + '"' + (id ? ' data-mod="' + id + '" data-mod-name="' + esc(String(k)) + '"' : '') + '><div class="k">' + k + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>'; }
   function offsetText(x, y) {
-    var h = Math.abs(x) < 0.005 ? '' : (x > 0 ? '右 ' : '左 ') + f2(Math.abs(x)) + 'mm';
-    var v = Math.abs(y) < 0.005 ? '' : (y > 0 ? '上 ' : '下 ') + f2(Math.abs(y)) + 'mm';
-    return [h, v].filter(Boolean).join('，') || '0';
+    var h = Math.abs(x) < 0.005 ? '' : (x > 0 ? wrT('core.right_2') : wrT('core.left_2')) + f2(Math.abs(x)) + 'mm';
+    var v = Math.abs(y) < 0.005 ? '' : (y > 0 ? wrT('core.up') : wrT('core.down')) + f2(Math.abs(y)) + 'mm';
+    return [h, v].filter(Boolean).join(wrT('app.x_2')) || '0';
   }
   function renderStats(box, t, st) {
-    if (!st.n) { box.innerHTML = '<div class="stat" data-mod="empty" data-mod-name="尚無資料"><div class="k">尚無資料</div></div>' + stat('60發預估', '—', '', false, 'p60'); return; }
+    if (!st.n) { box.innerHTML = wrT('app.no_data_yet', [stat(wrT('app.60_shot_projection'), '—', '', false, 'p60')]); return; }
     var h = '';
-    h += stat('發數', st.n, '', false, 'n');
-    h += stat('總分', st.total, '小數 ' + f1(st.totalDec), false, 'total');
-    h += stat('平均分', f2(st.avg), '小數 ' + f2(st.avgDec), false, 'avg');
-    h += stat('60發預估', st.proj60, '小數 ' + f1(st.proj60Dec), false, 'p60');
-    h += stat(t.innerTen.label + '數', st.inner, t.id === 'ar10' ? '10環白點完全被打掉' : '觸及 5.0mm 內十圈', false, 'inner');
-    h += stat('平均偏移', st.direction, offsetText(st.meanX, st.meanY) + '<br>距靶心平均 ' + f2(st.meanR) + 'mm', false, 'offset');
-    h += stat('彈著群大小', f2(st.groupSize) + 'mm', st.groupPair ? '第' + (st.groupPair[0] + 1) + '與第' + (st.groupPair[1] + 1) + '發（中心距）' : '', false, 'group');
-    h += stat('各環發數', '10：' + st.counts[10] + '　9：' + st.counts[9], '8：' + st.counts[8] + '　7：' + st.counts[7] + '　7以下：' + st.counts.below7, true, 'rings');
-    if (st.series.length) h += stat('每10發小計', st.series.map(function (s) { return s.total; }).join(' / '), st.series.map(function (s) { return '第' + s.from + '–' + s.to + '發：' + s.total + '（' + f1(s.totalDec) + '）'; }).join('<br>'), true, 'series');
+    h += stat(wrT('app.shots'), st.n, '', false, 'n');
+    h += stat(wrT('app.total'), st.total, wrT('app.decimal', [f1(st.totalDec)]), false, 'total');
+    h += stat(wrT('app.average'), f2(st.avg), wrT('app.decimal', [f2(st.avgDec)]), false, 'avg');
+    h += stat(wrT('app.60_shot_projection'), st.proj60, wrT('app.decimal', [f1(st.proj60Dec)]), false, 'p60');
+    h += stat(wrT('app.s', [t.innerTen.label]), st.inner, t.id === 'ar10' ? wrT('app.white_10_dot_completely_shot') : wrT('app.touches_the_5_0mm_inner'), false, 'inner');
+    h += stat(wrT('app.mean_offset'), wrT.dir(st.direction), wrT('app.mean_distance_from_center_mm', [offsetText(st.meanX, st.meanY), f2(st.meanR)]), false, 'offset');
+    h += stat(wrT('app.group_size'), f2(st.groupSize) + 'mm', st.groupPair ? wrT('app.shots_and_center_to_center', [st.groupPair[0] + 1, st.groupPair[1] + 1]) : '', false, 'group');
+    h += stat(wrT('app.shots_per_ring'), wrT('app.10_9', [st.counts[10], st.counts[9]]), wrT('app.8_7_below_7', [st.counts[8], st.counts[7], st.counts.below7]), true, 'rings');
+    if (st.series.length) h += stat(wrT('app.subtotal_per_10_shots'), st.series.map(function (s) { return s.total; }).join(' / '), st.series.map(function (s) { return wrT('app.shots_2', [s.from, s.to, s.total, f1(s.totalDec)]); }).join('<br>'), true, 'series');
     box.innerHTML = h;
   }
   function shotTable(shots) {
     if (!shots.length) return '';
-    var h = '<table><tr><th>#</th><th>環數</th><th>小數</th><th>內十</th><th>x(mm)</th><th>y(mm)</th><th>距中心</th></tr>';
+    var h = wrT('app.ring_decimal_inner_10_x');
     shots.forEach(function (q, i) { h += '<tr><td>' + (i + 1) + '</td><td>' + q.ring + '</td><td>' + f1(q.dec) + '</td><td>' + (q.inner ? '✓' : '') + '</td><td>' + f2(q.x) + '</td><td>' + f2(q.y) + '</td><td>' + f2(q.d) + '</td></tr>'; });
     return h + '</table>';
   }
@@ -181,7 +181,7 @@
     V.apply = function () {
       V.ensure(); var v = V.v; svg.setAttribute('viewBox', (v.cx - v.E / 2) + ' ' + (v.cy - v.E / 2) + ' ' + v.E + ' ' + v.E); svg.dataset.extent = v.E;
       var z = gT().cardSize / v.E, zoomed = z > 1.05, sp = fitBtn.querySelector('span');
-      fitBtn.classList.toggle('zoomed', zoomed); sp.textContent = zoomed ? (Math.round(z * 10) / 10) + '×・全靶' : '雙指縮放';
+      fitBtn.classList.toggle('zoomed', zoomed); sp.textContent = zoomed ? wrT('app.full_target', [Math.round(z * 10) / 10]) : wrT('app.pinch_to_zoom');
     };
     V.zoom = function (z) { var c = gT().cardSize; V.v = { cx: 0, cy: 0, E: c / Math.max(1, z) }; V.tid = getTid(); V.clamp(); };
     return V;
@@ -191,8 +191,8 @@
     var box = $('predInfo'), n = cur.preds.length;
     var q = p ? C.scoreShot(tgt(), p.x, p.y) : null, num = pending ? n + 1 : n;
     box.classList.toggle('live', !!pending); box.classList.toggle('empty', !q);
-    box.innerHTML = q ? '<span class="n">第 ' + num + ' 發</span><span class="s">' + q.ring + '</span><span class="d">(' + f1(q.dec) + ')</span>' + (q.inner ? '<span class="x">內十</span>' : '')
-      : '<span class="n">第 1 發</span><span class="s">—</span><span class="d">點靶面記錄</span>';
+    box.innerHTML = q ? wrT('app.shot', [num, q.ring, f1(q.dec), q.inner ? wrT('app.inner_10') : ''])
+      : wrT('app.shot_1_tap_the_target');
   }
   function renderPredict() {
     var t = tgt();
@@ -223,8 +223,8 @@
   });
   $('predFit').onclick = function () { PV.reset(); renderPredict(); };
   $('undoPred').onclick = function () { if (cur.preds.length) { cur.preds.pop(); persist(); renderPredict(); renderCompare(); } };
-  $('clearPred').onclick = function () { if (cur.preds.length) ask('清除本組全部 ' + cur.preds.length + ' 發預報？', function () { cur.preds = []; persist(); renderAll(); }); };
-  function startNew() { cur = newSession(cur.targetId); sessions.unshift(cur); persist(); photo.reset(); renderAll(); toast('已開始新的一組'); showTab('predict'); }
+  $('clearPred').onclick = function () { if (cur.preds.length) ask(wrT('app.clear_all_calls_in_this', [cur.preds.length]), function () { cur.preds = []; persist(); renderAll(); }); };
+  function startNew() { cur = newSession(cur.targetId); sessions.unshift(cur); persist(); photo.reset(); renderAll(); toast(wrT('app.new_set_started')); showTab('predict'); }
   $('newSession').onclick = startNew; $('newSession2').onclick = startNew;
   // 「落點上移」從預報頁移到「說明 › 介面設定」（同一個設定，Pro／Lite／鬼影共用）
   $('liftCursor').checked = !!prefs.lift; $('liftCursor').onchange = function () { prefs.lift = this.checked; savePrefs(); };
@@ -278,7 +278,7 @@
   }
   // v1.6.0：10 款主題（前 4 款沿用；後 6 款見 docs/theme6）。只有賽博龐克、電子世界會改畫靶面（幾何不變，見 themefx.js）
   var LITE_THEMES = ['sport', 'hud', 'light', 'glass', 'cyberpunk', 'tron', 'piano', 'racing', 'appliance', 'luxury'];
-  var THEME_NAME = { sport: '運動風', hud: '戰術 HUD', light: '簡約亮色', glass: '玻璃漸層', cyberpunk: '賽博龐克', tron: '電子世界', piano: '鋼琴烤漆與霧面', racing: '賽車', appliance: '科技家電', luxury: '精密精品' };
+  var THEME_NAME = { sport: wrT('app.sport'), hud: wrT('app.tactical_hud'), light: wrT('app.minimal_light'), glass: wrT('app.glass_gradient'), cyberpunk: wrT('app.cyberpunk'), tron: wrT('app.digital_world'), piano: wrT('app.piano_gloss_matte'), racing: wrT('app.racing'), appliance: wrT('app.tech_appliance'), luxury: wrT('app.precision_luxe') };
   var THEME_META = { hud: '#050a0e', light: '#f2ecdd', sport: '#002776', glass: '#0b0221', cyberpunk: '#07050d', tron: '#000207', piano: '#050505', racing: '#0d0e10', appliance: '#0e1520', luxury: '#0c0a08' };
   // 各款外觀的方塊外形（viewBox 100×52；數字框位置固定，見 style.css .lp-c-*）
   var HEX = { big: '0,12.5 5,0.6 60.5,0.6 65.5,12.5 60.5,24.4 5,24.4', cnt: '62.2,0.6 94.6,0.6 99.6,12.5 94.6,24.4 62.2,24.4 67.2,12.5',
@@ -461,7 +461,7 @@
     liteApplyView();
   }
   // --- 主畫面 ---
-  var GO_LBL = { 1: '下一步：拍照', 2: '看結果', 3: '繼續下一輪' };
+  var GO_LBL = { 1: wrT('app.next_photo'), 2: wrT('app.see_results'), 3: wrT('app.next_round') };
   function renderLite() {
     var t = tgt(), step = liteStep(), k = liteK(), V = $('liteView');
     V.dataset.step = step;
@@ -477,11 +477,11 @@
       b.classList.toggle('done', (s === 1 && rp > 0) || (s === 2 && ra > 0));
       b.classList.toggle('dim', s === 3 && !ready3);
     });
-    $('liteRoundBadge').textContent = '第 ' + (k + 1) + ' 輪';
+    $('liteRoundBadge').textContent = wrT('app.round', [k + 1]);
     $('liteRoundBadge').classList.toggle('show', k > 0 || LF.doneRounds(cur).length > 0);
     // 主按鈕
     var go = GO_LBL[step];
-    if (step === 1 && !rp) go = ra ? '下一步：拍照' : '跳過預報，直接拍照';
+    if (step === 1 && !rp) go = ra ? wrT('app.next_photo') : wrT('app.skip_calls_take_photo');
     $('liteGoLbl').textContent = go;
     $('liteVerify').classList.toggle('soft', step === 2 && !ra);
     // 工具列
@@ -489,11 +489,11 @@
     $('liteUndo').disabled = step === 1 ? !LF.canUndoPred(cur) : !liteUndo2;
     var st = C.computeStats(t, cur.preds), n = st.n;
     if (step === 1) {
-      $('liteHint').textContent = (k > 0 ? '第 ' + (k + 1) + ' 輪・本輪 ' + rp + ' 發・' : '') + '點靶面記錄落點・雙指縮放';
-      setPanelLabels('最新預報', '發數', '60發預估', '總分');
+      $('liteHint').textContent = wrT('app.tap_the_target_to_call', [k > 0 ? wrT('app.round_calls_this_round', [k + 1, rp]) : '']);
+      setPanelLabels(wrT('app.latest_call'), wrT('app.shots'), wrT('app.60_shot_projection'), wrT('app.total'));
       // 總分與 60發預估沿用 Pro 的主數字：整數環數加總（ISSF 資格賽計分），60發預估＝整數平均×60
       $('lpCount').textContent = n; $('lpSum').textContent = n ? st.total : 0; $('lpEst').textContent = n ? st.proj60 : '—';
-      if (!litePreview) { if (n) liteBig(st.shots[n - 1].dec, '第 ' + n + ' 發預報'); else liteBig(null, '最新預報'); }
+      if (!litePreview) { if (n) liteBig(st.shots[n - 1].dec, wrT('app.call_for_shot', [n])); else liteBig(null, wrT('app.latest_call')); }
     } else if (step === 2) renderLiteS2(rp, ra);
     else renderLiteS3();
     ['lpCount', 'lpEst', 'lpSum'].forEach(function (id) { liteFit($(id)); });
@@ -507,19 +507,19 @@
     $('liteBusy').hidden = !(has && lp.busy);
     $('liteEmpty').hidden = !!(has || ra);
     $('liteS2').classList.toggle('has-photo', !!has || ra > 0);
-    if (has && lp.busy) info = '分析照片中…';
+    if (has && lp.busy) info = wrT('app.analyzing_photo');
     else if (has && lp.mode === 'manual' && lp.calPts.length < 5) {
-      var nm = ['靶心', '黑區邊緣的「上緣」', '黑區邊緣的「右緣」', '黑區邊緣的「下緣」', '黑區邊緣的「左緣」'];
-      info = '手動校正 ' + (lp.calPts.length + 1) + '/5：在照片上點<b>' + nm[lp.calPts.length] + '</b>（可雙指放大）';
-    } else if (has && !lp.T) { info = '⚠️ 自動校正失敗（' + esc(lp.info && lp.info.reason || '原因不明') + '）。按「手動校正」，或重拍一張正對、清楚的照片。'; warn = true; }
-    else if (!has && !ra) info = rp ? '拍下這一輪的靶紙或電子靶螢幕（本輪預報 <b>' + rp + '</b> 發）' : '沒有預報也可以：拍照後只顯示成績分析';
+      var nm = [wrT('app.the_center'), wrT('app.the_top_of_the_black'), wrT('app.the_right_of_the_black'), wrT('app.the_bottom_of_the_black'), wrT('app.the_left_of_the_black')];
+      info = wrT('app.manual_calibration_5_tap_on', [lp.calPts.length + 1, nm[lp.calPts.length]]);
+    } else if (has && !lp.T) { info = wrT('app.auto_calibration_failed_tap_manual', [esc(lp.info && lp.info.reason || wrT('app.unknown_reason'))]); warn = true; }
+    else if (!has && !ra) info = rp ? wrT('app.take_a_photo_of_this', [rp]) : wrT('app.no_calls_thats_fine_after');
     else {
-      info = '偵測到 <b>' + ra + '</b> 個彈孔' + (rp ? '・本輪預報 ' + rp + ' 發' : '');
-      if (rp && ra !== rp) { info += '<br>⚠️ 數量不同：重疊的彈孔可能算少，請在靶面上補點或刪除'; warn = true; }
-      else info += '<br>點空白＝新增・按住彈孔可拖曳・選取後可刪除';
+      info = wrT('app.shot_holes_detected', [ra, rp ? wrT('app.calls_this_round', [rp]) : '']);
+      if (rp && ra !== rp) { info += wrT('app.counts_differ_overlapping_holes_may'); warn = true; }
+      else info += wrT('app.tap_empty_space_add_hold');
     }
     $('liteS2Info').innerHTML = info; $('liteS2Info').classList.toggle('warn', warn);
-    $('liteHint').textContent = liteSel >= 0 ? '已選取 1 個彈孔' : liteVMode === 'photo' && has ? '綠圈要對齊靶環・紫線穿過數字' : '第 ' + (liteK() + 1) + ' 輪・實際彈著';
+    $('liteHint').textContent = liteSel >= 0 ? wrT('app.1_shot_hole_selected') : liteVMode === 'photo' && has ? wrT('app.green_circles_should_match_the') : wrT('app.round_actual_shots', [liteK() + 1]);
     $('liteDelHole').disabled = liteSel < 0;
     var hasT = has && !!lp.T;
     $('liteRotL').disabled = $('liteRotR').disabled = $('liteRedetect').disabled = !hasT;
@@ -529,37 +529,37 @@
     var t = tgt(), sel = liteResultSel(), res = LF.result(t, cur, sel), st = res.st, cmp = res.cmp;
     var rl = LF.doneRounds(cur), chips = '';
     if (rl.length > 1 || (rl.length === 1 && rl[0].k !== liteK() && LF.pointsOf(cur.actuals, liteK()).length)) {
-      rl.forEach(function (r) { chips += '<button type="button" data-r="' + r.k + '" class="' + (sel === r.k ? 'on' : '') + '">第 ' + (r.k + 1) + ' 輪<small>' + r.acts + '發</small></button>'; });
-      chips += '<button type="button" data-r="all" class="' + (sel === 'all' ? 'on' : '') + '">全部<small>' + LF.pointsOf(cur.actuals, -1).length + '</small></button>';
+      rl.forEach(function (r) { chips += wrT('app.round_shots', [r.k, sel === r.k ? 'on' : '', r.k + 1, r.acts]); });
+      chips += wrT('app.all', [sel === 'all' ? 'on' : '', LF.pointsOf(cur.actuals, -1).length]);
     }
     $('liteRounds').innerHTML = chips; $('liteRounds').hidden = !chips;
-    var tot = 0; rl.forEach(function (r) { tot += r.acts; }); var ae = $('liteRounds').querySelector('[data-r=all] small'); if (ae) ae.textContent = tot + '發';
+    var tot = 0; rl.forEach(function (r) { tot += r.acts; }); var ae = $('liteRounds').querySelector('[data-r=all] small'); if (ae) ae.textContent = wrT('app.shots_3', [tot]);
     $('liteRounds').querySelectorAll('button').forEach(function (b) { b.onclick = function () { liteRes = b.dataset.r === 'all' ? 'all' : +b.dataset.r; liteShotSel = -1; renderLite(); }; });
-    var lbl = sel === 'all' ? '全部' : '第 ' + (sel + 1) + ' 輪';
-    if (!st.n) { liteBig(null, lbl + '・實際總分'); $('lpCount').textContent = 0; $('lpEst').textContent = '—'; $('lpSum').textContent = '—'; $('liteHint').textContent = '還沒有彈孔，先到「2 拍照」'; }
+    var lbl = sel === 'all' ? wrT('app.all_2') : wrT('app.round', [sel + 1]);
+    if (!st.n) { liteBig(null, wrT('app.actual_total', [lbl])); $('lpCount').textContent = 0; $('lpEst').textContent = '—'; $('lpSum').textContent = '—'; $('liteHint').textContent = wrT('app.no_shot_holes_yet_go'); }
     else {
-      liteBig(st.avgDec, lbl + '・實際總分', String(st.total));
+      liteBig(st.avgDec, wrT('app.actual_total', [lbl]), String(st.total));
       $('lpCount').textContent = st.n;
       if (res.hasForecast && cmp.m) {
-        setPanelLabels(lbl + '・實際總分', '發數', '平均誤差 mm', '預報總分');
+        setPanelLabels(wrT('app.actual_total', [lbl]), wrT('app.shots'), wrT('app.avg_error_mm'), wrT('app.call_total'));
         $('lpEst').textContent = f1(cmp.meanErr); $('lpSum').textContent = res.pst.total;
         var lv = LF.accuracyLevel(t, cmp);
-        $('liteHint').textContent = '預報' + (cmp.biasDir === '置中' ? '沒有明顯偏向' : '偏' + cmp.biasDir + ' ' + f1(cmp.biasLen) + 'mm') + '・環數對 ' + Math.round(cmp.sameRingRate * 100) + '%・' + lv.label;
+        $('liteHint').textContent = wrT('app.calls_ring_correct', [cmp.biasDir === '置中' ? wrT('app.no_clear_bias') : wrT('app.biased_mm', [wrT.dir(cmp.biasDir), f1(cmp.biasLen)]), Math.round(cmp.sameRingRate * 100), lv.label]);
       } else {
-        setPanelLabels(lbl + '・實際總分', '發數', '60發預估', '小數總分');
+        setPanelLabels(wrT('app.actual_total', [lbl]), wrT('app.shots'), wrT('app.60_shot_projection'), wrT('app.decimal_total'));
         $('lpEst').textContent = st.proj60; $('lpSum').textContent = f1(st.totalDec);
-        $('liteHint').textContent = st.advice ? '群中心 ' + (st.advice.centered ? '置中' : st.advice.offsetDir + ' ' + f1(st.advice.dist) + 'mm') + (st.n > 1 ? '・群大小 ' + f1(st.groupSize) + 'mm' : '') : '成績分析';
+        $('liteHint').textContent = st.advice ? wrT('app.group_center', [st.advice.centered ? wrT('core.centered') : wrT.dir(st.advice.offsetDir) + ' ' + f1(st.advice.dist) + 'mm', st.n > 1 ? wrT('app.group_size_mm', [f1(st.groupSize)]) : '']) : wrT('app.score_analysis');
       }
     }
     if (liteShotSel >= 0 && cur.actuals[liteShotSel]) {
       var a = cur.actuals[liteShotSel], sa = C.scoreShot(t, a.x, a.y), pq = res.cmp.pairs.filter(function (q) { return q.actIdx === liteShotSel; })[0];
-      $('liteHint').textContent = pq ? '第 ' + pq.i + ' 發：預報 ' + f1(pq.pred.dec) + ' → 實際 ' + f1(pq.act.dec) + '，差 ' + f1(pq.err) + 'mm' : '這一發：' + f1(sa.dec) + '（' + offsetText(a.x, a.y) + '）';
+      $('liteHint').textContent = pq ? wrT('app.shot_call_actual_off_by', [pq.i, f1(pq.pred.dec), f1(pq.act.dec), f1(pq.err)]) : wrT('app.this_shot', [f1(sa.dec), offsetText(a.x, a.y)]);
     }
     if (document.activeElement !== $('liteName')) $('liteName').value = cur.name || '';
     var Code = window.BMCode, rec = LF.toAnalysisRecord(cur), code = null;
     try { code = rec && Code ? Code.encode(rec) : null; } catch (e) { code = null; }
     $('liteCopyCode').disabled = !code;
-    $('liteCodeInfo').textContent = code ? '紀錄碼 ' + code.length + ' 字（含全部 ' + rec.sheets.length + ' 輪的實際彈孔，不含照片）' : '';
+    $('liteCodeInfo').textContent = code ? wrT('app.record_code_characters_actual_shots', [code.length, rec.sheets.length]) : '';
     $('liteDetail').innerHTML = liteDetailHTML(t, res, lbl);
   }
   function liteDetailHTML(t, res, lbl) {
@@ -569,27 +569,22 @@
     if (res.hasForecast) {
       if (cmp.m) {
         var lv = LF.accuracyLevel(t, cmp);
-        h += card('🎯 預報準不準（' + lbl + '）', '<div class="lite-acc lv' + lv.level + '">' + lv.label + '<small>平均差 ' + f1(lv.rings) + ' 個環寬</small></div>' +
-          kv('平均預報誤差', f2(cmp.meanErr) + ' mm', '最大：第 ' + cmp.maxErrShot + ' 發 ' + f1(cmp.maxErr) + 'mm') +
-          kv('系統性偏向', cmp.biasDir === '置中' ? '無明顯偏向' : '預報偏' + cmp.biasDir, offsetText(cmp.biasX, cmp.biasY)) +
-          kv('環數判斷正確', Math.round(cmp.sameRingRate * 100) + '%', '平均小數分差 ' + f2(cmp.meanAbsDecDiff)) +
-          (cmp.unpairedPred || cmp.unpairedAct ? kv('沒配對到', (cmp.unpairedPred ? '預報 ' + cmp.unpairedPred + ' 發' : '') + (cmp.unpairedAct ? ' 彈孔 ' + cmp.unpairedAct + ' 個' : ''), '預報發數和彈孔數不同') : '') +
-          '<div class="lite-note">分級是 WRbeta 的練習參考（平均誤差 ≤0.5 環寬＝很準、≤1 不錯、≤2 普通），不是 ISSF 規則。照片看不出射擊順序，用「總距離最短」配對。</div>');
-      } else h += card('🎯 預報準不準', '<div>這一輪沒有可配對的預報與彈孔。</div>');
+        h += card(wrT('app.how_accurate_were_my_calls', [lbl]), wrT('app.avg_off_by_ring_widths', [lv.level, lv.label, f1(lv.rings), kv(wrT('app.avg_call_error'), f2(cmp.meanErr) + ' mm', wrT('app.max_shot_mm', [cmp.maxErrShot, f1(cmp.maxErr)])), kv(wrT('app.systematic_bias'), cmp.biasDir === '置中' ? wrT('app.no_clear_bias_2') : wrT('app.calls_biased', [wrT.dir(cmp.biasDir)]), offsetText(cmp.biasX, cmp.biasY)), kv(wrT('app.ring_called_correctly'), Math.round(cmp.sameRingRate * 100) + '%', wrT('app.avg_decimal_difference', [f2(cmp.meanAbsDecDiff)])), cmp.unpairedPred || cmp.unpairedAct ? kv(wrT('app.not_matched'), (cmp.unpairedPred ? wrT('app.calls', [cmp.unpairedPred]) : '') + (cmp.unpairedAct ? wrT('app.holes', [cmp.unpairedAct]) : ''), wrT('app.number_of_calls_and_holes')) : '']));
+      } else h += card(wrT('app.how_accurate_were_my_calls_2'), wrT('app.no_calls_and_shot_holes'));
     }
-    h += card('📊 實際成績（' + lbl + '）', kv('總分', st.total, '小數 ' + f1(st.totalDec)) + kv('平均', f2(st.avgDec), '整數 ' + f2(st.avg)) + kv('60發預估', st.proj60, '小數 ' + f1(st.proj60Dec)) +
-      kv(t.innerTen.label + '數', st.inner) + (st.n > 1 ? kv('彈著群大小', f1(st.groupSize) + ' mm') : '') +
-      (st.advice ? kv('群中心', st.advice.centered ? '置中' : st.advice.offsetDir + ' ' + f1(st.advice.dist) + 'mm', esc(st.advice.text)) : '') +
-      (st.n > 1 ? kv('穩定度（標準差）', f2(st.sdDec)) : ''));
+    h += card(wrT('app.actual_score', [lbl]), kv(wrT('app.total'), st.total, wrT('app.decimal', [f1(st.totalDec)])) + kv(wrT('app.average_2'), f2(st.avgDec), wrT('app.integer', [f2(st.avg)])) + kv(wrT('app.60_shot_projection'), st.proj60, wrT('app.decimal', [f1(st.proj60Dec)])) +
+      kv(wrT('app.s', [t.innerTen.label]), st.inner) + (st.n > 1 ? kv(wrT('app.group_size'), f1(st.groupSize) + ' mm') : '') +
+      (st.advice ? kv(wrT('app.group_center_2'), st.advice.centered ? wrT('core.centered') : wrT.dir(st.advice.offsetDir) + ' ' + f1(st.advice.dist) + 'mm', esc(st.advice.text)) : '') +
+      (st.n > 1 ? kv(wrT('app.consistency_std_dev'), f2(st.sdDec)) : ''));
     if (res.perRound.length > 1) {
-      var tb = '<table class="lite-tb"><tr><th>輪</th><th>預報</th><th>彈孔</th><th>總分</th><th>小數</th></tr>';
+      var tb = wrT('app.round_calls_holes_total_decimal');
       res.perRound.forEach(function (r) { tb += '<tr><td>' + (r.k + 1) + '</td><td>' + r.preds + '</td><td>' + r.acts + '</td><td>' + r.st.total + '</td><td>' + f1(r.st.totalDec) + '</td></tr>'; });
-      h += card('🗂 每輪小計', tb + '</table>');
+      h += card(wrT('app.subtotal_per_round'), tb + '</table>');
     }
     if (cmp.m) {
-      var pt = '<table class="lite-tb"><tr><th>#</th><th>預報</th><th>實際</th><th>差距</th></tr>';
+      var pt = wrT('app.call_actual_diff');
       cmp.pairs.forEach(function (q) { pt += '<tr><td>' + q.i + '</td><td>' + f1(q.pred.dec) + '</td><td>' + f1(q.act.dec) + '</td><td>' + f1(q.err) + 'mm</td></tr>'; });
-      h += card('逐發對照', pt + '</table>');
+      h += card(wrT('app.shot_by_shot'), pt + '</table>');
     }
     return h;
   }
@@ -674,7 +669,7 @@
       if (!liteInCard(m)) { renderLite(); return; }
       var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual', r: liteK() };
       cur.actuals.push(q); liteSel = cur.actuals.length - 1; liteUndo2 = { op: 'add', q: q };
-      persist(); vib(); renderLite(); toast('已新增一個彈孔');
+      persist(); vib(); renderLite(); toast(wrT('app.shot_hole_added'));
     },
     cancel: function () {
       if (liteDrag && liteDrag.moved) { var a = cur.actuals[liteDrag.i]; a.x = liteDrag.from.x; a.y = liteDrag.from.y; }
@@ -689,7 +684,7 @@
     down: function (r) { var m = { x: r.x, y: -r.y }; if (liteStep() === 1) this.move(r); else if (liteStep() === 2) holeEdit.down(m); },
     move: function (r) {
       var m = { x: r.x, y: -r.y }, step = liteStep();
-      if (step === 1) { litePreview = m; previewMark(liteSvg, m, 'pred-c', tgt()); var s = C.scoreShot(tgt(), m.x, m.y); liteBig(s.dec, '第 ' + (cur.preds.length + 1) + ' 發・放開記錄'); }
+      if (step === 1) { litePreview = m; previewMark(liteSvg, m, 'pred-c', tgt()); var s = C.scoreShot(tgt(), m.x, m.y); liteBig(s.dec, wrT('app.shot_release_to_record', [cur.preds.length + 1])); }
       else if (step === 2) holeEdit.move(m);
     },
     up: function (r) {
@@ -720,7 +715,7 @@
       if (lp.mode === 'manual' && lp.calPts.length < 5) {
         var tt = C.calibTargets(tgt(), tgt().blackFromRing)[lp.calPts.length];
         lp.calPts.push({ px: r.x, py: r.y, x: tt.x, y: tt.y });
-        if (lp.calPts.length === 5) { lp.T = C.fitAffine(lp.calPts); if (!lp.T) { toast('校正失敗，請重新點'); lp.calPts = []; } else { lp.rotDeg = 0; liteProcess(); return; } }
+        if (lp.calPts.length === 5) { lp.T = C.fitAffine(lp.calPts); if (!lp.T) { toast(wrT('app.calibration_failed_please_tap_again')); lp.calPts = []; } else { lp.rotDeg = 0; liteProcess(); return; } }
         renderLite(); return;
       }
       var m = this.toMM(r); if (m) holeEdit.up(m);
@@ -748,7 +743,7 @@
     setTimeout(function () {
       try {
         var r = visRun(P, cur.targetId, +$('liteSens').value, false), det = r.det; // v1.7.1：共用流程
-        if (r.mismatch) toast('⚠️ 這張看起來是「' + T[r.mismatch].name + '」靶紙，但目前選的是「' + tgt().name + '」，彈孔的位置和分數會算錯');
+        if (r.mismatch) toast(wrT('app.this_looks_like_a_target', [T[r.mismatch].name, tgt().name]));
         if (P.T) {
           LF.setRoundActuals(cur, P.rk, (det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; }));
           cur.calib = { mode: P.mode, rms: C.round(P.T.rms || 0, 3), at: Date.now() };
@@ -757,7 +752,7 @@
           var rp = LF.pointsOf(cur.preds, P.rk).length, ra = LF.pointsOf(cur.actuals, P.rk).length;
           liteVMode = rp && ra !== rp ? 'photo' : 'target'; // 數量對得上就直接看靶面，對不上留在照片方便檢查
         }
-      } catch (e) { P.T = null; P.info = { reason: '分析錯誤：' + e.message }; }
+      } catch (e) { P.T = null; P.info = { reason: wrT('app.analysis_error', [e.message]) }; }
       P.busy = false; liteSel = -1; liteUndo2 = null; renderLite(); renderCompare();
     }, 30);
   }
@@ -765,14 +760,14 @@
   document.querySelectorAll('#liteViewSeg button').forEach(function (b) { b.onclick = function () { liteVMode = b.dataset.v; litePreview = null; renderLite(); }; });
   $('liteDelHole').onclick = function () {
     if (liteSel < 0 || !cur.actuals[liteSel]) return;
-    var q = cur.actuals.splice(liteSel, 1)[0]; liteUndo2 = { op: 'del', q: q, i: liteSel }; liteSel = -1; persist(); renderLite(); renderCompare(); toast('已刪除一個彈孔');
+    var q = cur.actuals.splice(liteSel, 1)[0]; liteUndo2 = { op: 'del', q: q, i: liteSel }; liteSel = -1; persist(); renderLite(); renderCompare(); toast(wrT('app.shot_hole_deleted'));
   };
   function liteRotate(deg) {
     if (!lp || !lp.T) return;
     var th = deg * Math.PI / 180, c = Math.cos(th), s = Math.sin(th), rms = lp.T.rms, k = lp.rk;
     lp.T = window.BMVision.rotateAffine(lp.T, th); lp.T.rms = rms; lp.Tinv = C.invertAffine(lp.T); lp.rotDeg += deg;
     cur.actuals = cur.actuals.map(function (p) { return LF.roundOf(p) === k ? Object.assign({}, p, { x: C.round(c * p.x - s * p.y, 3), y: C.round(s * p.x + c * p.y, 3) }) : p; });
-    liteUndo2 = null; persist(); renderLite(); toast('已轉 ' + lp.rotDeg + '°');
+    liteUndo2 = null; persist(); renderLite(); toast(wrT('app.rotated', [lp.rotDeg]));
   }
   $('liteRotL').onclick = function () { liteRotate(-1); }; $('liteRotR').onclick = function () { liteRotate(1); };
   $('liteRedetect').onclick = function () { if (lp && lp.T) liteProcess(); };
@@ -793,7 +788,7 @@
     liteUndo2 = null; liteSel = -1; persist(); renderLite(); renderCompare();
   };
   function setLiteStep(s, quiet) {
-    if (s === 3 && !LF.stepReady(cur, 3)) { toast('先在「2 拍照」拍下靶紙，才有結果'); s = 2; }
+    if (s === 3 && !LF.stepReady(cur, 3)) { toast(wrT('app.take_a_photo_of_the')); s = 2; }
     if (cur.liteStep !== s) { cur.liteStep = s; persist(); }
     litePreview = null; liteDrag = null; if (s !== 2) liteSel = -1; if (s === 3) { liteRes = 'cur'; liteShotSel = -1; }
     if (!document.body.classList.contains('on-predict')) showTab('predict');
@@ -802,20 +797,20 @@
   $('liteVerify').onclick = function () {
     var s = liteStep();
     if (s === 1) setLiteStep(2);
-    else if (s === 2) { if (!LF.pointsOf(cur.actuals, liteK()).length) { toast('還沒有彈孔：先拍照，或在靶面上點實際彈著'); return; } setLiteStep(3); }
-    else { var k = LF.nextRound(cur); lp = null; liteUndo2 = null; liteVMode = 'target'; liteResetView(); persist(); setLiteStep(1); toast('第 ' + (k + 1) + ' 輪開始：預報 → 拍照 → 結果'); }
+    else if (s === 2) { if (!LF.pointsOf(cur.actuals, liteK()).length) { toast(wrT('app.no_shot_holes_yet_take')); return; } setLiteStep(3); }
+    else { var k = LF.nextRound(cur); lp = null; liteUndo2 = null; liteVMode = 'target'; liteResetView(); persist(); setLiteStep(1); toast(wrT('app.round_started_call_photo_results', [k + 1])); }
   };
   document.querySelectorAll('#liteSteps [data-step]').forEach(function (b) { b.onclick = function () { setLiteStep(+b.dataset.step); }; });
-  $('liteName').onchange = function () { cur.name = this.value.trim().slice(0, 60); persist(); renderLite(); toast('名稱已存'); };
+  $('liteName').onchange = function () { cur.name = this.value.trim().slice(0, 60); persist(); renderLite(); toast(wrT('app.name_saved')); };
   $('liteCopyCode').onclick = function () {
     var Code = window.BMCode, rec = LF.toAnalysisRecord(cur), code = rec && Code && Code.encode(rec);
-    if (!code) { toast('還沒有可複製的彈孔'); return; }
-    copyText(code, '已複製紀錄碼（' + code.length + ' 字）');
+    if (!code) { toast(wrT('app.no_shot_holes_to_copy')); return; }
+    copyText(code, wrT('app.record_code_copied_characters', [code.length]));
   };
   $('liteFinish').onclick = function () {
     var n = cur.preds.length + cur.actuals.length;
-    function go() { cur.liteStep = 1; persist(); startNew(); lp = null; liteUndo2 = null; liteVMode = 'target'; cur.liteStep = 1; renderLite(); toast('已存到「紀錄」，開始新的一組'); }
-    if (n) ask('這一組已自動存到「紀錄」。開始新的一組？', go); else go();
+    function go() { cur.liteStep = 1; persist(); startNew(); lp = null; liteUndo2 = null; liteVMode = 'target'; cur.liteStep = 1; renderLite(); toast(wrT('app.saved_to_records_new_set')); }
+    if (n) ask(wrT('app.this_set_has_been_saved'), go); else go();
   };
 
   // ---------- 鬼影模式（v1.4.0；Lite 從「更多」進入、Pro 是「鬼影」分頁；邏輯在 src/ghost.js） ----------
@@ -881,30 +876,27 @@
   }
   function renderGhostRail(S, gs) {
     var lite = document.body.classList.contains('lite'), k = S.round, rr = S.rounds[k], src = ghSrc();
-    var pl = src === 'round' ? '上一輪' : '上次', h = '';
+    var pl = src === 'round' ? wrT('app.previous_series') : wrT('app.last_time'), h = '';
     var pips = ''; for (var i = 0; i < G.ROUNDS; i++) pips += '<i class="' + (i < k || S.rounds[i].done && i !== k ? 'd' : i === k ? 'on' : '') + '"></i>';
     var prevAll = src === 'round' ? (k > 0 ? S.rounds[k - 1].cur : null) : S.prevAll;
     var tot = S.cur ? S.cur.total : 0, totD = S.cur ? f1(S.cur.totalDec) : '0.0';
     var coll = '<button type="button" class="gh-coll' + (ghOpen ? ' open' : '') + '" id="ghColl" aria-expanded="' + ghOpen + '">' + (ghOpen ?
-      '總分 <b>' + tot + '</b>（' + totD + '）<br>發數 <b>' + S.shots + '</b>/60' + (S.prevAll && src === 'prev' ? '<br>上次總分 ' + S.prevAll.total + '（' + S.prevAll.n + ' 發）' : '') :
-      '總分・發數<br>（點開）') + '</button>';
+      wrT('app.total_shots_60', [tot, totD, S.shots, S.prevAll && src === 'prev' ? wrT('app.last_total_shots', [S.prevAll.total, S.prevAll.n]) : '']) :
+      wrT('app.total_shots_tap_to_open')) + '</button>';
     if (lite) {
-      h += '<div class="gh-rb"><div class="k">輪次</div><div class="v gh-rv">' + (k + 1) + '<small>/6</small></div><div class="gh-pips">' + pips + '</div></div>';
-      h += '<div class="gh-rb"><div class="k">' + pl + '平均</div><div class="v gh-g">' + (prevAll ? f2(prevAll.avg) : '—') + '</div><div class="s">' + (src === 'round' ? '第 ' + k + ' 輪' : prevAll ? prevAll.n + ' 發' : '沒有紀錄') + '</div></div>';
-      h += '<div class="gh-rb"><div class="k">目前平均</div><div class="v">' + (S.cur ? f2(S.cur.avg) : '—') + '</div>' + (S.diff != null ? '<div class="s">' + ghDelta(S.diff) + '<br>vs ' + pl + '同期</div>' : '<div class="s">&nbsp;</div>') + '</div>';
-      h += '<div class="gh-rb gh-rnd"><div class="k">第 ' + (k + 1) + ' 輪</div><div class="gh-vs"><div><span>' + pl + '</span><b class="gh-g">' + (rr.prevSame ? f2(rr.prevSame.avg) : rr.prev ? f2(rr.prev.avg) : '—') + '</b></div><div><span>這次</span><b>' + (rr.cur ? f2(rr.cur.avg) : '—') + '</b></div></div>' + (rr.diff != null ? ghDelta(rr.diff) : '') + '</div>';
+      h += wrT('app.series_6', [k + 1, pips]);
+      h += wrT('app.avg', [pl, prevAll ? f2(prevAll.avg) : '—', src === 'round' ? wrT('app.series_n', [k]) : prevAll ? wrT('app.shots_4', [prevAll.n]) : wrT('app.no_record')]);
+      h += wrT('app.current_avg', [S.cur ? f2(S.cur.avg) : '—', S.diff != null ? wrT('app.vs_at_same_point', [ghDelta(S.diff), pl]) : '<div class="s">&nbsp;</div>']);
+      h += wrT('app.series_this_time', [k + 1, pl, rr.prevSame ? f2(rr.prevSame.avg) : rr.prev ? f2(rr.prev.avg) : '—', rr.cur ? f2(rr.cur.avg) : '—', rr.diff != null ? ghDelta(rr.diff) : '']);
       h += coll;
     } else {
-      h += '<div class="gh-cards" data-lay="ghost" data-lay-page="ghost"><div class="gh-rb" data-mod="round" data-mod-name="目前輪次"><div class="k">目前輪次</div><div class="v gh-rv">' + (k + 1) + '<small>/6</small></div><div class="gh-pips">' + pips + '</div></div>' +
-        '<div class="gh-rb" data-mod="prev" data-mod-name="上次總平均"><div class="k">' + pl + '總平均</div><div class="v gh-g">' + (prevAll ? f2(prevAll.avg) : '—') + '</div><div class="s">' + (src === 'round' ? '第 ' + k + ' 輪' : prevAll ? prevAll.n + ' 發' : '沒有紀錄') + '</div></div>' +
-        '<div class="gh-rb" data-mod="cur" data-mod-name="目前累積平均"><div class="k">目前累積平均</div><div class="v">' + (S.cur ? f2(S.cur.avg) : '—') + '</div><div class="s">' + (S.diff != null ? ghDelta(S.diff) + ' vs ' + pl + '同期 ' + f2(S.prevSame.avg) : '&nbsp;') + '</div></div></div>';
-      var tb = '<table class="gh-tb"><tr><th>輪次</th><th>' + pl + '平均</th><th>這次平均</th><th>差</th><th class="gh-barh">對比</th></tr>';
+      h += wrT('app.current_series_6_overall_avg', [k + 1, pips, pl, prevAll ? f2(prevAll.avg) : '—', src === 'round' ? wrT('app.series_n', [k]) : prevAll ? wrT('app.shots_4', [prevAll.n]) : wrT('app.no_record'), S.cur ? f2(S.cur.avg) : '—', S.diff != null ? wrT('app.vs_at_same_point_2', [ghDelta(S.diff), pl, f2(S.prevSame.avg)]) : '&nbsp;']);
+      var tb = wrT('app.series_avg_this_avg_diff', [pl]);
       S.rounds.forEach(function (r) {
         var pv = src === 'round' ? (r.k > 0 ? S.rounds[r.k - 1].cur : null) : r.prev, cv = r.cur;
         var d = cv && r.prevSame ? cv.avg - r.prevSame.avg : null;
         var bw = function (v) { return v ? Math.max(4, Math.min(100, (v.avg - 7) / 3.9 * 100)).toFixed(0) : 0; };
-        tb += '<tr class="' + (r.k === k ? 'on' : '') + '"><td>第 ' + (r.k + 1) + ' 輪 <small>' + (r.k * 10 + 1) + '–' + (r.k * 10 + 10) + '</small></td><td class="gh-g">' + (pv ? f2(pv.avg) : '—') + '</td><td>' + (cv ? f2(cv.avg) : '—') + '</td><td>' + (d != null ? ghDelta(d) : '') + '</td>' +
-          '<td class="gh-barc"><span class="gh-bar g" style="width:' + bw(pv) + '%"></span><span class="gh-bar m" style="width:' + bw(cv) + '%"></span></td></tr>';
+        tb += wrT('app.series', [r.k === k ? 'on' : '', r.k + 1, r.k * 10 + 1, r.k * 10 + 10, pv ? f2(pv.avg) : '—', cv ? f2(cv.avg) : '—', d != null ? ghDelta(d) : '', bw(pv), bw(cv)]);
       });
       h += tb + '</table>' + coll;
     }
@@ -913,7 +905,7 @@
   }
   function renderGhostStrip(S, gs) {
     var t = ghT(), k = S.round, cells = G.strip(t, gcur, gs, k), src = ghSrc();
-    var h = '<div class="gh-sh"><span>第 ' + (k + 1) + ' 輪・' + (k * 10 + 1) + '–' + (k * 10 + 10) + ' 發</span><span>上排這次・下排' + (src === 'round' ? '上一輪' : '上次') + '</span></div><div class="gh-cells">';
+    var h = wrT('app.series_shots_top_row_this', [k + 1, k * 10 + 1, k * 10 + 10, src === 'round' ? wrT('app.previous_series') : wrT('app.last_time')]);
     cells.forEach(function (c) {
       var me = c.me, col = me ? scoreColor(me.dec) : null, isCur = c.n === S.next;
       h += '<div class="gh-cell' + (isCur ? ' cur' : '') + '"><div class="n">' + (c.n + 1) + '</div>' +
@@ -923,26 +915,26 @@
     $('ghStrip').innerHTML = h + '</div>';
   }
   function renderGhostBig(S, gs) {
-    var t = ghT(), n = S.next, box = $('ghBig'), src = ghSrc(), pl = src === 'round' ? '上一輪' : '上次';
+    var t = ghT(), n = S.next, box = $('ghBig'), src = ghSrc(), pl = src === 'round' ? wrT('app.previous_series') : wrT('app.last_time');
     var p = ghPrev, idx = n, lbl;
-    if (p) lbl = '第 ' + (n + 1) + ' 發・按住中';
+    if (p) lbl = wrT('app.shot_holding', [n + 1]);
     else {
       var me = G.slots(gcur), last = -1; for (var i = G.TOTAL - 1; i >= 0; i--) if (me[i]) { last = i; break; }
-      if (last >= 0) { p = me[last]; idx = last; lbl = '第 ' + (last + 1) + ' 發'; }
+      if (last >= 0) { p = me[last]; idx = last; lbl = wrT('app.shot_2', [last + 1]); }
     }
     if (!p) {
       box.className = 'gh-big empty';
-      box.innerHTML = '<div class="bv">—</div><div class="bk">' + (n != null ? '第 ' + (n + 1) + ' 發：按住靶面看預估分數，放開記錄' : '這一輪 10 發已滿') + '</div>';
+      box.innerHTML = '<div class="bv">—</div><div class="bk">' + (n != null ? wrT('app.shot_hold_the_target_to', [n + 1]) : wrT('app.all_10_shots_in_this')) + '</div>';
       return;
     }
     var s = C.scoreShot(t, p.x, p.y), col = scoreColor(s.dec), gh = G.ghostAt(gs, idx), cmp = '';
     if (gh) {
       var gsx = C.scoreShot(t, gh.x, gh.y), dd = s.dec - gsx.dec;
-      cmp = '<div class="cmp">' + pl + '第 ' + (idx + 1) + ' 發 <span class="gv">' + f1(gsx.dec) + '</span><br>差 ' + (dd >= 0 ? '+' : '−') + f1(Math.abs(dd)) + '・' + offsetText(p.x - gh.x, p.y - gh.y) + '</div>';
-    } else if (ghOn) cmp = '<div class="cmp">' + (S.hasGhost || src === 'round' ? pl + '沒有第 ' + (idx + 1) + ' 發' : '還沒有可對照的紀錄') + '</div>';
+      cmp = wrT('app.shot_diff', [pl, idx + 1, f1(gsx.dec), dd >= 0 ? '+' : '−', f1(Math.abs(dd)), offsetText(p.x - gh.x, p.y - gh.y)]);
+    } else if (ghOn) cmp = '<div class="cmp">' + (S.hasGhost || src === 'round' ? wrT('app.has_no_shot', [pl, idx + 1]) : wrT('app.no_record_to_compare_yet')) + '</div>';
     box.className = 'gh-big' + (ghPrev ? ' live' : '');
     box.style.setProperty('--score', col.bg); box.style.setProperty('--score-hi', col.hi || col.bg); box.style.setProperty('--score-fg', col.fg); box.style.setProperty('--score-lbl', col.lbl);
-    box.innerHTML = '<div class="bv">' + f1(s.dec) + '</div><div class="bk">' + lbl + (s.inner ? '・內十' : '') + '<br><small>環數 ' + s.ring + '</small></div>' + cmp;
+    box.innerHTML = wrT('app.ring', [f1(s.dec), lbl, s.inner ? wrT('app.inner_10_2') : '', s.ring, cmp]);
   }
   function renderGhost() {
     if (!G || !$('ghostView')) return;
@@ -952,21 +944,21 @@
     renderGhostTarget(gs, S); renderGhostRail(S, gs); renderGhostStrip(S, gs); renderGhostBig(S, gs);
     // 沒有可對照的紀錄：不畫鬼影，只提示（照常可以記錄）
     var empty = $('ghEmpty'), em = '';
-    if (src === 'prev' && !ref) em = '<b>還沒有上一次的紀錄</b><span>這次照常記錄；存檔後，下一次就會出現灰色的「上次同一發」。</span>';
-    else if (src === 'round' && k === 0) em = '<b>第 1 輪沒有「上一輪」</b><span>完成第 1 輪後，第 2 輪開始會顯示上一輪同一發。</span>';
+    if (src === 'prev' && !ref) em = wrT('app.no_previous_record_yet_shoot');
+    else if (src === 'round' && k === 0) em = wrT('app.series_1_has_no_previous');
     empty.innerHTML = em; empty.hidden = !em || !!ghPrev || (S.shots > 0 && src === 'prev');
     var inR = G.roundShots(gcur, k).length, done = !!(gcur.ghost && gcur.ghost.done);
-    $('ghHint').innerHTML = done ? '✅ 60 發完成・已存到「紀錄」' : '第 <b>' + (k + 1) + '</b> 輪・' + (S.next != null ? '第 <b>' + (S.next + 1) + '</b> 發（總 ' + S.shots + '/60）・按住靶面、放開記錄' : '本輪 10 發已滿・按「完成第 ' + (k + 1) + ' 輪」');
-    $('ghFinishLbl').textContent = done ? '開始新的一組' : k >= G.ROUNDS - 1 ? '完成第 6 輪・存檔' : '完成第 ' + (k + 1) + ' 輪';
-    $('ghFinishSub').textContent = done ? '60 發' : inR + '/10';
+    $('ghHint').innerHTML = done ? wrT('app.60_shots_done_saved_to') : wrT('app.series_2', [k + 1, S.next != null ? wrT('app.shot_total_60_hold_the', [S.next + 1, S.shots]) : wrT('app.all_10_shots_done_tap', [k + 1])]);
+    $('ghFinishLbl').textContent = done ? wrT('app.start_a_new_set') : k >= G.ROUNDS - 1 ? wrT('app.finish_series_6_save') : wrT('app.finish_series', [k + 1]);
+    $('ghFinishSub').textContent = done ? wrT('app.60_shots') : inR + '/10';
     $('ghProg').style.transform = 'scaleX(' + (done ? 1 : inR / G.PER).toFixed(2) + ')';
     $('ghFinish').classList.toggle('soft', !done && !inR);
     $('ghUndo').disabled = done || !inR;
     var tg = $('ghToggle'); tg.setAttribute('aria-checked', ghOn ? 'true' : 'false'); tg.classList.toggle('on', ghOn);
     document.querySelectorAll('#ghOpts .gh-seg button').forEach(function (b) { var on = b.dataset.src === src; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     var sel = $('ghRef'), cands = G.candidates(sessions, gcur), hs = '';
-    cands.forEach(function (s, i) { hs += '<option value="' + esc(s.id) + '">' + (G.isGhost(s) ? '👻 ' : isAna(s) ? '分析 ' : '預報 ') + esc(recTitle(s)) + '・' + G.countShots(s) + ' 發' + (i === 0 ? '（最新）' : '') + '</option>'; });
-    sel.innerHTML = hs || '<option value="">（沒有可對照的紀錄）</option>'; sel.disabled = !cands.length; if (ref) sel.value = ref.id;
+    cands.forEach(function (s, i) { hs += wrT('app.shots_5', [esc(s.id), G.isGhost(s) ? '👻 ' : isAna(s) ? wrT('app.analysis') : wrT('app.call'), esc(recTitle(s)), G.countShots(s), i === 0 ? wrT('app.latest') : '']); });
+    sel.innerHTML = hs || wrT('app.no_record_to_compare'); sel.disabled = !cands.length; if (ref) sel.value = ref.id;
     $('ghRefRow').classList.toggle('dim', src !== 'prev');
     $('ghWhole').checked = !!prefs.ghostWhole;
     if (!lite && !$('ghOpts').dataset.touched) $('ghOpts').open = true;
@@ -974,7 +966,7 @@
     var Code = window.BMCode, rec = LF.toAnalysisRecord(gcur), code = null;
     try { code = rec && Code ? Code.encode(rec) : null; } catch (e) { code = null; }
     $('ghCopyCode').disabled = !code;
-    $('ghCodeInfo').textContent = code ? '紀錄碼 ' + code.length + ' 字（' + rec.sheets.length + ' 輪的彈著，每輪＝一張靶紙）' : '';
+    $('ghCodeInfo').textContent = code ? wrT('app.record_code_characters_series_of', [code.length, rec.sheets.length]) : '';
     ghLayout();
   }
   // Lite 直向：靶面＝寬度扣掉右側 84px 資訊欄，高度不超過可用空間
@@ -998,39 +990,39 @@
     up: function (r) {
       var m = { x: r.x, y: -r.y }, half = ghT().cardSize / 2 + 1; ghPrev = null;
       if (Math.abs(m.x) > half || Math.abs(m.y) > half) { renderGhost(); return; }
-      if (gcur.ghost && gcur.ghost.done) { toast('60 發已完成。按「開始新的一組」'); renderGhost(); return; }
+      if (gcur.ghost && gcur.ghost.done) { toast(wrT('app.60_shots_done_tap_start')); renderGhost(); return; }
       var q = G.addShot(gcur, m);
-      if (!q) { toast('第 ' + (G.curRound(gcur) + 1) + ' 輪 10 發已滿，按「完成第 ' + (G.curRound(gcur) + 1) + ' 輪」'); renderGhost(); return; }
+      if (!q) { toast(wrT('app.all_10_shots_of_series', [G.curRound(gcur) + 1, G.curRound(gcur) + 1])); renderGhost(); return; }
       ghPersist(); vib(); renderGhost();
     },
     cancel: function () { ghPrev = null; renderGhost(); }
   });
   $('ghFit').onclick = function () { ghResetView(); renderGhost(); };
   $('ghUndo').onclick = function () { if (G.undo(gcur)) { ghPersist(); renderGhost(); } };
-  $('ghToggle').onclick = function () { ghOn = !ghOn; prefs.ghostOn = ghOn; savePrefs(); renderGhost(); toast(ghOn ? '鬼影：開' : '鬼影：關'); };
-  function ghNew() { var src = ghSrc(); gcur = G.newSession(gcur.targetId); gcur.ghost.src = src; ghView = null; ghPrev = null; store.set(LS_GCUR, gcur.id); renderGhost(); toast('新的一組：第 1 輪開始'); }
+  $('ghToggle').onclick = function () { ghOn = !ghOn; prefs.ghostOn = ghOn; savePrefs(); renderGhost(); toast(ghOn ? wrT('app.ghost_on') : wrT('app.ghost_off')); };
+  function ghNew() { var src = ghSrc(); gcur = G.newSession(gcur.targetId); gcur.ghost.src = src; ghView = null; ghPrev = null; store.set(LS_GCUR, gcur.id); renderGhost(); toast(wrT('app.new_set_series_1_started')); }
   $('ghFinish').onclick = function () {
     if (gcur.ghost && gcur.ghost.done) { ghNew(); return; }
     var k = G.curRound(gcur), inR = G.roundShots(gcur, k).length;
     function go() {
       var r = G.finishRound(gcur); ghPersist(); renderRecords();
-      if (r.done) { renderGhost(); toast('60 發完成，已存到「紀錄」'); } else { renderGhost(); toast('第 ' + (r.round + 1) + ' 輪開始'); }
+      if (r.done) { renderGhost(); toast(wrT('app.60_shots_done_saved_to_2')); } else { renderGhost(); toast(wrT('app.series_started', [r.round + 1])); }
       window.scrollTo(0, 0);
     }
-    if (!inR) { toast('這一輪還沒有彈著，先在靶面上點'); return; }
-    if (inR < G.PER) ask('第 ' + (k + 1) + ' 輪只有 ' + inR + ' 發，確定完成這一輪？', go); else go();
+    if (!inR) { toast(wrT('app.no_shots_in_this_series')); return; }
+    if (inR < G.PER) ask(wrT('app.series_has_only_shots_finish', [k + 1, inR]), go); else go();
   };
   document.querySelectorAll('#ghOpts .gh-seg button').forEach(function (b) { b.onclick = function () { gcur.ghost = gcur.ghost || {}; gcur.ghost.src = b.dataset.src; prefs.ghostSrc = b.dataset.src; savePrefs(); if (G.countShots(gcur)) ghPersist(); renderGhost(); }; });
-  $('ghRef').onchange = function () { gcur.ghost = gcur.ghost || {}; gcur.ghost.ref = this.value || null; if (G.countShots(gcur)) ghPersist(); renderGhost(); toast('鬼影改用這筆紀錄'); };
+  $('ghRef').onchange = function () { gcur.ghost = gcur.ghost || {}; gcur.ghost.ref = this.value || null; if (G.countShots(gcur)) ghPersist(); renderGhost(); toast(wrT('app.ghost_now_uses_this_record')); };
   $('ghWhole').onchange = function () { prefs.ghostWhole = this.checked; savePrefs(); renderGhost(); };
   $('ghOpts').addEventListener('toggle', function () { this.dataset.touched = '1'; });
-  $('ghName').onchange = function () { gcur.name = this.value.trim().slice(0, 60); if (G.countShots(gcur)) ghPersist(); toast('名稱已存'); };
+  $('ghName').onchange = function () { gcur.name = this.value.trim().slice(0, 60); if (G.countShots(gcur)) ghPersist(); toast(wrT('app.name_saved')); };
   $('ghCopyCode').onclick = function () {
     var Code = window.BMCode, rec = LF.toAnalysisRecord(gcur), code = rec && Code && Code.encode(rec);
-    if (!code) { toast('還沒有可複製的彈著'); return; }
-    copyText(code, '已複製紀錄碼（' + code.length + ' 字）');
+    if (!code) { toast(wrT('app.no_shots_to_copy_yet')); return; }
+    copyText(code, wrT('app.record_code_copied_characters', [code.length]));
   };
-  $('ghNew').onclick = function () { if (G.countShots(gcur) && !(gcur.ghost && gcur.ghost.done)) ask('這一組已自動存到「紀錄」。開始新的一組 60 發？', ghNew); else ghNew(); };
+  $('ghNew').onclick = function () { if (G.countShots(gcur) && !(gcur.ghost && gcur.ghost.done)) ask(wrT('app.this_set_has_been_saved_2'), ghNew); else ghNew(); };
 
   // ---------- Pro / Lite 模式切換（記在 prefs，存不了就只在記憶體） ----------
   function setMode(m, quiet) {
@@ -1040,20 +1032,20 @@
     if (prefs.ui !== m) { prefs.ui = m; savePrefs(); }
     if (typeof nav !== 'undefined' && nav) nav.modeChanged(); // v1.5.0：功能列只在 Pro（Lite 有自己的步驟列）
     if (document.body.classList.contains('on-ghost')) renderGhost();
-    if (!quiet) { renderPredict(); liteLayout(); toast(m === 'lite' ? '已切換到 Lite 介面' : '已切換到 Pro 介面'); }
+    if (!quiet) { renderPredict(); liteLayout(); toast(m === 'lite' ? wrT('app.switched_to_lite') : wrT('app.switched_to_pro')); }
   }
   document.querySelectorAll('#modeToggle button').forEach(function (b) { b.onclick = function () { setMode(b.dataset.mode); }; });
-  $('liteThemeSel').onchange = function () { setLiteTheme(this.value); toast('外觀已更換'); };
-  document.querySelectorAll('#themeGrid [data-th]').forEach(function (b) { b.onclick = function () { setLiteTheme(b.dataset.th); liteLayout(); toast('主題：' + THEME_NAME[b.dataset.th]); }; });
+  $('liteThemeSel').onchange = function () { setLiteTheme(this.value); toast(wrT('app.theme_changed')); };
+  document.querySelectorAll('#themeGrid [data-th]').forEach(function (b) { b.onclick = function () { setLiteTheme(b.dataset.th); liteLayout(); toast(wrT('app.theme', [THEME_NAME[b.dataset.th]])); }; });
   // 主題動畫（預設開；系統減少動態效果時一律不動）
   $('fxAnimTg').checked = prefs.fxAnim !== false; if (window.WRFx) WRFx.setEnabled(prefs.fxAnim !== false);
-  $('fxAnimTg').onchange = function () { prefs.fxAnim = this.checked; savePrefs(); if (window.WRFx) WRFx.setEnabled(this.checked); toast(this.checked ? '主題動畫：開' : '主題動畫：關'); };
+  $('fxAnimTg').onchange = function () { prefs.fxAnim = this.checked; savePrefs(); if (window.WRFx) WRFx.setEnabled(this.checked); toast(this.checked ? wrT('app.theme_animation_on') : wrT('app.theme_animation_off')); };
   // Lite 預報頁右下的調色盤按鈕 → 底部單手選單（說明分頁的下拉選單也保留）
   (function () {
     var sh = $('liteThemeSheet'), names = THEME_NAME;
     function close() { sh.hidden = true; document.body.classList.remove('lt-sheet-open'); $('liteThemeBtn').focus({ preventScroll: true }); }
     $('liteThemeBtn').onclick = function () { sh.hidden = false; document.body.classList.add('lt-sheet-open'); var b = sh.querySelector('.on') || sh.querySelector('[data-th]'); if (b) b.focus({ preventScroll: true }); };
-    sh.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { setLiteTheme(b.dataset.th); liteLayout(); toast('外觀：' + names[b.dataset.th]); close(); }; });
+    sh.querySelectorAll('[data-th]').forEach(function (b) { b.onclick = function () { setLiteTheme(b.dataset.th); liteLayout(); toast(wrT('app.theme_2', [names[b.dataset.th]])); close(); }; });
     sh.querySelector('.lt-sheet-x').onclick = close;
     sh.addEventListener('click', function (e) { if (e.target === sh) close(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Tab') keyboard = true; if (e.key === 'Escape' && !sh.hidden) close(); });
@@ -1091,7 +1083,7 @@
     var d = ctx.getImageData(0, 0, cw, ch).data; cv.width = cv.height = 1; // 早點放掉畫布記憶體（手機）
     var g = V.grayFromRGBA(d, cw, ch), mn = 255, mx = 0;
     for (var i = 0; i < g.length; i += 97) { if (g[i] < mn) mn = g[i]; if (g[i] > mx) mx = g[i]; }
-    if (mx - mn < 4) throw new Error('照片讀不出內容（可能太大，請改用一般解析度拍照）');
+    if (mx - mn < 4) throw new Error(wrT('app.couldnt_read_the_photo_it'));
     return { g: g, chroma: V.chromaFromRGBA(d, cw, ch), w: cw, h: ch, k: cw / sw, ox: sx, oy: sy };
   }
   function visUse(P, Z) { P.g = Z.g; P.chroma = Z.chroma; P.gw = Z.w; P.gh = Z.h; P.k = Z.k; P.ox = Z.ox; P.oy = Z.oy; P.zoomed = Z.ox !== 0 || Z.oy !== 0 || Z.w !== Math.round(P.w * Z.k); }
@@ -1156,9 +1148,9 @@
   }
   function pickIsImage(f) { return /^image\//i.test(f.type || '') || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(f.name || ''); }
   function pickError(f) {
-    if (pickIsHeic(f)) alert('這張照片是 HEIC 格式（三星相機「高效率相片」），瀏覽器無法讀取。\n\n請改用其中一種方式：\n1. 相機 › 設定 › 進階圖片選項 › 關閉「高效率相片」，之後拍的都是 JPG。\n2. 在「相簿」打開這張照片 › 分享 › 選「轉換為 JPG」後儲存，再選那張。');
-    else if (!pickIsImage(f)) toast('「' + (f.name || '這個檔案') + '」不是照片');
-    else toast('無法讀取這張照片（' + (f.name || '') + '）');
+    if (pickIsHeic(f)) alert(wrT('app.this_photo_is_in_heic'));
+    else if (!pickIsImage(f)) toast(wrT('app.is_not_a_photo', [f.name || wrT('app.this_file')]));
+    else toast(wrT('app.couldnt_read_this_photo', [f.name || '']));
   }
 
   // 照片上的疊圖：校正可能是透視投影（直接用 SVG matrix 畫不出來），所以把 mm 座標的圓／線逐點換到照片像素再畫
@@ -1174,26 +1166,25 @@
     var V = window.BMVision;
     var img = $('photoImg'), svg = $('photoSvg'), inner = $('photoInner');
     var state = { rotDeg: 0, loaded: false, w: 0, h: 0, zoom: 1, calPts: [], T: null, Tinv: null, mode: 'auto', g: null, gw: 0, gh: 0, k: 1, info: null, det: null, busy: false };
-    var stepNames = ['靶心（中心點）', '上緣', '右緣', '下緣', '左緣'];
+    var stepNames = [wrT('app.the_center_center_point'), wrT('app.top'), wrT('app.right'), wrT('app.bottom'), wrT('app.left')];
     function clearCal() { state.rotDeg = 0; state.calPts = []; state.T = null; state.Tinv = null; state.info = null; state.det = null; }
     function reset() { clearCal(); state.mode = 'auto'; img.removeAttribute('src'); state.loaded = false; state.g = null; state.full = null; state._cal = null; state.zoomed = false; draw(); hint(); }
     function ringN() { return +$('calRing').value; }
     function sens() { return +($('sensSel') ? $('sensSel').value : 1); }
     function hint() {
       var h = $('calHint');
-      if (state.busy) { h.innerHTML = '分析照片中…'; return; }
-      if (!state.loaded) { h.innerHTML = '拍照或選照片後，程式會<b>自動校正並找出彈孔</b>。照片請盡量正對靶紙、整張黑區要入鏡、光線平均。'; return; }
+      if (state.busy) { h.innerHTML = wrT('app.analyzing_photo'); return; }
+      if (!state.loaded) { h.innerHTML = wrT('app.after_you_take_or_pick'); return; }
       if (state.mode === 'manual' && state.calPts.length < 5) {
         var i = state.calPts.length;
-        h.innerHTML = '手動校正 ' + (i + 1) + '/5：請點 <b>' + (i === 0 ? stepNames[0] : '第 ' + ringN() + ' 環外緣的' + stepNames[i]) + '</b>（可先放大照片）';
+        h.innerHTML = wrT('app.manual_calibration_5_tap_zoom', [i + 1, i === 0 ? stepNames[0] : wrT('app.the_of_ring_s_outer', [ringN(), stepNames[i]])]);
         return;
       }
-      if (!state.T) { h.innerHTML = '⚠️ 自動校正失敗（' + (state.info && state.info.reason || '原因不明') + '）。請按「手動校正」，或換一張正對、清楚的照片。'; return; }
+      if (!state.T) { h.innerHTML = wrT('app.auto_calibration_failed_tap_manual_2', [state.info && state.info.reason || wrT('app.unknown_reason')]); return; }
       var n = cur.actuals.length, p = cur.preds.length;
-      var calTxt = state.mode === 'auto' ? '自動校正完成（黑區擬合誤差約 ' + f2(state.info.rmsMm) + 'mm）' : '手動校正完成（誤差約 ' + f2(state.T.rms) + 'mm）';
-      var warn = p && n !== p ? '<br>⚠️ <b>偵測到 ' + n + ' 個彈孔，預報有 ' + p + ' 發</b>，數量不同：重疊的彈孔可能被算少，請檢查。' : '';
-      h.innerHTML = calTxt + '。綠圈應和照片的靶環對齊，不對就按「手動校正」。紫色虛線應穿過靶紙上下左右的環數數字，歪了就按「轉正」微調' + (state.rotDeg ? '（目前 ' + state.rotDeg + '°）' : '') + '。<br>偵測到 <b>' + n + '</b> 個彈孔' + (p ? '（預報 ' + p + ' 發）' : '') +
-        '。<b>點紅圈＝刪除，點空白處＝新增</b>。' + warn;
+      var calTxt = state.mode === 'auto' ? wrT('app.auto_calibration_done_black_fit', [f2(state.info.rmsMm)]) : wrT('app.manual_calibration_done_error_about', [f2(state.T.rms)]);
+      var warn = p && n !== p ? wrT('app.shot_holes_detected_calls_the', [n, p]) : '';
+      h.innerHTML = wrT('app.the_green_circles_should_line', [calTxt, state.rotDeg ? wrT('app.now', [state.rotDeg]) : '', n, p ? wrT('app.calls_2', [p]) : '', warn]);
     }
     function analyze() {
       if (!state.loaded) return;
@@ -1202,14 +1193,14 @@
         try {
           state.img = img; // v1.7.1：共用流程（visRun）——放大裁切、靶種檢查
           var r = visRun(state, cur.targetId, sens(), false), det = r.det;
-          if (r.mismatch) toast('⚠️ 這張看起來是「' + T[r.mismatch].name + '」靶紙，但目前選的是「' + tgt().name + '」，彈孔的位置和分數會算錯。請先在右上角換靶種。');
+          if (r.mismatch) toast(wrT('app.this_looks_like_a_target_2', [T[r.mismatch].name, tgt().name]));
           if (state.T) {
             state.det = det;
             cur.actuals = (det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; });
             cur.calib = { mode: state.mode, rms: state.T.rms, at: Date.now() }; persist();
             if (cur.preds.length) $('pairMode').value = 'optimal';
           }
-        } catch (e) { state.T = null; state.info = { reason: '分析錯誤：' + e.message }; }
+        } catch (e) { state.T = null; state.info = { reason: wrT('app.analysis_error', [e.message]) }; }
         state.busy = false; renderCompare();
       }, 30);
     }
@@ -1258,7 +1249,7 @@
         state.calPts.push({ px: px, py: py, x: tt.x, y: tt.y });
         if (state.calPts.length === 5) {
           state.T = C.fitAffine(state.calPts);
-          if (!state.T) { toast('校正失敗，請重新點'); state.calPts = []; } else { analyze(); return; }
+          if (!state.T) { toast(wrT('app.calibration_failed_please_tap_again')); state.calPts = []; } else { analyze(); return; }
         }
         draw(); hint(); return;
       }
@@ -1267,8 +1258,8 @@
       // 點到既有彈孔 → 刪除；否則新增
       var bi = -1, bd = Infinity;
       cur.actuals.forEach(function (a, i) { var d = Math.hypot(a.x - m.x, a.y - m.y); if (d < bd) { bd = d; bi = i; } });
-      if (bi >= 0 && bd <= t.pellet / 2 * 1.1) { cur.actuals.splice(bi, 1); toast('已刪除一個彈孔'); }
-      else { cur.actuals.push({ x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual' }); toast('已新增一個彈孔'); }
+      if (bi >= 0 && bd <= t.pellet / 2 * 1.1) { cur.actuals.splice(bi, 1); toast(wrT('app.shot_hole_deleted')); }
+      else { cur.actuals.push({ x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual' }); toast(wrT('app.shot_hole_added')); }
       persist(); renderCompare();
     });
     $('photoCam').onchange = function () { load(this.files[0]); this.value = ''; };
@@ -1316,26 +1307,26 @@
     if (sp) cur.preds.forEach(function (p, i) { drawShot(g, cmpSvg, p, i + 1, 'pred-c', t.pellet); });
     if (sa) cur.actuals.forEach(function (p, i) { drawShot(g, cmpSvg, p, lab[i], 'act-c', t.pellet); });
     var h = '';
-    if (!cmp.m) h = '<div class="stat wide" data-mod="cmpEmpty" data-mod-name="對照說明"><div class="k">需要同時有預報與實際彈著才能對照</div><div class="s">預報 ' + cur.preds.length + ' 發／實際 ' + cur.actuals.length + ' 發</div></div>';
+    if (!cmp.m) h = wrT('app.comparison_needs_both_calls_and', [cur.preds.length, cur.actuals.length]);
     else {
-      h += stat('已配對', cmp.m + ' 發', (pairMode() === 'optimal' ? '最近配對　' : '依順序　') + (cmp.unpairedPred ? '預報多 ' + cmp.unpairedPred + ' 發未配對' : '') + (cmp.unpairedAct ? '實際多 ' + cmp.unpairedAct + ' 發未配對' : ''), false, 'pairs');
-      h += stat('平均預報誤差', f2(cmp.meanErr) + 'mm', '最大：第' + cmp.maxErrShot + '發 ' + f2(cmp.maxErr) + 'mm', false, 'err');
-      h += stat('預報系統性偏差', cmp.biasDir === '置中' ? '無明顯偏向' : '預報' + cmp.biasDir, '你的預報相對實際：' + offsetText(cmp.biasX, cmp.biasY), false, 'bias');
-      h += stat('環數判斷正確率', Math.round(cmp.sameRingRate * 100) + '%', '平均小數分差 ' + f2(cmp.meanAbsDecDiff), false, 'ringRate');
+      h += stat(wrT('app.matched'), wrT('app.shots_4', [cmp.m]), (pairMode() === 'optimal' ? wrT('app.nearest_match') : wrT('app.in_order')) + (cmp.unpairedPred ? wrT('app.extra_calls_unmatched', [cmp.unpairedPred]) : '') + (cmp.unpairedAct ? wrT('app.extra_actual_shots_unmatched', [cmp.unpairedAct]) : ''), false, 'pairs');
+      h += stat(wrT('app.avg_call_error'), f2(cmp.meanErr) + 'mm', wrT('app.max_shot_mm_2', [cmp.maxErrShot, f2(cmp.maxErr)]), false, 'err');
+      h += stat(wrT('app.systematic_call_bias'), cmp.biasDir === '置中' ? wrT('app.no_clear_bias_2') : wrT('app.calls_3', [wrT.dir(cmp.biasDir)]), wrT('app.your_calls_relative_to_actual', [offsetText(cmp.biasX, cmp.biasY)]), false, 'bias');
+      h += stat(wrT('app.ring_called_correctly_2'), Math.round(cmp.sameRingRate * 100) + '%', wrT('app.avg_decimal_difference', [f2(cmp.meanAbsDecDiff)]), false, 'ringRate');
     }
     $('cmpSummary').innerHTML = h;
     var st = C.computeStats(t, cur.actuals);
     renderStats($('actStats'), t, st);
     var tb = '';
     if (cmp.m) {
-      tb = '<table><tr><th>預報#</th><th>預報</th><th>實際</th><th>差距</th><th>預報相對實際</th></tr>';
-      cmp.pairs.forEach(function (q) { tb += '<tr><td>' + q.i + '</td><td>' + q.pred.ring + '（' + f1(q.pred.dec) + '）</td><td>' + q.act.ring + '（' + f1(q.act.dec) + '）</td><td>' + f2(q.err) + 'mm</td><td>' + C.directionText(q.dx, q.dy, C.ringWidth(t) * 0.2) + '</td></tr>'; });
+      tb = wrT('app.call_call_actual_diff_call');
+      cmp.pairs.forEach(function (q) { tb += wrT('app.mm', [q.i, q.pred.ring, f1(q.pred.dec), q.act.ring, f1(q.act.dec), f2(q.err), wrT.dir(C.directionText(q.dx, q.dy, C.ringWidth(t) * 0.2))]); });
       tb += '</table>';
     }
-    $('cmpList').innerHTML = tb + (st.n ? '<p><b>實際彈著明細</b></p>' + shotTable(st.shots) : '');
+    $('cmpList').innerHTML = tb + (st.n ? wrT('app.actual_shot_details', [shotTable(st.shots)]) : '');
     $('photoPane').style.display = srcMode() === 'photo' ? '' : 'none';
-    $('cmpReadout').innerHTML = (srcMode() === 'vector' ? '在下方靶面點實際彈著（紅）。' : '藍＝預報，紅＝實際，橘線＝配對。') +
-      (pairMode() === 'optimal' ? '配對：照片看不出射擊順序，程式用「總距離最短」把預報和彈孔一一配對；紅點數字＝配到的預報編號（?＝沒配到）。' : '配對：依射擊順序（第1發對第1發）。');
+    $('cmpReadout').innerHTML = (srcMode() === 'vector' ? wrT('app.tap_the_actual_shots_red') : wrT('app.blue_call_red_actual_orange')) +
+      (pairMode() === 'optimal' ? wrT('app.matching_a_photo_cant_show') : wrT('app.matching_by_shot_order_shot'));
     photo.draw(); photo.hint();
   }
   var CV = mkView(cmpSvg, $('cmpFit')), cmpPrev = null;
@@ -1347,7 +1338,7 @@
     move: function (r) {
       if (srcMode() !== 'vector') return;
       cmpPrev = { x: r.x, y: -r.y }; previewMark(cmpSvg, cmpPrev, 'act-c', tgt());
-      var s = C.scoreShot(tgt(), cmpPrev.x, cmpPrev.y); $('cmpReadout').innerHTML = '第 ' + (cur.actuals.length + 1) + ' 發實際：<b>' + s.ring + '（' + f1(s.dec) + '）</b>';
+      var s = C.scoreShot(tgt(), cmpPrev.x, cmpPrev.y); $('cmpReadout').innerHTML = wrT('app.shot_actual', [cur.actuals.length + 1, s.ring, f1(s.dec)]);
     },
     up: function (r) {
       cmpPrev = null; if (srcMode() !== 'vector') return;
@@ -1361,7 +1352,7 @@
   $('pairMode').onchange = function () { cur.pairMode = this.value; persist(); renderCompare(); };
   $('showPred').onchange = renderCompare; $('showAct').onchange = renderCompare;
   $('undoAct').onclick = function () { if (cur.actuals.length) { cur.actuals.pop(); persist(); renderCompare(); } };
-  $('clearAct').onclick = function () { if (cur.actuals.length) ask('清除全部 ' + cur.actuals.length + ' 發實際彈著？', function () { cur.actuals = []; persist(); renderCompare(); }); };
+  $('clearAct').onclick = function () { if (cur.actuals.length) ask(wrT('app.clear_all_actual_shots', [cur.actuals.length]), function () { cur.actuals = []; persist(); renderCompare(); }); };
 
   // ---------- 分析分頁（純分析：連續拍多張靶紙 → 自動校正＋找彈孔 → 統計） ----------
   var LS_ACUR = 'bm_acur_v1';
@@ -1382,7 +1373,7 @@
     if (i < 0) sessions.unshift(acur); else sessions[i] = acur;
     saveSessions(sessions); store.set(LS_ACUR, acur.id);
     requestPersist();
-    $('anaSaved').textContent = storageOK ? '✓ 已自動存' : '⚠ 此畫面無法存檔';
+    $('anaSaved').textContent = storageOK ? wrT('app.saved_automatically') : wrT('app.this_view_cant_save');
     return true;
   }
   function selSheet() { return anaSel === 'all' ? null : acur.sheets.filter(function (x) { return x.id === anaSel; })[0] || null; }
@@ -1392,7 +1383,7 @@
   function anaCalRing() { return +$('anaCalRing').value; }
   function fillAnaCalRing() {
     var t = atgt(), sel = $('anaCalRing'); sel.innerHTML = '';
-    for (var n = 1; n <= 9; n++) { var o = document.createElement('option'); o.value = n; o.textContent = n + ' 環（外徑 ' + t.ringDiam[n] + 'mm）' + (t.ringDiam[n] === t.blackDiam ? '＝黑區邊緣' : ''); sel.appendChild(o); }
+    for (var n = 1; n <= 9; n++) { var o = document.createElement('option'); o.value = n; o.textContent = wrT('app.ring_outer_diameter_mm', [n, t.ringDiam[n], t.ringDiam[n] === t.blackDiam ? wrT('app.black_edge') : '']); sel.appendChild(o); }
     sel.value = t.blackFromRing;
   }
   function anaProcess(sh, done) {
@@ -1412,9 +1403,9 @@
           sh.shots = (r.det && r.det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; });
           sh.calib = { mode: P.mode, rms: C.round(P.T.rms, 3), rotDeg: P.rotDeg || 0, at: new Date().toISOString() };
         } else sh.calib = { mode: 'failed', reason: P.info && P.info.reason || '', at: new Date().toISOString() };
-      } catch (e) { P.T = null; P.info = { reason: '分析錯誤：' + e.message }; }
+      } catch (e) { P.T = null; P.info = { reason: wrT('app.analysis_error', [e.message]) }; }
       P.busy = false; persistA(); renderAnalysis();
-      if (autoSw) { var A = autoSw; toastAct('已依照片切換為' + T[A.to].name, '復原', function () { anaUndoAutoSwitch(A); }); }
+      if (autoSw) { var A = autoSw; toastAct(wrT('app.switched_to_based_on_the', [T[A.to].name]), wrT('app.undo'), function () { anaUndoAutoSwitch(A); }); }
       if (mism && !P._mismAsked && !anaMismOpen) { P._mismAsked = true; anaAskMismatch(sh, mism); }
       if (done) done();
     }, 30);
@@ -1424,18 +1415,18 @@
   function anaUndoAutoSwitch(A) {
     var P = anaPhotos[A.sh.id]; if (!P || acur.sheets.indexOf(A.sh) < 0 || acur.targetId !== A.to) return;
     acur.targetId = A.from; P.noAuto = true; P._mismAsked = true; AV.reset(); fillAnaCalRing(); if (curTab === 'analysis') syncTargetSel();
-    anaProcess(A.sh); toast('已改回' + T[A.from].name);
+    anaProcess(A.sh); toast(wrT('app.changed_back_to', [T[A.from].name]));
   }
   var anaMismOpen = false;
   function anaAskMismatch(sh, mid) {
     anaMismOpen = true;
-    ask('這張照片看起來是「' + T[mid].name + '」靶紙，但這次分析用的是「' + atgt().name + '」，彈孔的位置和分數會算錯，也可能抓不到。要把這張移到新的「' + T[mid].name + '」分析嗎？（目前這次保留在「紀錄」）', function () {
+    ask(wrT('app.this_photo_looks_like_a', [T[mid].name, atgt().name, T[mid].name]), function () {
       anaMismOpen = false;
       var P = anaPhotos[sh.id], i = acur.sheets.indexOf(sh); if (!P || i < 0) return;
       acur.sheets.splice(i, 1); persistA();
       acur = newAnalysis(mid); anaPhotos = {}; anaPhotos[sh.id] = P; sh.shots = []; acur.sheets.push(sh); anaSel = sh.id; anaView = 'target';
       P.mode = 'auto'; P.calPts = []; P.mismatch = null; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); if (curTab === 'analysis') syncTargetSel();
-      anaProcess(sh); toast('已移到新的「' + T[mid].name + '」分析');
+      anaProcess(sh); toast(wrT('app.moved_to_a_new_analysis', [T[mid].name]));
     }, function () { anaMismOpen = false; });
   }
   function anaLoadFile(file, done) {
@@ -1455,7 +1446,7 @@
     if (!anaBusy) anaNext();
   }
   function anaNext() {
-    var f = anaQueue.shift(); anaBusy = !!f; $('anaQueue').textContent = anaQueue.length ? '排隊中 ' + anaQueue.length + ' 張' : '';
+    var f = anaQueue.shift(); anaBusy = !!f; $('anaQueue').textContent = anaQueue.length ? wrT('app.queued', [anaQueue.length]) : '';
     if (f) anaLoadFile(f, anaNext); else renderAnalysis();
   }
   $('anaCam').onchange = function () { anaEnqueue(this.files); this.value = ''; };
@@ -1484,23 +1475,21 @@
   }
   function anaHint(sh, P) {
     var h = $('anaHint');
-    if (P.busy) { h.innerHTML = '分析照片中…'; return; }
+    if (P.busy) { h.innerHTML = wrT('app.analyzing_photo'); return; }
     if (P.mode === 'manual' && P.calPts.length < 5) {
-      var i = P.calPts.length, nm = ['靶心（中心點）', '上緣', '右緣', '下緣', '左緣'];
-      h.innerHTML = '手動校正 ' + (i + 1) + '/5：請點 <b>' + (i === 0 ? nm[0] : '第 ' + anaCalRing() + ' 環外緣的' + nm[i]) + '</b>'; return;
+      var i = P.calPts.length, nm = [wrT('app.the_center_center_point'), wrT('app.top'), wrT('app.right'), wrT('app.bottom'), wrT('app.left')];
+      h.innerHTML = wrT('app.manual_calibration_5_tap', [i + 1, i === 0 ? nm[0] : wrT('app.the_of_ring_s_outer', [anaCalRing(), nm[i]])]); return;
     }
-    if (!P.T) { h.innerHTML = '⚠️ 自動校正失敗（' + (P.info && P.info.reason || '原因不明') + '）。請按「手動校正」，或重拍一張正對、清楚的照片。'; return; }
+    if (!P.T) { h.innerHTML = wrT('app.auto_calibration_failed_tap_manual_3', [P.info && P.info.reason || wrT('app.unknown_reason')]); return; }
     var un = sh.shots.filter(isUnsure).length;
-    var mw = P.mismatch && T[P.mismatch] ? '<b style="color:#c62828">⚠️ 這張看起來是「' + T[P.mismatch].name + '」靶紙，和這次分析的「' + atgt().name + '」不一樣，彈孔的位置和分數會算錯，也可能抓不到。</b>請按右上角換靶種（會開新的分析）後重新選這張。<br>' : '';
-    h.innerHTML = mw + '第 ' + sheetNo(sh) + ' 張：偵測到 <b>' + sh.shots.length + '</b> 個彈孔' + (un ? '，其中 <b style="color:#b26a00">' + un + ' 個不確定</b>（橘色虛線＋「?」）' : '') +
-      '。<b>點紅圈＝刪除，點空白處＝新增</b>（下方靶面也可以直接點）。綠圈要對齊靶環，紫線要穿過環數數字，歪了按「轉正」。' +
-      '（校正誤差約 ' + f2(P.T.rms || 0) + 'mm' + (P.rotDeg ? '，已轉 ' + P.rotDeg + '°' : '') + '）';
+    var mw = P.mismatch && T[P.mismatch] ? wrT('app.this_looks_like_a_target_3', [T[P.mismatch].name, atgt().name]) : '';
+    h.innerHTML = wrT('app.target_shot_holes_detected_tap', [mw, sheetNo(sh), sh.shots.length, un ? wrT('app.of_which_uncertain_orange_dashed', [un]) : '', f2(P.T.rms || 0), P.rotDeg ? wrT('app.rotated_2', [P.rotDeg]) : '']);
   }
   function anaToggleHole(sh, m) { // 一指點選：點到既有彈孔＝刪除，空白處＝新增
     var t = atgt(), bi = -1, bd = Infinity;
     sh.shots.forEach(function (a, i) { var d = Math.hypot(a.x - m.x, a.y - m.y); if (d < bd) { bd = d; bi = i; } });
-    if (bi >= 0 && bd <= t.pellet / 2 * 1.1) { var rm = sh.shots.splice(bi, 1)[0]; sh._undo = { op: 'del', q: rm, i: bi }; toast('已刪除一個彈孔'); }
-    else { var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual' }; sh.shots.push(q); sh._undo = { op: 'add', q: q }; toast('已新增一個彈孔'); }
+    if (bi >= 0 && bd <= t.pellet / 2 * 1.1) { var rm = sh.shots.splice(bi, 1)[0]; sh._undo = { op: 'del', q: rm, i: bi }; toast(wrT('app.shot_hole_deleted')); }
+    else { var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual' }; sh.shots.push(q); sh._undo = { op: 'add', q: q }; toast(wrT('app.shot_hole_added')); }
     persistA(); renderAnalysis();
   }
   // v1.6.0：照片檢視改成雙指縮放／單指平移（CSS transform；點選照片仍用 img 的實際位置換算，不受縮放影響）
@@ -1525,7 +1514,7 @@
   function anaFitLabel() {
     var fb = $('anaFit'), sp = fb.querySelector('span'), z;
     if (anaView === 'photo' && selSheet() && anaPhotos[selSheet().id]) z = anaPZ.s; else z = atgt().cardSize / ((AV.v && AV.v.E) || atgt().cardSize);
-    var zoomed = z > 1.05; fb.classList.toggle('zoomed', zoomed); sp.textContent = zoomed ? (Math.round(z * 10) / 10) + '×・全靶' : '雙指縮放';
+    var zoomed = z > 1.05; fb.classList.toggle('zoomed', zoomed); sp.textContent = zoomed ? wrT('app.full_target', [Math.round(z * 10) / 10]) : wrT('app.pinch_to_zoom');
   }
   (function () {
     var box = $('anaPhotoBox'), ptrs = {}, pin = null, pan = null;
@@ -1564,7 +1553,7 @@
     if (P.mode === 'manual' && P.calPts.length < 5) {
       var tt = C.calibTargets(atgt(), anaCalRing())[P.calPts.length];
       P.calPts.push({ px: px, py: py, x: tt.x, y: tt.y });
-      if (P.calPts.length === 5) { P.T = C.fitAffine(P.calPts); if (!P.T) { toast('校正失敗，請重新點'); P.calPts = []; } else { P.rotDeg = 0; anaProcess(sh); return; } }
+      if (P.calPts.length === 5) { P.T = C.fitAffine(P.calPts); if (!P.T) { toast(wrT('app.calibration_failed_please_tap_again')); P.calPts = []; } else { P.rotDeg = 0; anaProcess(sh); return; } }
       renderAnalysis(); return;
     }
     if (!P.T) return;
@@ -1574,7 +1563,7 @@
   var anaView = 'target';
   function anaSetView(v) {
     var sh = selSheet(), P = sh && anaPhotos[sh.id];
-    if (v === 'photo' && !P) { toast(sh ? '這張的照片沒有留存（照片只在本次開啟時保留），只能用靶面修改' : '合併檢視沒有照片；先在下方選一張'); v = 'target'; }
+    if (v === 'photo' && !P) { toast(sh ? wrT('app.this_targets_photo_wasnt_kept') : wrT('app.the_combined_view_has_no')); v = 'target'; }
     var changed = anaView !== v; anaView = v; renderAnalysis(); if (changed && v === 'photo') anaPZLayout(true);
   }
   $('anaViewSeg').querySelectorAll('button').forEach(function (b) { b.onclick = function () { anaSetView(b.dataset.v); }; });
@@ -1591,11 +1580,11 @@
   function anaPopSync() {
     var sh = selSheet(), P = sh && anaPhotos[sh.id], tot = anaShots(acur).length;
     $('anaDelSheet').disabled = !sh; $('anaClearAll').disabled = !acur.sheets.length;
-    $('anaDelSub').textContent = sh ? '第 ' + sheetNo(sh) + ' 張・' + sh.shots.length + ' 發' : '先在下方選一張';
-    $('anaAllSub').textContent = acur.sheets.length ? '這次分析 ' + acur.sheets.length + ' 張・' + tot + ' 發' : '目前沒有紀錄';
+    $('anaDelSub').textContent = sh ? wrT('app.target_shots', [sheetNo(sh), sh.shots.length]) : wrT('app.pick_one_below_first');
+    $('anaAllSub').textContent = acur.sheets.length ? wrT('app.this_analysis_targets_shots', [acur.sheets.length, tot]) : wrT('app.no_records_yet');
     ['anaAutoCal', 'anaManual'].forEach(function (k) { $(k).disabled = !P || P.busy; });
     ['anaRedetect', 'anaRotL', 'anaRotR'].forEach(function (k) { $(k).disabled = !P || !P.T || P.busy; });
-    $('anaCalNote').textContent = !sh ? '要先在下方選一張照片' : !P ? '這張的照片沒有留存，只能在靶面上點選修改' : P.T ? '綠圈要對齊靶環；歪了用轉正±1°' : '自動校正失敗：請按「手動校正」';
+    $('anaCalNote').textContent = !sh ? wrT('app.pick_a_photo_below_first') : !P ? wrT('app.this_targets_photo_wasnt_kept_2') : P.T ? wrT('app.green_circles_should_match_the_2') : wrT('app.auto_calibration_failed_tap_manual_4');
   }
   $('anaCalBtn').onclick = function (e) { e.stopPropagation(); anaPop('anaCalPop', anaPopOpen !== 'anaCalPop'); };
   $('anaClearBtn').onclick = function (e) { e.stopPropagation(); anaPop('anaClearPop', anaPopOpen !== 'anaClearPop'); };
@@ -1616,7 +1605,7 @@
     P.T = window.BMVision.rotateAffine(P.T, th); P.T.rms = rms; P.Tinv = C.invertAffine(P.T); P.rotDeg = (P.rotDeg || 0) + deg;
     sh.shots = sh.shots.map(function (q) { return Object.assign({}, q, { x: C.round(c * q.x - sn * q.y, 3), y: C.round(sn * q.x + c * q.y, 3) }); });
     if (sh.calib) sh.calib.rotDeg = P.rotDeg;
-    persistA(); renderAnalysis(); toast('已轉 ' + P.rotDeg + '°');
+    persistA(); renderAnalysis(); toast(wrT('app.rotated', [P.rotDeg]));
   }
   $('anaRotL').onclick = function () { anaRotate(-1); }; $('anaRotR').onclick = function () { anaRotate(1); };
   // --- 向量靶面：只用雙指縮放（與預報相同的 attachZoom）；一指點選修正（沒有照片時也能改） ---
@@ -1630,7 +1619,7 @@
     move: function (r) { if (!selSheet()) return; anaPrev = { x: r.x, y: -r.y }; previewMark(anaSvg, anaPrev, 'act-c', atgt()); },
     up: function (r) {
       anaPrev = null; anaPrevClear();
-      var sh = selSheet(); if (!sh) { toast(acur.sheets.length ? '先在下方選一張靶紙，再點靶面修改' : '先按「拍下一張」或從相簿選照片'); return; }
+      var sh = selSheet(); if (!sh) { toast(acur.sheets.length ? wrT('app.pick_a_target_below_first') : wrT('app.tap_next_photo_first_or')); return; }
       var p = { x: r.x, y: -r.y }, half = atgt().cardSize / 2 + 1; if (Math.abs(p.x) > half || Math.abs(p.y) > half) return;
       anaToggleHole(sh, p);
     },
@@ -1640,22 +1629,22 @@
   function anaTg(btn, cb) { btn.onclick = function () { cb.checked = !cb.checked; btn.classList.toggle('on', cb.checked); btn.setAttribute('aria-checked', cb.checked ? 'true' : 'false'); renderAnalysis(); }; }
   anaTg($('anaTgCenter'), $('anaShowCenter')); anaTg($('anaTgOut'), $('anaShowOut'));
   $('anaUndo').onclick = function () {
-    var sh = selSheet(); if (!sh || !sh._undo) { toast(sh ? '這張沒有可復原的修改' : '先在下方選一張，才能復原它的修改'); return; }
+    var sh = selSheet(); if (!sh || !sh._undo) { toast(sh ? wrT('app.nothing_to_undo_for_this') : wrT('app.pick_one_below_first_to')); return; }
     var u = sh._undo; if (u.op === 'add') { var i = sh.shots.indexOf(u.q); if (i >= 0) sh.shots.splice(i, 1); } else sh.shots.splice(Math.min(u.i, sh.shots.length), 0, u.q);
-    sh._undo = null; persistA(); renderAnalysis(); toast('已復原');
+    sh._undo = null; persistA(); renderAnalysis(); toast(wrT('app.undone'));
   };
   $('anaDelSheet').onclick = function () {
     var sh = selSheet(); anaPop(null, false); if (!sh) return;
-    ask('清除這張紀錄：第 ' + sheetNo(sh) + ' 張（' + sh.shots.length + ' 發）？', function () {
-      acur.sheets = acur.sheets.filter(function (x) { return x !== sh; }); delete anaPhotos[sh.id]; anaSel = 'all'; anaSaveOrDrop(); renderAnalysis(); toast('已清除這張紀錄');
+    ask(wrT('app.clear_this_target_target_shots', [sheetNo(sh), sh.shots.length]), function () {
+      acur.sheets = acur.sheets.filter(function (x) { return x !== sh; }); delete anaPhotos[sh.id]; anaSel = 'all'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.target_cleared'));
     });
   };
   // v1.6.0 清除所有紀錄：清掉這次分析的全部照片與每張紀錄（名稱、日期保留；沒有名稱就從「紀錄」移除這筆空分析）
   $('anaClearAll').onclick = function () {
     anaPop(null, false); if (!acur.sheets.length) return;
-    ask('清除所有紀錄：這次分析的全部 ' + acur.sheets.length + ' 張照片、' + anaShots(acur).length + ' 發？\n清除後無法復原（其他分析不受影響）。', function () {
+    ask(wrT('app.clear_everything_all_photos_and', [acur.sheets.length, anaShots(acur).length]), function () {
       Object.keys(anaPhotos).forEach(function (k) { try { URL.revokeObjectURL(anaPhotos[k].url); } catch (e) {} });
-      acur.sheets = []; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; anaSaveOrDrop(); renderAnalysis(); toast('已清除這次分析的所有紀錄');
+      acur.sheets = []; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.everything_in_this_analysis_cleared'));
     });
   };
   function anaSaveOrDrop() { // 還有資料（或有名稱）就存；變成空的未命名分析就從紀錄移除
@@ -1665,20 +1654,20 @@
     store.set(LS_ACUR, acur.id);
   }
   $('anaName').oninput = function () { acur.name = this.value; persistA(); };
-  function anaStartNew(tid, msg) { acur = newAnalysis(tid || acur.targetId); anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); renderAnalysis(); if (curTab === 'analysis') syncTargetSel(); toast(msg || '已開始新的分析'); }
+  function anaStartNew(tid, msg) { acur = newAnalysis(tid || acur.targetId); anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); renderAnalysis(); if (curTab === 'analysis') syncTargetSel(); toast(msg || wrT('app.new_analysis_started')); }
   $('anaNew').onclick = function () {
-    if (acur.sheets.length) ask('目前的分析已存在「紀錄」。開始新的分析？', function () { anaStartNew(); }); else anaStartNew();
+    if (acur.sheets.length) ask(wrT('app.the_current_analysis_is_saved'), function () { anaStartNew(); }); else anaStartNew();
   };
   // 換靶種：v1.6.0 起分析頁沒有自己的選單，改用右上角共用的靶種選單（見 tsel.onchange；在分析分頁時改的是分析的靶種）
   function anaChangeTarget(id, revert) {
     if (id === acur.targetId) return;
-    if (acur.sheets.length) ask('換成「' + T[id].name + '」會開始新的分析（目前這次保留在「紀錄」）。繼續？', function () { anaStartNew(id, '已換成' + T[id].name + '，開始新的分析'); }, revert);
+    if (acur.sheets.length) ask(wrT('app.switching_to_starts_a_new', [T[id].name]), function () { anaStartNew(id, wrT('app.switched_to_new_analysis_started', [T[id].name])); }, revert);
     else { acur.targetId = id; AV.reset(); fillAnaCalRing(); renderAnalysis(); }
   }
   // --- 小圖表（SVG） ---
   function trTag(tr, upGood, extra) { // 趨勢標籤：好轉綠、變差紅、持平灰
     var cls = tr.dir === '持平' || tr.dir === '資料不足' ? 'tr-flat' : ((tr.dir === '上升') === upGood ? 'tr-good' : 'tr-bad');
-    return '<b class="' + cls + '">' + tr.dir + (extra || '') + '</b>';
+    return '<b class="' + cls + '">' + wrT.v(tr.dir) + (extra || '') + '</b>';
   }
   function esc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function lineChart(vals, labels, opt) {
@@ -1702,14 +1691,14 @@
   }
   function histChart(bins) {
     var W = 320, H = 130, L = 8, R = 8, Tp = 14, B = 24, n = bins.length, mx = Math.max(1, Math.max.apply(null, bins.map(function (b) { return b.n; })));
-    var bw = (W - L - R) / n, s = '<svg class="ana-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="小數分分布">';
+    var bw = (W - L - R) / n, s = wrT('app.x_3', [W, H]);
     bins.slice().reverse().forEach(function (b, i) { // 左低右高
       var h = b.n / mx * (H - Tp - B), x = L + i * bw, y = H - B - h, ten = b.lo >= 10;
       s += '<rect x="' + (x + 1.5) + '" y="' + y + '" width="' + (bw - 3) + '" height="' + Math.max(h, b.n ? 1 : 0) + '" rx="2" class="' + (ten ? 'b10' : 'blo') + '"/>';
       if (b.n) s += '<text x="' + (x + bw / 2) + '" y="' + (y - 3) + '" text-anchor="middle" class="vl">' + b.n + '</text>';
       s += '<text x="' + (x + bw / 2) + '" y="' + (H - 9) + '" text-anchor="middle" class="ax hx">' + esc(b.label.replace('10.', '.')) + '</text>';
     });
-    return s + '<text x="' + (W - R) + '" y="10" text-anchor="end" class="ax">10.x 以「.0–.9」表示</text></svg>';
+    return wrT('app.10_x_shown_as_0', [s, W - R]);
   }
   // --- 繪製 ---
   function anaShotSet() { // 目前檢視的彈著與來源（第幾張）
@@ -1723,53 +1712,48 @@
     if (!st.n) return '';
     // 3 校正建議
     var a = st.advice;
-    h += card('🎯 校正建議', '<div class="ana-big">' + (a.centered ? '置中' : a.offsetDir + ' ' + f1(a.dist) + 'mm') + '</div><div>' + esc(a.text) + '</div>' +
-      '<div class="s">群中心＝' + (a.excluded ? '排除 ' + a.excluded + ' 發離群後的' : '') + '平均落點；小於 ' + f2(a.threshold) + 'mm 的偏差視為置中。只提供方向與 mm，各槍款每格調整量日後再加入。</div>', 'adv', 'adv');
+    h += card(wrT('app.sight_correction'), wrT('app.group_center_mean_point_of', [a.centered ? wrT('core.centered') : wrT.dir(a.offsetDir) + ' ' + f1(a.dist) + 'mm', esc(a.text), a.excluded ? wrT('app.after_excluding_outliers_the', [a.excluded]) : '', f2(a.threshold)]), 'adv', 'adv');
     // 6 穩定度
-    h += card('📏 穩定度', '<div class="ana-2"><div><div class="k">標準差（小數分）</div><div class="v">' + f2(st.sdDec) + '</div><div class="s">整數分 ' + f2(st.sdRing) + '</div></div>' +
-      '<div><div class="k">去掉最差一發的平均</div><div class="v">' + f2(st.avgDecExWorst) + '</div><div class="s">整數 ' + f2(st.avgExWorst) + (st.worstIdx >= 0 ? '；最差：' + (set[st.worstIdx].sheet && !single ? '第' + set[st.worstIdx].sheet + '張' : '') + '#' + set[st.worstIdx].i + ' ' + f1(st.shots[st.worstIdx].dec) : '') + '</div></div></div>', '', 'stab');
+    h += card(wrT('app.consistency'), wrT('app.std_dev_decimal_integer_avg', [f2(st.sdDec), f2(st.sdRing), f2(st.avgDecExWorst), f2(st.avgExWorst), st.worstIdx >= 0 ? wrT('app.worst', [set[st.worstIdx].sheet && !single ? wrT('app.target', [set[st.worstIdx].sheet]) : '', set[st.worstIdx].i, f1(st.shots[st.worstIdx].dec)]) : '']), '', 'stab');
     // 7 離群發
     var o = st.outliers;
-    var ol = o.idx.map(function (i) { return '<li>' + (single ? '' : '第' + set[i].sheet + '張 ') + '#' + set[i].i + '：' + st.shots[i].ring + '（' + f1(st.shots[i].dec) + '），距群中心 ' + f1(o.radii[i]) + 'mm</li>'; }).join('');
-    h += card('⚠️ 離群發', (o.threshold == null ? '<div>少於 ' + C.OUTLIER_RULE.minN + ' 發，不判定。</div>' : '<div class="ana-big">' + o.idx.length + ' 發</div>' + (ol ? '<ul class="ana-ol">' + ol + '</ul>' : '<div>沒有明顯離群的一發。</div>')) +
-      '<div class="s">判定：到群中心（座標中位數）的距離 &gt; 門檻' + (o.threshold != null ? ' ' + f1(o.threshold) + 'mm' : '') + '。門檻取「中位距離＋3×1.4826×MAD」「2×中位距離」「半個環寬」三者最大。靶面上以紅色虛線圈標示，虛線大圓為門檻。</div>', 'out', 'out');
+    var ol = o.idx.map(function (i) { return wrT('app.mm_from_group_center', [single ? '' : wrT('app.target_2', [set[i].sheet]), set[i].i, st.shots[i].ring, f1(st.shots[i].dec), f1(o.radii[i])]); }).join('');
+    h += card(wrT('app.outliers'), wrT('app.rule_distance_to_the_group', [o.threshold == null ? wrT('app.fewer_than_shots_not_evaluated', [C.OUTLIER_RULE.minN]) : wrT('app.shots_6', [o.idx.length, ol ? '<ul class="ana-ol">' + ol + '</ul>' : wrT('app.no_clear_outliers')]), o.threshold != null ? ' ' + f1(o.threshold) + 'mm' : '']), 'out', 'out');
     // 5 趨勢
     var tb = '';
     if (!single && acur.sheets.length >= 2) {
       var sv = acur.sheets.filter(function (x) { return x.shots.length; }).map(function (x) { return C.computeStats(t, x.shots).avgDec; });
       var tr = C.trend(sv);
-      tb += '<div class="k">每張平均（小數分）　趨勢：' + trTag(tr, true, tr.dir === '上升' || tr.dir === '下降' ? ' ' + (tr.change > 0 ? '+' : '') + f2(tr.change) : '') + '</div>' + lineChart(sv, sv.map(function (_, i) { return '第' + (i + 1) + '張'; }), { trend: true, title: '每張平均' });
+      tb += wrT('app.average_per_target_decimal_trend', [trTag(tr, true, tr.dir === '上升' || tr.dir === '下降' ? ' ' + (tr.change > 0 ? '+' : '') + f2(tr.change) : ''), lineChart(sv, sv.map(function (_, i) { return wrT('app.target', [i + 1]); }), { trend: true, title: wrT('app.average_per_target') })]);
     }
     if (st.per10.length >= 2) {
       var pv = st.per10.map(function (x) { return x.avgDec; });
-      tb += '<div class="k">每10發平均（小數分）　趨勢：' + trTag(st.trend10, true) + '</div>' + lineChart(pv, st.per10.map(function (x) { return x.from + '–' + x.to; }), { trend: true, title: '每10發平均' });
+      tb += wrT('app.average_per_10_shots_decimal', [trTag(st.trend10, true), lineChart(pv, st.per10.map(function (x) { return x.from + '–' + x.to; }), { trend: true, title: wrT('app.average_per_10_shots') })]);
     }
-    h += card('📈 趨勢', tb || '<div>需要 2 張以上，或 20 發以上，才看得出趨勢。</div>', 'trend', 'trend');
+    h += card(wrT('app.trend'), tb || wrT('app.a_trend_needs_2_targets'), 'trend', 'trend');
     // 8 小數分分布
-    h += card('📊 小數分分布', histChart(st.hist) + '<div class="s">10 環內每 0.1 一格；照片看不出射擊順序，每10發的分組依「張次＋偵測順序」。</div>', 'hist', 'hist');
+    h += card(wrT('app.decimal_score_distribution'), wrT('app.one_bar_per_0_1', [histChart(st.hist)]), 'hist', 'hist');
     return h;
   }
   function anaInfo(t, sh, st) { // 左上資訊框：第N張 總分(小數) X發／合併 N 張・M 發・平均
     var box = $('anaInfo'), all = C.computeStats(t, anaShots(acur)), n = acur.sheets.length, h;
     box.classList.toggle('empty', !n);
-    if (!n) h = '<div class="r1"><span class="n">分析</span><span class="s">—</span></div><div class="r2">拍下第一張開始</div>';
+    if (!n) h = wrT('app.analysis_take_the_first_photo');
     else if (sh) {
       var s1 = C.computeStats(t, sh.shots), busy = anaPhotos[sh.id] && anaPhotos[sh.id].busy;
-      h = '<div class="r1"><span class="n">第' + sheetNo(sh) + '張</span><span class="s">' + (busy ? '…' : s1.total) + '</span>' + (busy ? '' : '<span class="d">(' + f1(s1.totalDec) + ')</span>') + '<span class="x">' + sh.shots.length + '發</span></div>' +
-        '<div class="r2">合併 ' + n + ' 張・' + all.n + ' 發・平均 ' + (all.n ? f2(all.avgDec) : '—') + '</div>';
-    } else h = '<div class="r1"><span class="n">合併</span><span class="s">' + all.total + '</span><span class="d">(' + f1(all.totalDec) + ')</span><span class="x">' + all.n + '發</span></div>' +
-      '<div class="r2">' + n + ' 張・平均 ' + (all.n ? f2(all.avgDec) : '—') + (all.n > 1 ? '・群 ' + f1(all.groupSize) + 'mm' : '') + '</div>';
+      h = wrT('app.target_shots_combined_targets_shots', [sheetNo(sh), busy ? '…' : s1.total, busy ? '' : '<span class="d">(' + f1(s1.totalDec) + ')</span>', sh.shots.length, n, all.n, all.n ? f2(all.avgDec) : '—']);
+    } else h = wrT('app.combined_shots_targets_avg', [all.total, f1(all.totalDec), all.n, n, all.n ? f2(all.avgDec) : '—', all.n > 1 ? wrT('app.group_mm', [f1(all.groupSize)]) : '']);
     box.innerHTML = h;
   }
   function anaChipsHTML(t) {
     var ch = '', n = acur.sheets.length;
-    if (n) ch += '<button type="button" role="tab" class="ana-chip all' + (anaSel === 'all' ? ' on' : '') + '" data-id="all" aria-selected="' + (anaSel === 'all') + '"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l8.5 4.5-8.5 4.5L3.5 8z"/><path d="M3.5 12.5l8.5 4.5 8.5-4.5M3.5 16.5l8.5 4.5 8.5-4.5"/></svg><span class="cl"><b>合併 ' + n + ' 張</b><small>' + anaShots(acur).length + ' 發</small></span></button>';
+    if (n) ch += wrT('app.all_shots', [anaSel === 'all' ? ' on' : '', anaSel === 'all', n, anaShots(acur).length]);
     acur.sheets.forEach(function (x, k) {
       var un = x.shots.filter(isUnsure).length, bad = x.calib && x.calib.mode === 'failed', busy = anaPhotos[x.id] && anaPhotos[x.id].busy, on = anaSel === x.id;
       var s1 = busy ? null : C.computeStats(t, x.shots);
-      ch += '<button type="button" role="tab" class="ana-chip' + (on ? ' on' : '') + '" data-id="' + x.id + '" aria-selected="' + on + '" style="--sc:' + SHEET_COLORS[k % SHEET_COLORS.length] + '"><i class="cb">' + (k + 1) + '</i><span class="cl"><b>第' + (k + 1) + '張 ' + (busy ? '…' : x.shots.length + '發') + '</b><small>' + (busy ? '分析中' : bad ? '校正失敗' : s1.total + '（' + f1(s1.totalDec) + '）') + '</small></span>' + (un ? '<em title="不確定">?' + un + '</em>' : '') + (bad ? '<em>!</em>' : '') + '</button>';
+      ch += wrT('app.x_4', [on ? ' on' : '', x.id, on, SHEET_COLORS[k % SHEET_COLORS.length], k + 1, k + 1, busy ? '…' : wrT('app.shots_3', [x.shots.length]), busy ? wrT('app.analyzing') : bad ? wrT('app.calibration_failed') : wrT('app.x', [s1.total, f1(s1.totalDec)]), un ? wrT('app.x_5', [un]) : '', bad ? '<em>!</em>' : '']);
     });
-    ch += '<button type="button" class="ana-chip add" data-id="add" aria-label="加入照片（相簿，可多選）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>';
+    ch += wrT('app.x_6');
     return ch;
   }
   function renderAnalysis() {
@@ -1780,10 +1764,10 @@
     if (P && !P.busy && !P.T && anaView !== 'photo' && P._autoPhoto !== true) { anaView = 'photo'; P._autoPhoto = true; setTimeout(function () { anaPZLayout(true); }, 0); } // 校正失敗：自動切到照片
     if (document.activeElement !== $('anaName')) $('anaName').value = acur.name || '';
     $('anaWhen').textContent = fmtTW(acur.created);
-    if (!acur.sheets.length) $('anaSaved').textContent = storageOK ? '拍第一張後自動存' : '⚠ 此畫面無法存檔';
-    else if (storageOK) $('anaSaved').textContent = '✓ 已自動存';
+    if (!acur.sheets.length) $('anaSaved').textContent = storageOK ? wrT('app.saved_automatically_after_the_first') : wrT('app.this_view_cant_save');
+    else if (storageOK) $('anaSaved').textContent = wrT('app.saved_automatically');
     // 檢視切換
-    $('anaViewSeg').querySelectorAll('button').forEach(function (b) { var on = b.dataset.v === anaView; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); if (b.dataset.v === 'photo') { b.disabled = !P; b.title = P ? '' : (sh ? '這張的照片沒有留存' : '合併檢視沒有照片'); } });
+    $('anaViewSeg').querySelectorAll('button').forEach(function (b) { var on = b.dataset.v === anaView; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); if (b.dataset.v === 'photo') { b.disabled = !P; b.title = P ? '' : (sh ? wrT('app.this_targets_photo_wasnt_kept_3') : wrT('app.the_combined_view_has_no_2')); } });
     $('anaWrap').classList.toggle('photo-on', anaView === 'photo');
     $('anaPhotoCard').hidden = anaView !== 'photo';
     $('anaBusy').hidden = !(P && P.busy);
@@ -1825,22 +1809,22 @@
     if (anaPopOpen) anaPopSync();
     anaSensSync();
     $('anaReadout').classList.toggle('sr', !!acur.sheets.length);
-    $('anaReadout').innerHTML = !acur.sheets.length ? '按下方「拍下一張」拍靶紙，拍完一張再拍下一張，每張發數不限；也可以從「相簿」一次選多張。' :
-      sh ? '第 ' + sheetNo(sh) + ' 張：' + sh.shots.length + ' 發。點靶面：點到彈孔＝刪除、空白＝新增。綠十字＝群中心。' :
-      '合併 ' + acur.sheets.length + ' 張共 ' + st.n + ' 發（顏色／數字＝第幾張）。綠十字＝群中心，紅虛線圈＝離群發。';
-    $('anaStatsTitle').textContent = sh ? '第 ' + sheetNo(sh) + ' 張數據' : (acur.sheets.length > 1 ? '合併 ' + acur.sheets.length + ' 張數據' : '數據');
+    $('anaReadout').innerHTML = !acur.sheets.length ? wrT('app.tap_next_photo_below_to') :
+      sh ? wrT('app.target_shots_tap_the_target', [sheetNo(sh), sh.shots.length]) :
+      wrT('app.combined_targets_shots_color_number', [acur.sheets.length, st.n]);
+    $('anaStatsTitle').textContent = sh ? wrT('app.target_stats', [sheetNo(sh)]) : (acur.sheets.length > 1 ? wrT('app.combined_stats_targets', [acur.sheets.length]) : wrT('app.stats'));
     renderStats($('anaStats'), t, st);
     $('anaExtra').innerHTML = anaExtraHTML(t, st, set, !!sh);
     // 每張小計
     var tb = '';
     if (acur.sheets.length) {
-      tb = '<table class="ana-st"><tr><th>張</th><th>發數</th><th>總分</th><th>小數</th><th>平均</th><th>群大小</th><th>不確定</th></tr>';
+      tb = wrT('app.target_shots_total_decimal_avg');
       acur.sheets.forEach(function (x, k) {
         var s2 = C.computeStats(t, x.shots), un = x.shots.filter(isUnsure).length;
-        tb += '<tr data-id="' + x.id + '"' + (anaSel === x.id ? ' class="on"' : '') + '><td><i class="dot" style="background:' + SHEET_COLORS[k % SHEET_COLORS.length] + '"></i>' + (k + 1) + '</td><td>' + s2.n + '</td><td>' + s2.total + '</td><td>' + f1(s2.totalDec) + '</td><td>' + (s2.n ? f2(s2.avgDec) : '—') + '</td><td>' + (s2.n > 1 ? f1(s2.groupSize) + 'mm' : '—') + '</td><td>' + (un ? '<b style="color:#b26a00">' + un + '</b>' : (x.calib && x.calib.mode === 'failed' ? '校正失敗' : '0')) + '</td></tr>';
+        tb += '<tr data-id="' + x.id + '"' + (anaSel === x.id ? ' class="on"' : '') + '><td><i class="dot" style="background:' + SHEET_COLORS[k % SHEET_COLORS.length] + '"></i>' + (k + 1) + '</td><td>' + s2.n + '</td><td>' + s2.total + '</td><td>' + f1(s2.totalDec) + '</td><td>' + (s2.n ? f2(s2.avgDec) : '—') + '</td><td>' + (s2.n > 1 ? f1(s2.groupSize) + 'mm' : '—') + '</td><td>' + (un ? '<b style="color:#b26a00">' + un + '</b>' : (x.calib && x.calib.mode === 'failed' ? wrT('app.calibration_failed') : '0')) + '</td></tr>';
       });
       var all = C.computeStats(t, anaShots(acur));
-      tb += '<tr class="sum"><td>合計</td><td>' + all.n + '</td><td>' + all.total + '</td><td>' + f1(all.totalDec) + '</td><td>' + (all.n ? f2(all.avgDec) : '—') + '</td><td>' + (all.n > 1 ? f1(all.groupSize) + 'mm' : '—') + '</td><td></td></tr></table>';
+      tb += wrT('app.total_2', [all.n, all.total, f1(all.totalDec), all.n ? f2(all.avgDec) : '—', all.n > 1 ? f1(all.groupSize) + 'mm' : '—']);
     }
     $('anaSheetTable').innerHTML = tb;
     $('anaSheetTable').querySelectorAll('tr[data-id]').forEach(function (r) { r.onclick = function () { anaSel = r.dataset.id; renderAnalysis(); }; });
@@ -1867,7 +1851,7 @@
       var ta = document.createElement('textarea');
       ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px';
       document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); done(); } catch (e) { toast('複製失敗，請改用分享或手動選取'); }
+      try { document.execCommand('copy'); done(); } catch (e) { toast(wrT('app.copy_failed_use_share_or')); }
       ta.remove();
     }
   }
@@ -1883,25 +1867,25 @@
     $('anaCopyAllCodes').disabled = !all.length;
     if (!Code) { info.textContent = ''; return; }
     if (n) { try { code = Code.encode(acur); } catch (e) { code = null; } }
-    if (code && all.length > 1) info.textContent = '本筆 ' + code.length + ' 字　·　已存 ' + all.length + ' 筆分析可一併複製';
-    else if (code) info.textContent = '本筆 ' + code.length + ' 字';
-    else if (all.length) info.textContent = '已存 ' + all.length + ' 筆分析紀錄，可複製全部或貼上還原';
-    else info.textContent = '分析完成後可複製紀錄碼，下次貼上就能還原（不包含照片）';
+    if (code && all.length > 1) info.textContent = wrT('app.this_record_characters_saved_analyses', [code.length, all.length]);
+    else if (code) info.textContent = wrT('app.this_record_characters', [code.length]);
+    else if (all.length) info.textContent = wrT('app.analysis_records_saved_copy_them', [all.length]);
+    else info.textContent = wrT('app.after_analyzing_you_can_copy');
   }
   $('anaCopyCode').onclick = function () {
     var Code = window.BMCode, code = Code && Code.encode(acur);
-    if (!code) { toast('目前沒有可複製的分析'); return; }
-    copyText(code, '已複製本筆紀錄碼（' + code.length + ' 字）');
+    if (!code) { toast(wrT('app.no_analysis_to_copy_yet')); return; }
+    copyText(code, wrT('app.record_code_copied_characters_2', [code.length]));
   };
   $('anaShareCode').onclick = function () {
     var Code = window.BMCode, code = Code && Code.encode(acur);
-    if (!code) { toast('目前沒有可分享的分析'); return; }
-    try { navigator.share({ title: 'WRbeta 紀錄碼', text: code }); } catch (e) { copyText(code, '已複製本筆紀錄碼（' + code.length + ' 字）'); }
+    if (!code) { toast(wrT('app.no_analysis_to_share_yet')); return; }
+    try { navigator.share({ title: wrT('app.wrbeta_record_code'), text: code }); } catch (e) { copyText(code, wrT('app.record_code_copied_characters_2', [code.length])); }
   };
   $('anaCopyAllCodes').onclick = function () {
     var Code = window.BMCode, list = anaRecords(), code = Code && Code.encodeMany(list);
-    if (!code) { toast('目前沒有可複製的分析紀錄'); return; }
-    copyText(code, '已複製 ' + list.length + ' 筆分析紀錄碼（' + code.length + ' 字）');
+    if (!code) { toast(wrT('app.no_analysis_records_to_copy')); return; }
+    copyText(code, wrT('app.copied_analysis_record_codes_characters', [list.length, code.length]));
   };
   function showPasteBox(on) {
     $('anaPasteBox').hidden = !on;
@@ -1924,14 +1908,14 @@
   /* v1.8.0：貼上紀錄碼還原（分析頁與紀錄頁共用）；分析、預報、鬼影都可以，重複的略過。回傳新增的紀錄（失敗＝null） */
   function restoreCodes(text) {
     var Code = window.BMCode, r, i, added, now = new Date().toISOString();
-    if (!Code) { toast('無法還原'); return null; }
-    if (!stripWait(text)) { toast('請先貼上紀錄碼'); return null; }
+    if (!Code) { toast(wrT('app.couldnt_restore')); return null; }
+    if (!stripWait(text)) { toast(wrT('app.paste_a_record_code_first')); return null; }
     r = Code.merge(sessions, text);
-    if (!r.added.length && !r.skipped && !r.invalid) { toast('沒有讀到紀錄碼'); return null; }
+    if (!r.added.length && !r.skipped && !r.invalid) { toast(wrT('app.no_record_code_found')); return null; }
     added = r.added.slice().sort(function (a, b) { return Date.parse(a.created) - Date.parse(b.created); });
     for (i = 0; i < added.length; i++) { delete added[i].hash; added[i].updated = now; sessions.unshift(added[i]); } // updated＝現在：登入雲端時會上傳
     if (added.length) { saveSessions(sessions); requestPersist(); }
-    toast((added.length ? '還原 ' + added.length + ' 筆' : '沒有新增') + (r.skipped ? '，略過 ' + r.skipped + ' 筆重複' : '') + (r.invalid ? '，' + r.invalid + ' 筆無效' : ''), 3200);
+    toast((added.length ? wrT('app.restored', [added.length]) : wrT('app.nothing_new')) + (r.skipped ? wrT('app.skipped_duplicates', [r.skipped]) : '') + (r.invalid ? wrT('app.invalid', [r.invalid]) : ''), 3200);
     return added;
   }
   function stripWait(text) { return String(text || '').replace(/\s+/g, ''); }
@@ -1939,20 +1923,20 @@
   // ---------- 紀錄 ----------
   var recPick = {}; // 勾選要比較的紀錄 id
   function recShots(s) { // 比較用的彈著：分析＝全部張；預報＝有實際彈著用實際，否則用預報
-    if (isAna(s)) return { shots: anaShots(s), src: '分析' };
-    if (s.actuals && s.actuals.length) return { shots: s.actuals, src: '實際' };
-    return { shots: s.preds || [], src: '預報' };
+    if (isAna(s)) return { shots: anaShots(s), src: wrT('app.analysis_2') };
+    if (s.actuals && s.actuals.length) return { shots: s.actuals, src: wrT('app.actual') };
+    return { shots: s.preds || [], src: wrT('app.call_2') };
   }
   function recCode(s) { var Code = window.BMCode; if (!Code) return null; try { return Code.encode(s); } catch (e) { return null; } }
   function recAllCodes() { var s = '', n = 0; sessions.forEach(function (x) { var c = recCode(x); if (c) { s += c; n++; } }); return { code: s, n: n }; }
   function updateRecCodeInfo() {
     var a = recAllCodes(), info = $('recCodeInfo'); if (!info) return;
     $('recCopyAll').disabled = !a.n; $('recShareAll').disabled = !a.n;
-    info.textContent = a.n ? '共 ' + a.n + ' 筆・' + a.code.length + ' 字（座標 0.01mm＋預報點＋靶種）' : '每一發相對靶心的座標（0.01mm）＋預報點＋靶種';
+    info.textContent = a.n ? wrT('app.records_characters_coordinates_0_01mm', [a.n, a.code.length]) : wrT('app.each_shots_coordinates_relative_to');
   }
   if (navigator.share) $('recShareAll').hidden = false;
-  $('recCopyAll').onclick = function () { var a = recAllCodes(); if (!a.n) { toast('目前沒有可複製的紀錄'); return; } copyText(a.code, '已複製 ' + a.n + ' 筆紀錄碼（' + a.code.length + ' 字）'); };
-  $('recShareAll').onclick = function () { var a = recAllCodes(); if (!a.n) { toast('目前沒有可分享的紀錄'); return; } try { navigator.share({ title: 'WRbeta 紀錄碼', text: a.code }); } catch (e) { copyText(a.code, '已複製 ' + a.n + ' 筆紀錄碼'); } };
+  $('recCopyAll').onclick = function () { var a = recAllCodes(); if (!a.n) { toast(wrT('app.no_records_to_copy_yet')); return; } copyText(a.code, wrT('app.copied_record_codes_characters', [a.n, a.code.length])); };
+  $('recShareAll').onclick = function () { var a = recAllCodes(); if (!a.n) { toast(wrT('app.no_records_to_share_yet')); return; } try { navigator.share({ title: wrT('app.wrbeta_record_code'), text: a.code }); } catch (e) { copyText(a.code, wrT('app.copied_record_codes', [a.n])); } };
   function showRecPaste(on) { $('recPasteBox').hidden = !on; if (on) { $('recPasteArea').value = ''; setTimeout(function () { $('recPasteArea').focus(); }, 0); } }
   $('recPaste').onclick = function () { showRecPaste($('recPasteBox').hidden); };
   $('recPasteCancel').onclick = function () { showRecPaste(false); };
@@ -1967,17 +1951,17 @@
   function recMetaHTML(s) {
     var t = T[s.targetId] || T.ap10, rs = recShots(s), st = C.analyzeShots(t, rs.shots), h = '<div class="pf-stats">';
     var box = function (k, v, u) { return '<div class="pf-st"><small>' + k + '</small><b>' + v + (u ? '<i>' + u + '</i>' : '') + '</b></div>'; };
-    h += box('靶種', esc(t.name)) + box('發數', st.n, '發');
-    if (st.n) h += box('總分', st.total + '<i>（' + f1(st.totalDec) + '）</i>') + box('平均', f2(st.avgDec)) + (st.n > 1 ? box('群大小', f1(st.groupSize), 'mm') : '');
-    if (!isAna(s) && s.preds && s.preds.length && s.actuals && s.actuals.length) { var cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal'); if (cmp.m) h += box('平均預報誤差', f2(cmp.meanErr), 'mm'); }
-    return h + '</div><div class="lbl">' + (isAna(s) ? '分析・' + (s.sheets || []).length + ' 張' : G.isGhost(s) ? '鬼影訓練' : '預報（藍＝預報點、紅＝實際）') + '・資料：' + rs.src + '</div>';
+    h += box(wrT('app.target_type'), esc(t.name)) + box(wrT('app.shots'), st.n, wrT('app.shots_7'));
+    if (st.n) h += box(wrT('app.total'), wrT('app.x_7', [st.total, f1(st.totalDec)])) + box(wrT('app.average_2'), f2(st.avgDec)) + (st.n > 1 ? box(wrT('app.group_size_2'), f1(st.groupSize), 'mm') : '');
+    if (!isAna(s) && s.preds && s.preds.length && s.actuals && s.actuals.length) { var cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal'); if (cmp.m) h += box(wrT('app.avg_call_error'), f2(cmp.meanErr), 'mm'); }
+    return wrT('app.data', [h, isAna(s) ? wrT('app.analysis_targets', [(s.sheets || []).length]) : G.isGhost(s) ? wrT('app.ghost_training') : wrT('app.calls_blue_call_red_actual'), rs.src]);
   }
-  function recTitle(s) { return (s.name && s.name.trim()) || (isAna(s) ? '分析' : '預報') + ' ' + fmtTW(s.created).replace(/^\d{4}\//, ''); }
+  function recTitle(s) { return (s.name && s.name.trim()) || (isAna(s) ? wrT('app.analysis_2') : wrT('app.call_2')) + ' ' + fmtTW(s.created).replace(/^\d{4}\//, ''); }
   function renderRecords() {
     var box = $('recordList');
     Object.keys(recPick).forEach(function (id) { if (!sessions.some(function (x) { return x.id === id; })) delete recPick[id]; });
     updateCmpBtn(); updateRecCodeInfo();
-    if (!sessions.length) { box.innerHTML = '<div class="card">尚無紀錄</div>'; return; }
+    if (!sessions.length) { box.innerHTML = wrT('app.no_records_yet_2'); return; }
     box.innerHTML = '';
     sessions.forEach(function (s) {
       var t = T[s.targetId] || T.ap10, ana = isAna(s), gho = G.isGhost(s), isCur = ana ? s.id === acur.id : gho ? !!(gcur && s.id === gcur.id) : s.id === cur.id;
@@ -1985,28 +1969,27 @@
       var meta = '';
       if (ana) {
         var as = C.analyzeShots(t, anaShots(s));
-        meta = (s.sheets || []).length + ' 張・' + as.n + ' 發' + (as.n ? '｜總分 ' + as.total + '（' + f1(as.totalDec) + '）｜平均 ' + f2(as.avgDec) + (as.n > 1 ? '｜群 ' + f1(as.groupSize) + 'mm' : '') : '');
+        meta = wrT('app.targets_shots', [(s.sheets || []).length, as.n, as.n ? wrT('app.total_avg', [as.total, f1(as.totalDec), f2(as.avgDec), as.n > 1 ? wrT('app.group_mm_2', [f1(as.groupSize)]) : '']) : '']);
       } else if (gho) {
         var gsS = C.computeStats(t, s.actuals), gr = G.curRound(s) + 1;
-        meta = '60 發訓練・' + (s.ghost && s.ghost.done ? '完成' : '第 ' + gr + ' 輪') + '｜' + gsS.n + ' 發' + (gsS.n ? '｜總分 ' + gsS.total + '（' + f1(gsS.totalDec) + '）｜平均 ' + f2(gsS.avgDec) : '');
+        meta = wrT('app.60_shot_training_shots', [s.ghost && s.ghost.done ? wrT('app.done') : wrT('app.series_n', [gr]), gsS.n, gsS.n ? wrT('app.total_avg_2', [gsS.total, f1(gsS.totalDec), f2(gsS.avgDec)]) : '']);
       } else {
         var ps = C.computeStats(t, s.preds), xs = C.computeStats(t, s.actuals), cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal');
-        meta = '預報 ' + ps.n + ' 發 ' + (ps.n ? ps.total + '（' + f1(ps.totalDec) + '）' : '') + '｜實際 ' + xs.n + ' 發 ' + (xs.n ? xs.total + '（' + f1(xs.totalDec) + '）' : '') + (cmp.m ? '｜平均預報誤差 ' + f2(cmp.meanErr) + 'mm' : '');
+        meta = wrT('app.calls_actual', [ps.n, ps.n ? wrT('app.x', [ps.total, f1(ps.totalDec)]) : '', xs.n, xs.n ? wrT('app.x', [xs.total, f1(xs.totalDec)]) : '', cmp.m ? wrT('app.avg_call_error_mm', [f2(cmp.meanErr)]) : '']);
       }
-      div.innerHTML = '<label class="rec-pick" title="勾選比較"><input type="checkbox" class="rec-chk"' + (recPick[s.id] ? ' checked' : '') + '></label>' +
-        '<div class="meta"><span class="badge ' + (ana ? 'b-ana' : gho ? 'b-gh' : 'b-fc') + '">' + (ana ? '分析' : gho ? '👻 鬼影' : '預報') + '</span> <b>' + esc(fmtTW(s.created)) + '</b>　' + t.name + (isCur ? '（目前）' : '') + '<br>' + meta + '</div>';
+      div.innerHTML = wrT('app.x_8', [recPick[s.id] ? ' checked' : '', ana ? 'b-ana' : gho ? 'b-gh' : 'b-fc', ana ? wrT('app.analysis_2') : gho ? wrT('app.ghost') : wrT('app.call_2'), esc(fmtTW(s.created)), t.name, isCur ? wrT('app.current') : '', meta]);
       div.querySelector('.rec-chk').onchange = function () { if (this.checked) recPick[s.id] = 1; else delete recPick[s.id]; updateCmpBtn(); };
-      var name = document.createElement('input'); name.className = 'rec-name'; name.placeholder = '自訂名稱'; name.value = s.name != null && s.name !== '' ? s.name : (s.note || ''); name.setAttribute('aria-label', '紀錄名稱');
-      name.onchange = function () { s.name = name.value.trim(); s.updated = new Date().toISOString(); if (!ana) s.note = s.note || ''; if (ana && s.id === acur.id) acur.name = s.name; saveSessions(sessions); renderRecords(); toast('名稱已更新'); };
-      var open = document.createElement('button'); open.textContent = '開啟';
+      var name = document.createElement('input'); name.className = 'rec-name'; name.placeholder = wrT('app.custom_name'); name.value = s.name != null && s.name !== '' ? s.name : (s.note || ''); name.setAttribute('aria-label', wrT('app.record_name'));
+      name.onchange = function () { s.name = name.value.trim(); s.updated = new Date().toISOString(); if (!ana) s.note = s.note || ''; if (ana && s.id === acur.id) acur.name = s.name; saveSessions(sessions); renderRecords(); toast(wrT('app.name_updated')); };
+      var open = document.createElement('button'); open.textContent = wrT('app.open');
       open.onclick = function () {
         if (ana) { acur = s; anaPhotos = {}; anaSel = 'all'; store.set(LS_ACUR, s.id); fillAnaCalRing(); renderAnalysis(); showTab('analysis'); }
         else if (gho) { gcur = s; ghView = null; ghPrev = null; store.set(LS_GCUR, s.id); showTab('ghost'); window.scrollTo(0, 0); }
         else { cur = s; store.set(LS_CUR, s.id); $('targetSel').value = s.targetId; photo.reset(); renderAll(); showTab('predict'); }
       };
-      var del = document.createElement('button'); del.textContent = '刪除'; del.className = 'warn';
+      var del = document.createElement('button'); del.textContent = wrT('app.delete'); del.className = 'warn';
       del.onclick = function () {
-        ask('刪除「' + recTitle(s) + '」？', function () {
+        ask(wrT('app.delete_2', [recTitle(s)]), function () {
           sessions = sessions.filter(function (x) { return x.id !== s.id; }); delete recPick[s.id];
           try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(s.id); } catch (e) {}
           if (ana && s.id === acur.id) { acur = newAnalysis(acur.targetId); anaPhotos = {}; anaSel = 'all'; }
@@ -2022,27 +2005,27 @@
       if (WM && WM.canShare() && recCode(s)) {
         var sr = document.createElement('div'); sr.className = 'rec-share';
         var sh = WM.sharesOf(s.id), nTo = 0; sh.forEach(function (x) { nTo += (x.to || []).length; });
-        var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'rc-share'; sb.innerHTML = '<svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.6"/><circle cx="17.5" cy="6" r="2.6"/><circle cx="17.5" cy="18" r="2.6"/><path d="M8.3 10.8l6.9-3.6M8.3 13.2l6.9 3.6"/></svg>分享給好友';
+        var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'rc-share'; sb.innerHTML = wrT('app.share_with_friends');
         sb.onclick = function () { WM.shareRecord(s); };
         sr.appendChild(sb);
-        if (nTo) { var si = document.createElement('span'); si.className = 'rc-shared'; si.textContent = '已分享給 ' + nTo + ' 位'; sr.appendChild(si); }
+        if (nTo) { var si = document.createElement('span'); si.className = 'rc-shared'; si.textContent = wrT('app.shared_with', [nTo]); sr.appendChild(si); }
         div.appendChild(sr);
       }
       // v1.8.0：每筆紀錄都顯示自己的紀錄碼（座標系統 A），可以單獨複製
       var code = recCode(s), cl = document.createElement('div'); cl.className = 'rec-code';
       if (code) {
-        cl.innerHTML = '<code>' + esc(code.slice(0, 22)) + '…</code><span class="rc-len">' + code.length + ' 字</span>';
-        var cb = document.createElement('button'); cb.type = 'button'; cb.className = 'rc-copy'; cb.textContent = '複製紀錄碼';
-        cb.onclick = function () { copyText(code, '已複製「' + recTitle(s) + '」的紀錄碼（' + code.length + ' 字）'); };
+        cl.innerHTML = wrT('app.chars', [esc(code.slice(0, 22)), code.length]);
+        var cb = document.createElement('button'); cb.type = 'button'; cb.className = 'rc-copy'; cb.textContent = wrT('app.copy_record_code');
+        cb.onclick = function () { copyText(code, wrT('app.copied_the_record_code_of', [recTitle(s), code.length])); };
         cl.appendChild(cb);
-      } else cl.innerHTML = '<span class="lbl">還沒有落點，沒有紀錄碼</span>';
+      } else cl.innerHTML = wrT('app.no_shots_yet_no_record');
       div.appendChild(cl); box.appendChild(div);
     });
   }
   function updateCmpBtn() {
     var n = Object.keys(recPick).length;
-    $('recCmpBtn').disabled = n < 2; $('recCmpBtn').textContent = n ? '比較勾選的 ' + n + ' 筆' : '比較勾選的紀錄';
-    $('recCmpInfo').textContent = n < 2 ? '勾選 2 筆以上紀錄（分析或預報）即可比較' : '';
+    $('recCmpBtn').disabled = n < 2; $('recCmpBtn').textContent = n ? wrT('app.compare_selected', [n]) : wrT('app.compare_selected_records');
+    $('recCmpInfo').textContent = n < 2 ? wrT('app.select_2_or_more_records') : '';
   }
   $('recCmpClear').onclick = function () { recPick = {}; $('recCompare').innerHTML = ''; renderRecords(); };
   $('recCmpBtn').onclick = function () { renderRecCompare(); var c = $('recCompare'); if (c.scrollIntoView) c.scrollIntoView({ block: 'start' }); };
@@ -2053,49 +2036,47 @@
     var mixed = rows.some(function (r) { return r.t.id !== rows[0].t.id; });
     var best = function (vals, hiGood) { var v = vals.filter(function (x) { return x != null; }); if (v.length < 2) return null; return hiGood ? Math.max.apply(null, v) : Math.min.apply(null, v); };
     var M = [
-      ['類型／資料', function (r) { return (isAna(r.s) ? '分析' : '預報') + '（' + r.src + '）'; }],
-      ['靶種', function (r) { return r.t.short; }],
-      ['發數', function (r) { return r.st.n; }],
-      ['平均（小數）', function (r) { return r.st.n ? f2(r.st.avgDec) : '—'; }, function (r) { return r.st.n ? r.st.avgDec : null; }, true],
-      ['平均（整數）', function (r) { return r.st.n ? f2(r.st.avg) : '—'; }, function (r) { return r.st.n ? r.st.avg : null; }, true],
-      ['60發預估', function (r) { return r.st.n ? r.st.proj60 + '<small>（' + f1(r.st.proj60Dec) + '）</small>' : '—'; }, function (r) { return r.st.n ? r.st.proj60Dec : null; }, true],
-      ['內十數（比例）', function (r) { return r.st.n ? r.st.inner + '<small>（' + Math.round(r.st.inner / r.st.n * 100) + '%）</small>' : '—'; }, function (r) { return r.st.n ? r.st.inner / r.st.n : null; }, true],
-      ['10環比例', function (r) { return r.st.n ? Math.round(r.st.counts[10] / r.st.n * 100) + '%' : '—'; }, function (r) { return r.st.n ? r.st.counts[10] / r.st.n : null; }, true],
-      ['彈著群大小', function (r) { return r.st.n > 1 ? f1(r.st.groupSize) + 'mm' : '—'; }, function (r) { return r.st.n > 1 ? r.st.groupSize : null; }, false],
-      ['平均偏移', function (r) { return r.st.n ? r.st.direction + '<small>（' + f1(Math.hypot(r.st.meanX, r.st.meanY)) + 'mm）</small>' : '—'; }, function (r) { return r.st.n ? Math.hypot(r.st.meanX, r.st.meanY) : null; }, false],
-      ['距靶心平均', function (r) { return r.st.n ? f1(r.st.meanR) + 'mm' : '—'; }, function (r) { return r.st.n ? r.st.meanR : null; }, false],
-      ['標準差（小數）', function (r) { return r.st.n > 1 ? f2(r.st.sdDec) : '—'; }, function (r) { return r.st.n > 1 ? r.st.sdDec : null; }, false],
-      ['去最差一發平均', function (r) { return r.st.n > 1 ? f2(r.st.avgDecExWorst) : '—'; }, function (r) { return r.st.n > 1 ? r.st.avgDecExWorst : null; }, true],
-      ['離群發', function (r) { return r.st.outliers.threshold == null ? '—' : r.st.outliers.idx.length; }],
-      ['7 分以下', function (r) { return r.st.counts.below7; }]
+      [wrT('app.type_data'), function (r) { return wrT('app.x', [isAna(r.s) ? wrT('app.analysis_2') : wrT('app.call_2'), r.src]); }],
+      [wrT('app.target_type'), function (r) { return r.t.short; }],
+      [wrT('app.shots'), function (r) { return r.st.n; }],
+      [wrT('app.avg_decimal'), function (r) { return r.st.n ? f2(r.st.avgDec) : '—'; }, function (r) { return r.st.n ? r.st.avgDec : null; }, true],
+      [wrT('app.avg_integer'), function (r) { return r.st.n ? f2(r.st.avg) : '—'; }, function (r) { return r.st.n ? r.st.avg : null; }, true],
+      [wrT('app.60_shot_projection'), function (r) { return r.st.n ? wrT('app.x_9', [r.st.proj60, f1(r.st.proj60Dec)]) : '—'; }, function (r) { return r.st.n ? r.st.proj60Dec : null; }, true],
+      [wrT('app.inner_10s_ratio'), function (r) { return r.st.n ? wrT('app.x_10', [r.st.inner, Math.round(r.st.inner / r.st.n * 100)]) : '—'; }, function (r) { return r.st.n ? r.st.inner / r.st.n : null; }, true],
+      [wrT('app.10s_ratio'), function (r) { return r.st.n ? Math.round(r.st.counts[10] / r.st.n * 100) + '%' : '—'; }, function (r) { return r.st.n ? r.st.counts[10] / r.st.n : null; }, true],
+      [wrT('app.group_size'), function (r) { return r.st.n > 1 ? f1(r.st.groupSize) + 'mm' : '—'; }, function (r) { return r.st.n > 1 ? r.st.groupSize : null; }, false],
+      [wrT('app.mean_offset'), function (r) { return r.st.n ? wrT('app.mm_2', [wrT.dir(r.st.direction), f1(Math.hypot(r.st.meanX, r.st.meanY))]) : '—'; }, function (r) { return r.st.n ? Math.hypot(r.st.meanX, r.st.meanY) : null; }, false],
+      [wrT('app.mean_distance_from_center'), function (r) { return r.st.n ? f1(r.st.meanR) + 'mm' : '—'; }, function (r) { return r.st.n ? r.st.meanR : null; }, false],
+      [wrT('app.std_dev_decimal'), function (r) { return r.st.n > 1 ? f2(r.st.sdDec) : '—'; }, function (r) { return r.st.n > 1 ? r.st.sdDec : null; }, false],
+      [wrT('app.avg_without_worst_shot'), function (r) { return r.st.n > 1 ? f2(r.st.avgDecExWorst) : '—'; }, function (r) { return r.st.n > 1 ? r.st.avgDecExWorst : null; }, true],
+      [wrT('app.outliers_2'), function (r) { return r.st.outliers.threshold == null ? '—' : r.st.outliers.idx.length; }],
+      [wrT('app.below_7'), function (r) { return r.st.counts.below7; }]
     ];
-    var h = '<div class="card rec-cmp"><div class="rec-cmp-h"><b>紀錄比較（' + list.length + ' 筆，依日期）</b><button id="recCmpClose" type="button">關閉</button></div>' +
-      (mixed ? '<div class="hint">⚠️ 勾選的紀錄靶種不同，分數可比，mm 數值（群大小、偏移）不能直接比較。</div>' : '') +
-      '<div class="rec-cmp-scroll"><table class="rec-cmp-t"><tr><th></th>' + rows.map(function (r) { return '<th><div class="rc-name">' + esc(recTitle(r.s)) + '</div><div class="rc-date">' + esc(fmtTW(r.s.created)) + '</div></th>'; }).join('') + '</tr>';
+    var h = wrT('app.compare_records_by_date_close', [list.length, mixed ? wrT('app.the_selected_records_use_different') : '', rows.map(function (r) { return '<th><div class="rc-name">' + esc(recTitle(r.s)) + '</div><div class="rc-date">' + esc(fmtTW(r.s.created)) + '</div></th>'; }).join('')]);
     M.forEach(function (m) {
       var vals = m[2] ? rows.map(m[2]) : null, b = vals ? best(vals, m[3]) : null;
       h += '<tr><th>' + m[0] + '</th>' + rows.map(function (r, i) { var good = b != null && vals[i] != null && Math.abs(vals[i] - b) < 1e-9; return '<td' + (good ? ' class="best"' : '') + '>' + m[1](r) + '</td>'; }).join('') + '</tr>';
     });
-    h += '</table></div><div class="s">綠底＝這一列表現最好的紀錄。分析紀錄用全部靶紙；預報紀錄有實際彈著時用實際，否則用預報落點。</div>';
+    h += wrT('app.green_best_record_in_that');
     var lab = rows.map(function (r) { var d = fmtTW(r.s.created); return d.slice(5, 10); });
     var avg = rows.map(function (r) { return r.st.avgDec; }), grp = rows.map(function (r) { return r.st.groupSize; }), sd = rows.map(function (r) { return r.st.sdDec; });
     var tr = C.trend(avg);
-    h += '<div class="ana-card"><div class="ana-ct">📈 跨日期趨勢：平均（小數）' + trTag(tr, true) + '</div>' + lineChart(avg, lab, { trend: true, title: '平均趨勢' }) + '</div>';
-    h += '<div class="ana-card"><div class="ana-ct">彈著群大小（mm，越小越好）' + trTag(C.trend(grp, 1), false) + '</div>' + lineChart(grp, lab, { trend: true, dp: 0, minSpan: 4, color: '#e8590c', title: '群大小趨勢' }) + '</div>';
-    h += '<div class="ana-card"><div class="ana-ct">標準差（越小越穩）' + trTag(C.trend(sd, 0.05), false) + '</div>' + lineChart(sd, lab, { dp: 2, minSpan: 0.2, color: '#2b8a3e', title: '標準差' }) + '</div></div>';
+    h += wrT('app.trend_across_dates_avg_decimal', [trTag(tr, true), lineChart(avg, lab, { trend: true, title: wrT('app.average_trend') })]);
+    h += wrT('app.group_size_mm_smaller_is', [trTag(C.trend(grp, 1), false), lineChart(grp, lab, { trend: true, dp: 0, minSpan: 4, color: '#e8590c', title: wrT('app.group_size_trend') })]);
+    h += wrT('app.std_dev_smaller_is_steadier', [trTag(C.trend(sd, 0.05), false), lineChart(sd, lab, { dp: 2, minSpan: 0.2, color: '#2b8a3e', title: wrT('app.std_dev') })]);
     $('recCompare').innerHTML = h;
     $('recCmpClose').onclick = function () { $('recCompare').innerHTML = ''; };
   }
   $('exportAll').onclick = function () {
-    var blob = new Blob([JSON.stringify({ app: 'WRbeta', appVersion: APP_VERSION, version: SCHEMA_V, schema: 'sessions[]: kind=forecast|analysis，座標 mm（靶心原點，x 右 y 上），時間 ISO-8601 UTC', exported: new Date().toISOString(), sessions: sessions }, null, 1)], { type: 'application/json' });
-    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '靶面預報紀錄_' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
+    var blob = new Blob([JSON.stringify({ app: 'WRbeta', appVersion: APP_VERSION, version: SCHEMA_V, schema: wrT('app.sessions_kind_forecast_analysis_coordinates'), exported: new Date().toISOString(), sessions: sessions }, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = wrT('app.wrbeta_records_json', [new Date().toISOString().slice(0, 10)]); a.click();
   };
   $('importFile').onchange = function () {
     var f = this.files[0]; if (!f) return; var rd = new FileReader();
     rd.onload = function () {
       try { var data = JSON.parse(rd.result); var add = (data.sessions || []).filter(function (s) { return s.id && T[s.targetId] && (isAna(s) ? Array.isArray(s.sheets) : Array.isArray(s.preds)) && !sessions.some(function (x) { return x.id === s.id; }); });
         add.forEach(function (s) { if (!isAna(s)) { s.actuals = s.actuals || []; } if (!s.updated) s.updated = new Date().toISOString(); });
-        sessions = sessions.concat(add); saveSessions(sessions); renderRecords(); toast('匯入 ' + add.length + ' 組'); } catch (e) { toast('檔案格式錯誤'); }
+        sessions = sessions.concat(add); saveSessions(sessions); renderRecords(); toast(wrT('app.imported_sets', [add.length])); } catch (e) { toast(wrT('app.invalid_file_format')); }
     };
     rd.readAsText(f); this.value = '';
   };
@@ -2104,34 +2085,14 @@
   function renderAbout() {
     var rows = function (t) { var h = ''; for (var n = 10; n >= 1; n--) h += '<tr><td>' + n + '</td><td>' + t.ringDiam[n] + '</td><td>' + f2(t.ringDiam[n] / 2 + t.pellet / 2) + '</td></tr>'; return h; };
     $('aboutText').innerHTML =
-      '<p class="appver"><b>' + APP_NAME + '</b> 版本 ' + APP_LABEL + '（' + APP_VERSION + '）・<a href="#" class="wr-priv-link">隱私權政策</a></p>' +
-      '<h3>怎麼用</h3><ol><li>上方選靶種。</li>' +
-      '<li><b>切換功能</b>（Pro）：預設是畫面下方的<b>圖示列</b>（預報·對照、分析、紀錄、鬼影、設定/說明），閒置 3 秒會淡出；在靶面以外輕輕一滑（或從畫面最下方往上滑）就會出現。也可以在「設定」子標籤的「介面設定」改成 <b>B 浮動按鈕</b>（右下角圓鈕）或 <b>C 左右滑動</b>（在靶面以外左右滑）。</li>' +
-      '<li><b>設定/說明</b>：上方分成「設定」與「說明」兩個子標籤，會記住你上次看的那一個。用 C 左右滑動時，在這一頁左右滑會先換子標籤；已經在「設定」再往右滑，才會回到「鬼影」。</li>' +
-      '<li><b>分析頁的拍照按鈕</b>（相簿／拍下一張／檔案）：閒置 3 秒會滑到螢幕邊緣收起來，只留一顆會眨眼的小圓。點小圓、或從小圓往畫面裡滑，按鈕就會出來（滑出來的位置跟著手指）。按住任一顆按鈕拖到（或甩到）左、右、上、下任何一邊，就會改收在那一邊；按鈕組左下角的「⌂」小鈕回到預設位置。不想自動收起可在「設定 › 介面設定」關掉。</li>' +
-      '<li><b>預報·對照</b>：每打一發，在靶面點你感覺的落點。按住可拖曳微調，放開才記錄；兩指縮放（右上角按一下回到全靶）。左上角顯示最新一發的分數，右下角是「新的一組／清除本組／復原」。打完往下捲就是<b>對照</b>。</li>' +
-      '<li><b>對照</b>（在預報下面）：拉回靶紙後拍照，程式會<b>自動找黑區校正、自動找彈孔</b>。綠圈要對齊靶環；紫色虛線要穿過上下左右的環數數字，歪了按「轉正」。找錯的彈孔點一下刪除，漏掉的點空白處新增。自動失敗時可按「手動校正」（點靶心＋某環上右下左）。電子靶也可以改選「直接在靶面上點」。</li>' +
-      '<li><b>分析</b>：不需要預報。一張打完拍一張（發數不限），程式自動校正、找彈孔並算出每張與合併數據：校正建議（群中心偏移 mm 與修正方向）、穩定度（標準差、去掉最差一發的平均）、離群發、趨勢圖、小數分分布。不確定的彈孔以橘色虛線＋「?」標示，點一下就能刪除，漏掉的點空白處新增（照片或下方靶面都可以點）。分析自動存到「紀錄」，可自訂名稱。可用「複製紀錄碼」把彈孔座標壓成一串只有本 App 讀得懂的字，貼到備忘錄或 LINE 備份，下次「貼上還原」就能畫回靶面（不含照片）。</li>' +
-      '<li><b>鬼影模式</b>（Pro 功能列的「鬼影」；Lite 在「更多 → 👻 鬼影模式」）：60 發＝6 輪 × 10 發，按住靶面看預估分數、放開記錄。灰色孔＝上一次訓練的同一發，虛線圈＝下一發；右側比較上次與這次的平均。來源可改成「本次上一輪」，也可以挑別筆紀錄。存成一般紀錄，紀錄碼照常可用。</li>' +
-      '<li><b>按壓十字線</b>：手指按住任何按鈕、資訊方塊或清單時，按的位置會出現十字線（跟預報同款），放開就消失；不影響點擊與捲動。</li>' +
-      '<li><b>紀錄比較</b>：在「紀錄」勾選 2 筆以上（分析或預報），按「比較」看平均、群大小、偏移、標準差、內十數與跨日期趨勢。</li>' +
-      '<li>照片看不出射擊順序，所以預設用「最近配對」（總距離最短的一對一配對）；直接在靶面依序點時可改成「依射擊順序」。程式會算出每發預報差距、平均誤差與預報的系統性偏向。</li><li><b>紀錄</b>：每組自動存在這台裝置，可匯出備份。</li></ol>' +
-      '<h3>靶面尺寸（外徑，mm）</h3><p>來源：ISSF Rule Book 2026 Edition 2025（Third Print 10/2026，2026-10-19 生效）。畫面是依這些尺寸以向量繪製。</p>' +
-      '<table><tr><th colspan="3">10米空氣手槍（6.3.4.6）</th></tr><tr><th>環</th><th>外徑</th><th>計分臨界（中心距）</th></tr>' + rows(T.ap10) +
-      '</table><p>內十 5.0mm；黑區 7–10 環 = 59.5mm；數字 1–8。</p>' +
-      '<table><tr><th colspan="3">10米空氣步槍（6.3.4.3）</th></tr><tr><th>環</th><th>外徑</th><th>計分臨界（中心距）</th></tr>' + rows(T.ar10) +
-      '</table><p>10 環為 0.5mm 白點；黑區 4–9 環 = 30.5mm；內十＝10 環白點被完全打掉；數字 1–8。</p>' +
-      '<h3>計分方式</h3><p>彈孔直徑以 4.5mm 計（空氣槍口徑，7.4.6／8.4.3.5）。彈孔只要碰到較高環的外緣就算較高分，所以「彈孔中心距 ≤ 環外半徑 + 2.25mm」即得該環分數。' +
-      '小數分依 6.3.3.1 把每一環平均分成十等分：小數分 = 10 + (10環臨界 − 中心距) ÷ 環寬（手槍 8mm、步槍 2.5mm），無條件捨去到 0.1，最高 10.9。' +
-      '內十：手槍＝彈孔觸及 5.0mm 內十圈（中心距 ≤ 4.75mm）；步槍＝0.5mm 白點完全在彈孔內（中心距 ≤ 2.0mm）。以上是理想幾何換算，正式判分以裁判量規與電子靶為準。</p>' +
-      '<h3>測試版限制</h3><ul><li>自動找彈孔：重疊很多的彈孔群可能算少或算多，請對照預報發數檢查。黑區外（白紙上）的彈孔對比較低，比較容易漏。</li><li>照片旋轉角無法自動判斷，預設照片的上方就是靶紙上方；歪了請用「轉正」。</li><li>校正用橢圓＋仿射換算，拍得太斜（透視變形）靶心會偏約 0.5–1mm，請盡量正對拍攝。</li><li>照片不保存，只保存換算後的座標。</li></ul>';
+      wrT('app.version_privacy_policy_how_to', [APP_NAME, APP_LABEL, APP_VERSION, rows(T.ap10), rows(T.ar10)]);
   }
 
   // ---------- 共用 ----------
   function ask(msg, onYes, onNo, o) { // o（v1.8.0）：{ yes:'按鈕文字', danger:true＝紅色按鈕 }
     o = o || {};
     var bg = document.createElement('div'); bg.className = 'modal-bg';
-    bg.innerHTML = '<div class="modal' + (o.danger ? ' danger' : '') + '"><p></p><div class="row"><button class="no">取消</button><button class="primary yes">確定</button></div></div>';
+    bg.innerHTML = wrT('app.cancel_ok', [o.danger ? ' danger' : '']);
     bg.querySelector('p').textContent = msg;
     if (o.yes) bg.querySelector('.yes').textContent = o.yes;
     bg.querySelector('.no').onclick = function () { bg.remove(); if (onNo) onNo(); };
@@ -2210,7 +2171,7 @@
   // 設定存在 prefs.nav（'a'｜'b'｜'c'）與 prefs.navAutoHide（預設 true）。
   // v1.8.0：順序改成 預報·對照／鬼影／分析（中間）／紀錄／設定/說明；打開 App 預設在「分析」
   var NAV_ORDER = ['predict', 'ghost', 'analysis', 'records', 'about'];
-  var NAV_NAME = { predict: '預報·對照', analysis: '分析', records: '紀錄', ghost: '鬼影', about: '設定/說明' };
+  var NAV_NAME = { predict: wrT('app.call_check'), analysis: wrT('app.analysis_2'), records: wrT('app.records'), ghost: wrT('app.ghost_2'), about: wrT('app.settings') };
   var nav = (function () {
     var N = $('wrNav'), H = $('wrNavHandle'), fab = $('wrFab'), scrim = $('wrFabScrim'), B = document.body, M = document.querySelector('main');
     var HIDE_MS = 3000, hideT = 0, holding = false, keyboard = false, style = 'a', autoHide = prefs.navAutoHide !== false, g = null, anim = 0;
@@ -2244,7 +2205,7 @@
       ['a', 'b', 'c'].forEach(function (k) { B.classList.toggle('nav-' + k, k === st); });
       openFab(false); cDragEnd(true); setHidden(false); arm(); syncSettings();
       if (prefs.nav !== st) { prefs.nav = st; savePrefs(); }
-      if (!quiet) toast({ a: '功能切換：A 底部圖示列', b: '功能切換：B 浮動按鈕（右下角）', c: '功能切換：C 左右滑動' }[st]);
+      if (!quiet) toast({ a: wrT('app.navigation_a_bottom_icon_bar'), b: wrT('app.navigation_b_floating_button_bottom'), c: wrT('app.navigation_c_swipe_left_right') }[st]);
     }
     function setAuto(on) { autoHide = !!on; prefs.navAutoHide = autoHide; savePrefs(); syncSettings(); setHidden(false); arm(); }
     function sync(name) {
@@ -2253,7 +2214,7 @@
       // B：圓鈕顯示目前功能的圖示＋名稱
       var ic = fab.querySelector('.wr-fab-ic'), sv = btn && btn.querySelector('svg');
       if (ic && sv) ic.innerHTML = sv.outerHTML;
-      $('wrFabLbl').textContent = NAV_NAME[name]; fab.setAttribute('aria-label', '功能選單（目前：' + NAV_NAME[name] + '）');
+      $('wrFabLbl').textContent = NAV_NAME[name]; fab.setAttribute('aria-label', wrT('app.menu_current', [NAV_NAME[name]]));
       // C：目前頁名＋兩側淡淡顯示左右鄰居
       $('navcCur').textContent = NAV_NAME[name];
       $('navcPrev').textContent = i > 0 ? '‹ ' + NAV_NAME[NAV_ORDER[i - 1]] : '';
@@ -2350,7 +2311,7 @@
 
     // 設定（設定/說明 › 設定 › 介面設定）
     document.querySelectorAll('#navStyleSeg [data-nav]').forEach(function (b) { b.onclick = function () { setStyle(b.dataset.nav); }; });
-    $('navAutoHide').onchange = function () { setAuto(this.checked); toast(this.checked ? '底部圖示列：閒置自動隱藏' : '底部圖示列：一直顯示'); };
+    $('navAutoHide').onchange = function () { setAuto(this.checked); toast(this.checked ? wrT('app.bottom_icon_bar_auto_hide') : wrT('app.bottom_icon_bar_always_show')); };
     function modeChanged() { openFab(false); cDragEnd(true); setHidden(false); arm(); setHdr(); }
     // C 的小圓點列黏在標題列下面：量一下標題列實際高度（含瀏海安全區）
     function setHdr() { var h = document.querySelector('header'); if (h) document.documentElement.style.setProperty('--hdr-h', h.offsetHeight + 'px'); }
@@ -2364,20 +2325,20 @@
   })();
   function fillCalRing() {
     var t = tgt(), sel = $('calRing'); sel.innerHTML = '';
-    for (var n = 1; n <= 9; n++) { var o = document.createElement('option'); o.value = n; o.textContent = n + ' 環（外徑 ' + t.ringDiam[n] + 'mm）' + (t.ringDiam[n] === t.blackDiam ? '＝黑區邊緣' : ''); sel.appendChild(o); }
+    for (var n = 1; n <= 9; n++) { var o = document.createElement('option'); o.value = n; o.textContent = wrT('app.ring_outer_diameter_mm', [n, t.ringDiam[n], t.ringDiam[n] === t.blackDiam ? wrT('app.black_edge') : '']); sel.appendChild(o); }
     sel.value = t.blackFromRing;
   }
   var tsel = $('targetSel');
   Object.keys(T).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = T[k].name; tsel.appendChild(o); });
   // v1.6.0：右上角靶種選單會看目前分頁——在「分析」分頁改的是分析的靶種（分析頁不再有自己的選單）
-  function syncTargetSel() { var ana = curTab === 'analysis'; tsel.value = ana ? acur.targetId : cur.targetId; tsel.setAttribute('aria-label', ana ? '分析的靶種' : '靶種'); tsel.title = ana ? '分析的靶種（換靶種會開始新的分析）' : '靶種'; }
+  function syncTargetSel() { var ana = curTab === 'analysis'; tsel.value = ana ? acur.targetId : cur.targetId; tsel.setAttribute('aria-label', ana ? wrT('app.analysis_target_type') : wrT('app.target_type')); tsel.title = ana ? wrT('app.analysis_target_type_changing_it') : wrT('app.target_type'); }
   tsel.onchange = function () {
     var id = tsel.value;
     if (curTab === 'analysis') { tsel.value = acur.targetId; anaChangeTarget(id); syncTargetSel(); return; }
     function go() { prefs.targetId = id; savePrefs(); persist(); photo.reset(); PV.reset(); CV.reset(); renderAll(); }
     if (cur.preds.length || cur.actuals.length) {
       tsel.value = cur.targetId;
-      ask('目前這組已有紀錄。換靶種會開始新的一組，舊的保留在「紀錄」。繼續？', function () { cur = newSession(id); sessions.unshift(cur); go(); });
+      ask(wrT('app.this_set_already_has_shots'), function () { cur = newSession(id); sessions.unshift(cur); go(); });
     } else { cur.targetId = id; go(); }
   };
   function renderAll() { renderAnalysis(); syncTargetSel(); $('pairMode').value = cur.pairMode || (cur.actuals.some(function (a) { return a.src === 'auto'; }) ? 'optimal' : 'order'); fillCalRing(); renderPredict(); renderCompare(); renderRecords(); if (document.body.classList.contains('on-ghost')) renderGhost(); if (typeof acctState !== 'undefined' && curTab === 'about' && stSub.cur === 'acct') { try { renderAcct(); } catch (e) {} } }
@@ -2389,11 +2350,23 @@
   if (window.WRDock) {
     WRDock.init({ enabled: prefs.dockAutoHide !== false, active: function () { return curTab === 'analysis'; }, toast: toast });
     $('dockAutoHide').checked = prefs.dockAutoHide !== false;
-    $('dockAutoHide').onchange = function () { prefs.dockAutoHide = this.checked; savePrefs(); WRDock.setEnabled(this.checked); toast(this.checked ? '拍照按鈕：閒置自動收到邊緣' : '拍照按鈕：一直顯示'); };
+    $('dockAutoHide').onchange = function () { prefs.dockAutoHide = this.checked; savePrefs(); WRDock.setEnabled(this.checked); toast(this.checked ? wrT('app.camera_buttons_tuck_to_the') : wrT('app.camera_buttons_always_show')); };
     $('dockResetSet').onclick = function () { WRDock.home(); };
   }
   // v1.8.0：Pro 打開 App 預設在「分析」（Lite 照舊從三步驟的預報開始）
-  if (!document.body.classList.contains('lite')) { showTab('analysis'); window.scrollTo(0, 0); }
+  // v2.2.0：換語言會重新載入；回到原本的分頁（「設定」子標籤由 prefs.aboutSub 記住）
+  var _langTab = null; try { _langTab = sessionStorage.getItem('wr_lang_tab'); sessionStorage.removeItem('wr_lang_tab'); } catch (e) {}
+  if (_langTab && document.getElementById('tab-' + _langTab)) { showTab(_langTab); window.scrollTo(0, 0); }
+  else if (!document.body.classList.contains('lite')) { showTab('analysis'); window.scrollTo(0, 0); }
+  // v2.2.0：「設定 › 介面設定 › 語言 / Language」
+  (function () {
+    var seg = $('langSeg'); if (!seg || !window.wrT) return;
+    var cur = wrT.lang(); if ($('langHint')) $('langHint').textContent = wrT('app.lang_hint');
+    seg.querySelectorAll('[data-lang]').forEach(function (b) {
+      var on = b.dataset.lang === cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.onclick = function () { if (b.dataset.lang === wrT.lang()) return; try { sessionStorage.setItem('wr_lang_tab', curTab || 'about'); } catch (e) {} toast(wrT('app.lang_switching')); setTimeout(function () { wrT.setLang(b.dataset.lang); }, 60); };
+    });
+  })();
   window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; }, get liteStep() { return liteStep(); }, setLiteStep: setLiteStep, get litePhoto() { return lp; }, get liteSel() { return liteSel; }, renderLite: function () { renderLite(); }, get gcur() { return gcur; }, renderGhost: function () { renderGhost(); }, showTab: function (n) { showTab(n); }, get ghostPreview() { return ghPrev; }, nav: nav, get tab() { return curTab; }, predZoom: function (z) { PV.zoom(z); renderPredict(); }, cmpZoom: function (z) { CV.zoom(z); renderCompare(); }, get predView() { return PV.v; },
     // v1.6.0
     get anaView() { return anaView; }, setAnaView: function (v) { anaSetView(v); }, anaZoom: function (z) { AV.zoom(z); renderAnalysis(); }, get anaViewBox() { return AV.v; }, get anaPZ() { return anaPZ; }, themes: LITE_THEMES.slice(), themeName: THEME_NAME, get theme() { return liteTheme; },
@@ -2408,9 +2381,9 @@
   // 沒登入：說明＋「用 Google 帳號登入」。登入後：頭像／名字／email、我的統計（這台裝置的真實紀錄）、同步狀態、選填資料、登出、刪除帳號與雲端資料。
   // 選填資料（射手名稱／慣用槍枝／彈種）存在這台裝置（localStorage 'wr_profile_v1'）；Firestore 規則目前不收這些欄位，所以不上傳。
   var LS_PROFILE = 'wr_profile_v1';
-  var PF_FIELDS = [['shooter', '射手名稱', '例：White', 30], ['gun', '慣用槍枝', '例：Steyr EVO 10', 40], ['ammo', '彈種', '例：H&N Finale Match 4.50', 40]];
+  var PF_FIELDS = [['shooter', wrT('app.shooter_name'), wrT('app.e_g_white'), 30], ['gun', wrT('app.usual_gun'), wrT('app.e_g_steyr_evo_10'), 40], ['ammo', wrT('app.pellets'), wrT('app.e_g_h_n_finale'), 40]];
   function pfLoad() { try { var v = JSON.parse(store.get(LS_PROFILE)); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
-  var WEEK = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+  var WEEK = [wrT('app.sun'), wrT('app.mon'), wrT('app.tue'), wrT('app.wed'), wrT('app.thu'), wrT('app.fri'), wrT('app.sat')];
   function fmtTWShort(iso) { // 11/18 週二 23:09（台北）
     var d = new Date(iso); if (!isFinite(d)) return '—';
     try {
@@ -2446,18 +2419,15 @@
     // 1) 帳號卡
     if (!W || st.status === 'off') {
       h = st.offReason === 'file'
-        ? '<div class="pf-h">雲端帳號</div><div class="lbl">雲端帳號只能在網址版使用（這個單檔版不能登入 Google）。請用 <b>whiterhapsody.github.io/WRbeta</b> 開啟，或把它加到主畫面。紀錄照樣存在這台裝置，也可以用紀錄碼備份。</div>'
-        : '<div class="cloud-soon">☁️ 雲端帳號即將推出</div><div class="lbl">之後可以用 Google 帳號登入，把紀錄同步到雲端、換手機也不會不見。目前紀錄存在這台裝置（可用紀錄碼備份）。</div>';
-    } else if (st.status === 'loading') h = '<div class="pf-h">雲端帳號</div><div class="lbl pf-loading">連線中…</div>';
+        ? wrT('app.cloud_account_cloud_accounts_only')
+        : wrT('app.cloud_accounts_coming_soon_soon');
+    } else if (st.status === 'loading') h = wrT('app.cloud_account_connecting');
     else if (signed && window.WRMember && window.WRMember.identityHTML(u)) h = window.WRMember.identityHTML(u); // v2.0.0：有會員資料＝會員 ID 身分卡
     else if (signed) {
-      var nm = u.name || (u.email ? u.email.split('@')[0] : '已登入'), ini = (nm.trim().charAt(0) || 'W').toUpperCase();
-      h = '<div class="pf-id"><span class="pf-av" aria-hidden="true">' + esc(ini) + (u.photo ? '<img class="pf-photo" src="' + esc(u.photo) + '" alt="" referrerpolicy="no-referrer">' : '') + '<i class="pf-g">' + GLOGO + '</i></span>' +
-        '<span class="pf-idt"><b>' + esc(nm) + '</b><small>' + esc(u.email || '') + (u.relay ? '（Apple 轉寄信箱）' : '') + '</small><small>以 ' + (u.provider === 'apple.com' ? 'Apple' : 'Google') + ' 帳號登入</small></span></div>';
+      var nm = u.name || (u.email ? u.email.split('@')[0] : wrT('app.signed_in')), ini = (nm.trim().charAt(0) || 'W').toUpperCase();
+      h = wrT('app.signed_in_with', [esc(ini), u.photo ? '<img class="pf-photo" src="' + esc(u.photo) + '" alt="" referrerpolicy="no-referrer">' : '', GLOGO, esc(nm), esc(u.email || ''), u.relay ? wrT('app.apple_relay_email') : '', u.provider === 'apple.com' ? 'Apple' : 'Google']);
     } else {
-      h = '<div class="pf-h">登入雲端帳號</div><div class="lbl">登入後，紀錄會自動備份到你自己的雲端空間（只有你看得到），換手機或重裝也拿得回來。沒登入也可以照常使用，紀錄存在這台裝置。</div>' +
-        (st.providers || ['google']).map(function (p) { return '<button type="button" class="cloud-in pf-gbtn" data-p="' + p + '">' + (p === 'apple' ? ' 用 Apple 登入' : '<i class="pf-gl">' + GLOGO + '</i>用 Google 帳號登入') + '</button>'; }).join('') +
-        (st.error ? '<div class="lbl pf-err">⚠️ ' + esc(cloudErrText(st.error)) + '</div>' : '');
+      h = wrT('app.sign_in_to_the_cloud', [(st.providers || ['google']).map(function (p) { return '<button type="button" class="cloud-in pf-gbtn" data-p="' + p + '">' + (p === 'apple' ? wrT('app.sign_in_with_apple') : wrT('app.sign_in_with_google', [GLOGO])) + '</button>'; }).join(''), st.error ? '<div class="lbl pf-err">⚠️ ' + esc(cloudErrText(st.error)) + '</div>' : '']);
     }
     box.innerHTML = h;
     if (window.WRMember) try { window.WRMember.bindIdentity(box); } catch (e) {}
@@ -2465,56 +2435,48 @@
     box.querySelectorAll('.cloud-in').forEach(function (b) { b.onclick = function () { W.signIn(b.dataset.p); }; });
     // 2) 我的統計
     var S = profileStats();
-    $('pfStats').innerHTML = '<div class="pf-h">我的統計<small>' + (signed ? '全部紀錄・含雲端同步' : '這台裝置的全部紀錄') + '</small></div><div class="pf-stats">' +
-      '<div class="pf-st"><small>總紀錄數</small><b id="pfRecN">' + S.records.toLocaleString('en-US') + '<i>筆</i></b></div>' +
-      '<div class="pf-st"><small>總發數</small><b id="pfShotN">' + S.shots.toLocaleString('en-US') + '<i>發</i></b></div>' +
-      '<div class="pf-st"><small>最佳成績</small>' + (S.best ? '<b class="acc" id="pfBest">' + S.best.total + '<i>/' + (S.best.n * 10) + '</i></b><small class="pf-sub">' + esc(recTitle(S.best.s)) + '</small>' : '<b id="pfBest">—</b>') + '</div>' +
-      '<div class="pf-st"><small>最近一次練習</small><b class="pf-date" id="pfLast">' + (S.last ? esc(fmtTWShort(S.last.created)) : '—') + '</b></div></div>';
+    $('pfStats').innerHTML = wrT('app.my_stats_records_shots_best', [signed ? wrT('app.all_records_incl_cloud_sync') : wrT('app.all_records_on_this_device'), S.records.toLocaleString('en-US'), S.shots.toLocaleString('en-US'), S.best ? '<b class="acc" id="pfBest">' + S.best.total + '<i>/' + (S.best.n * 10) + '</i></b><small class="pf-sub">' + esc(recTitle(S.best.s)) + '</small>' : '<b id="pfBest">—</b>', S.last ? esc(fmtTWShort(S.last.created)) : '—']);
     // 3) 同步狀態（登入後）
     var sy = $('pfSync'); sy.hidden = !signed;
     if (signed) {
       var pend = W.pending ? W.pending(sessions) : 0;
-      sy.innerHTML = '<div class="pf-h">同步狀態</div><div class="pf-sync"><div><i class="dot' + (st.error ? ' bad' : '') + '"></i>' + (st.syncing ? '同步中…' : st.lastSync ? '上次同步 ' + esc(fmtTWShort(st.lastSync).replace(/ 週. /, ' ')) + '（台北）' : '還沒同步過') + '</div>' +
-        '<div class="' + (pend ? 'pend' : 'ok') + '" id="pfPend">' + (pend ? '這台裝置待上傳 ' + pend + ' 筆' : '這台裝置的紀錄都已上傳') + '</div>' +
-        (st.error ? '<div class="pf-err">⚠️ ' + esc(cloudErrText(st.error)) + '</div>' : '') + '</div>' +
-        '<button type="button" id="cloudSync" class="pf-btn"' + (st.syncing ? ' disabled' : '') + '>' + SYNC_IC + (st.syncing ? '同步中…' : '立即同步') + '</button>';
+      sy.innerHTML = wrT('app.sync_status', [st.error ? ' bad' : '', st.syncing ? wrT('app.syncing') : st.lastSync ? wrT('app.last_sync_taipei', [esc(fmtTWShort(st.lastSync).replace(/ (週.|[A-Z][a-z]{2}) /, ' '))]) : wrT('app.never_synced'), pend ? 'pend' : 'ok', pend ? wrT('app.records_on_this_device_waiting', [pend]) : wrT('app.all_records_on_this_device_2'), st.error ? '<div class="pf-err">⚠️ ' + esc(cloudErrText(st.error)) + '</div>' : '', st.syncing ? ' disabled' : '', SYNC_IC, st.syncing ? wrT('app.syncing') : wrT('app.sync_now')]);
       $('cloudSync').onclick = function () { W.syncNow(); };
     } else sy.innerHTML = '';
     // 4) 選填資料（這台裝置）
     var pf = pfLoad();
-    $('pfExtra').innerHTML = '<div class="pf-h">選填資料<small>可不填・只存在這台裝置</small></div>' + PF_FIELDS.map(function (f) {
-      var v = pf[f[0]] || ''; return '<button type="button" class="pf-row" data-f="' + f[0] + '"><span>' + f[1] + '</span><em class="' + (v ? 'set' : '') + '">' + esc(v || '未設定') + '</em>' + CHEV + '</button>';
-    }).join('');
+    $('pfExtra').innerHTML = wrT('app.optional_info_optional_stored_only', [PF_FIELDS.map(function (f) {
+      var v = pf[f[0]] || ''; return '<button type="button" class="pf-row" data-f="' + f[0] + '"><span>' + f[1] + '</span><em class="' + (v ? 'set' : '') + '">' + esc(v || wrT('app.not_set')) + '</em>' + CHEV + '</button>';
+    }).join('')]);
     $('pfExtra').querySelectorAll('.pf-row').forEach(function (b) { b.onclick = function () { pfEdit(b.dataset.f); }; });
     // 5) 登出／刪除帳號（登入後）
     var end = $('pfEnd'); end.hidden = !signed;
     if (signed) {
-      end.innerHTML = '<button type="button" id="cloudOut" class="pf-out">登出</button>' +
-        '<button type="button" id="pfDel" class="pf-del"' + (st.deleting ? ' disabled' : '') + '>' + (st.deleting ? '刪除中…' : '刪除帳號與雲端資料') + '<small>會永久刪除雲端紀錄；這台手機上的紀錄碼不受影響</small></button>';
-      $('cloudOut').onclick = function () { ask('登出後紀錄仍留在這台裝置。確定登出？', function () { W.signOut(); toast('已登出'); }, null, { yes: '登出' }); };
+      end.innerHTML = wrT('app.sign_out_permanently_deletes_your', [st.deleting ? ' disabled' : '', st.deleting ? wrT('app.deleting') : wrT('app.delete_account_and_cloud_data')]);
+      $('cloudOut').onclick = function () { ask(wrT('app.your_records_stay_on_this'), function () { W.signOut(); toast(wrT('app.signed_out')); }, null, { yes: wrT('app.sign_out') }); };
       $('pfDel').onclick = pfDelete;
     } else end.innerHTML = '';
     // 6) v2.0.0：會員資料、好友、分享、管理員（member.js）＋隱私權政策
     if (window.WRMember) try { window.WRMember.renderCards(); } catch (e) {}
     var lg = $('pfLegal'); if (lg && !lg.firstChild) {
-      lg.innerHTML = '<button type="button" class="pf-row wr-priv-link"><span class="wide">隱私權政策</span><em>收集什麼、怎麼刪除</em>' + CHEV + '</button>';
+      lg.innerHTML = wrT('app.privacy_policy_what_we_collect', [CHEV]);
     }
   }
   function cloudErrText(e) {
-    var m = { 'popup-blocked': '彈出視窗被擋住了，請允許後再試一次', 'network-request-failed': '網路連線失敗，請稍後再試', 'unauthorized-domain': '這個網址還沒有被授權登入（請回報）',
-      'operation-not-allowed': 'Google 登入尚未啟用（請回報）', 'too-many-requests': '嘗試太多次，請稍後再試', 'requires-recent-login': '要先重新確認 Google 帳號，請再按一次',
-      'user-mismatch': '請選擇目前登入的同一個 Google 帳號', 'permission-denied': '雲端拒絕存取（請重新登入）', 'unavailable': '雲端暫時連不上，稍後會再試', 'internal-error': '登入發生錯誤，請再試一次' };
+    var m = { 'popup-blocked': wrT('app.the_pop_up_was_blocked'), 'network-request-failed': wrT('app.network_error_please_try_again'), 'unauthorized-domain': wrT('app.this_url_isnt_authorized_for'),
+      'operation-not-allowed': wrT('app.google_sign_in_isnt_enabled'), 'too-many-requests': wrT('app.too_many_attempts_please_try'), 'requires-recent-login': wrT('app.please_confirm_your_google_account'),
+      'user-mismatch': wrT('app.please_choose_the_same_google'), 'permission-denied': wrT('app.the_cloud_denied_access_please'), 'unavailable': wrT('app.cant_reach_the_cloud_right'), 'internal-error': wrT('app.sign_in_error_please_try') };
     var k = String(e || '').replace(/^firestore\//, '');
     return m[k] || String(e || '');
   }
   function pfEdit(key) {
     var f = PF_FIELDS.filter(function (x) { return x[0] === key; })[0]; if (!f) return;
     var pf = pfLoad(), bg = document.createElement('div'); bg.className = 'modal-bg';
-    bg.innerHTML = '<div class="modal pf-modal"><p class="pf-mh"></p><input type="text" class="pf-in" autocomplete="off"><div class="lbl">只存在這台裝置；留空＝不設定。</div><div class="row"><button class="no">取消</button><button class="primary yes">儲存</button></div></div>';
+    bg.innerHTML = wrT('app.stored_only_on_this_device');
     bg.querySelector('.pf-mh').textContent = f[1];
     var inp = bg.querySelector('.pf-in'); inp.value = pf[key] || ''; inp.placeholder = f[2]; inp.maxLength = f[3]; inp.setAttribute('aria-label', f[1]);
     function done(save) {
-      if (save) { var v = inp.value.trim().slice(0, f[3]); if (v) pf[key] = v; else delete pf[key]; store.set(LS_PROFILE, JSON.stringify(pf)); toast(f[1] + (v ? '已儲存' : '已清除')); }
+      if (save) { var v = inp.value.trim().slice(0, f[3]); if (v) pf[key] = v; else delete pf[key]; store.set(LS_PROFILE, JSON.stringify(pf)); toast(f[1] + (v ? wrT('app.saved') : wrT('app.cleared'))); }
       bg.remove(); renderAcct();
     }
     bg.querySelector('.no').onclick = function () { done(false); };
@@ -2524,13 +2486,13 @@
   }
   function pfDelete() {
     var W = window.WRCloud;
-    ask('刪除帳號與雲端資料？\n會永久刪除你在雲端的全部紀錄與帳號資料，無法復原。這台手機上的紀錄（與紀錄碼）不受影響。', function () {
-      ask('最後確認：真的要永久刪除帳號與雲端資料嗎？（如果登入超過幾分鐘，會請你再選一次 Google 帳號確認）', function () {
+    ask(wrT('app.delete_your_account_and_cloud'), function () {
+      ask(wrT('app.final_check_permanently_delete_your'), function () {
         // 在點擊裡直接呼叫（需要重新確認時，Google 視窗才不會被擋）
-        W.deleteAccount().then(function (r) { toast('帳號與雲端資料已刪除（' + r.deletedRecords + ' 筆雲端紀錄）。這台裝置的紀錄還在。', 4200); renderAcct(); })
-          .catch(function (e) { var c = e && e.code ? String(e.code).replace('auth/', '') : ''; if (!/popup-closed|cancelled-popup/.test(c)) toast('刪除沒有完成：' + cloudErrText(c || (e && e.message)), 4200); renderAcct(); });
-      }, null, { yes: '永久刪除', danger: true });
-    }, null, { yes: '繼續', danger: true });
+        W.deleteAccount().then(function (r) { toast(wrT('app.account_and_cloud_data_deleted', [r.deletedRecords]), 4200); renderAcct(); })
+          .catch(function (e) { var c = e && e.code ? String(e.code).replace('auth/', '') : ''; if (!/popup-closed|cancelled-popup/.test(c)) toast(wrT('app.deletion_not_completed', [cloudErrText(c || (e && e.message))]), 4200); renderAcct(); });
+      }, null, { yes: wrT('app.delete_permanently'), danger: true });
+    }, null, { yes: wrT('app.continue'), danger: true });
   }
   (function () {
     var W = window.WRCloud;
@@ -2555,7 +2517,7 @@
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (!hadCtl || reloaded) { hadCtl = true; return; }
         reloaded = true;
-        try { if (sessionStorage.getItem('wr_reloaded') === APP_VERSION) { toast('有新版本，點「設定/說明 › 說明 › 檢查更新」更新'); return; } sessionStorage.setItem('wr_reloaded', APP_VERSION); } catch (e) {}
+        try { if (sessionStorage.getItem('wr_reloaded') === APP_VERSION) { toast(wrT('app.a_new_version_is_available')); return; } sessionStorage.setItem('wr_reloaded', APP_VERSION); } catch (e) {}
         location.reload();
       });
       navigator.serviceWorker.register('sw.js?v=' + APP_VERSION, { updateViaCache: 'none' }).then(function (reg) {
@@ -2570,7 +2532,7 @@
     var jobs = [];
     try { if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (e) {}
     try { if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) {}
-    toast('更新中…');
+    toast(wrT('app.updating'));
     Promise.all(jobs).catch(function () {}).then(function () { var u = location.href.split('#')[0].split('?')[0]; location.replace(u + '?r=' + Date.now()); });
   }
   if ($('forceUpdate')) $('forceUpdate').onclick = forceUpdate;

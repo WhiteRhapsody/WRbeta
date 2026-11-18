@@ -8,16 +8,17 @@
  * 6. 彩蛋：把漫畫框拖到「設定/說明」→ 輸入作弊密碼（密碼只存 SHA-256，驗證在 Firestore 規則）；管理員畫面
  * 資料結構與權限見 firestore.rules。沒有 Cloud Functions、沒有 Firebase Storage（Spark 免費方案）。
  * 後端（Firestore）包在 FirestoreBackend()；e2e 測試用 WRMember._mock(假後端, 假使用者) 換掉。 */
+if (typeof wrT === 'undefined' && typeof require === 'function') { try { require('./i18n/i18n.js'); } catch (e) {} } // v2.2.0：在 Node（測試）也有 wrT（預設繁體中文）
 (function (root) {
   'use strict';
   // ---------- 純函式（Node 測試用） ----------
   var MID_RE = /^[A-Za-z0-9_]{3,20}$/, AV_MAX = 60000, SHARE_MAX = 5;
-  var GROUPS = { referee: '裁判', coach: '教練', staff: '工作人員', tester: '測試員' };
+  var GROUPS = { referee: wrT('member.judge'), coach: wrT('member.coach'), staff: wrT('member.staff'), tester: wrT('member.tester') };
   function midCheck(s) {
     s = String(s == null ? '' : s);
     var r = { len: s.length, lenOk: s.length >= 3 && s.length <= 20, charsOk: /^[A-Za-z0-9_]*$/.test(s) && s.length > 0 };
     r.ok = MID_RE.test(s);
-    r.msg = !s.length ? '請輸入會員 ID' : !r.charsOk ? '只能用英文、數字、底線（_）' : s.length < 3 ? '至少 3 個字元' : s.length > 20 ? '最多 20 個字元' : '';
+    r.msg = !s.length ? wrT('member.please_enter_a_member_id') : !r.charsOk ? wrT('member.only_letters_numbers_and_underscores') : s.length < 3 ? wrT('member.at_least_3_characters') : s.length > 20 ? wrT('member.at_most_20_characters') : '';
     return r;
   }
   function normCode(s) { // 作弊碼正規化：全形轉半形、前後空白、連續空白變一個、小寫
@@ -142,7 +143,7 @@
   function errCode(e) { return String((e && (e.code || e.message)) || e || '').replace(/^firestore\//, '').replace(/^auth\//, ''); }
   function errText(e) {
     var c = errCode(e);
-    return { 'permission-denied': '雲端拒絕（可能已被使用或沒有權限）', unavailable: '雲端暫時連不上，請稍後再試', 'not-signed-in': '請先登入', 'deadline-exceeded': '連線逾時，請再試一次' }[c] || c || '發生錯誤';
+    return { 'permission-denied': wrT('member.the_cloud_refused_already_taken'), unavailable: wrT('member.cant_reach_the_cloud_right'), 'not-signed-in': wrT('member.please_sign_in_first'), 'deadline-exceeded': wrT('member.connection_timed_out_please_try') }[c] || c || wrT('member.something_went_wrong');
   }
   function profOf(u) { return S.profs[u] || null; }
   function loadProfiles(uids) {
@@ -201,11 +202,11 @@
   // ---------- 頭像：裁成正方形 → 256px → JPEG（約 20–30KB） ----------
   function makeAvatar(file) {
     return new Promise(function (res, rej) {
-      if (!file || (file.type && !/^image\//.test(file.type))) return rej(new Error('這不是圖片'));
+      if (!file || (file.type && !/^image\//.test(file.type))) return rej(new Error(wrT('member.this_isnt_an_image')));
       var url = URL.createObjectURL(file), img = new Image();
       img.onload = function () {
         try {
-          var w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h); if (!s) throw new Error('讀不到圖片');
+          var w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h); if (!s) throw new Error(wrT('member.couldnt_read_the_image'));
           var out = null;
           [256, 224, 192, 160].some(function (px) {
             var c = D.createElement('canvas'); c.width = c.height = px; var g = c.getContext('2d');
@@ -214,11 +215,11 @@
             return [0.82, 0.74, 0.66, 0.56, 0.46].some(function (qv) { var u = c.toDataURL('image/jpeg', qv); if (u.length <= 40000) { out = u; return true; } return false; });
           });
           URL.revokeObjectURL(url);
-          if (!out || !avatarOk(out)) return rej(new Error('照片壓不下來，請換一張'));
+          if (!out || !avatarOk(out)) return rej(new Error(wrT('member.couldnt_shrink_the_photo_please')));
           res(out);
         } catch (e) { URL.revokeObjectURL(url); rej(e); }
       };
-      img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('讀不到這張照片（HEIC 請先轉成 JPG）')); };
+      img.onerror = function () { URL.revokeObjectURL(url); rej(new Error(wrT('member.couldnt_read_this_photo_convert'))); };
       img.src = url;
     });
   }
@@ -235,8 +236,8 @@
     if (!p || !p.avatarOn || !p.avatar || !avatarOk(p.avatar)) return '';
     return '<span class="' + (cls || 'mb-av') + '" style="background-image:url(&quot;' + esc(p.avatar) + '&quot;)"' + (me ? '' : ' aria-hidden="true"') + '></span>';
   }
-  function who(u) { var p = profOf(u); return p ? p.mid : '（已刪除的會員）'; }
-  function whoHTML(u) { var p = profOf(u); return '<span class="mb-who">' + avHTML(p, 'mb-av sm') + '<b>' + esc(p ? p.mid : '（已刪除的會員）') + '</b></span>'; }
+  function who(u) { var p = profOf(u); return p ? p.mid : wrT('member.deleted_member'); }
+  function whoHTML(u) { var p = profOf(u); return '<span class="mb-who">' + avHTML(p, 'mb-av sm') + '<b>' + esc(p ? p.mid : wrT('member.deleted_member')) + '</b></span>'; }
 
   // ---------- 1) 註冊畫面（第一次登入） ----------
   var su = null;
@@ -245,18 +246,7 @@
     S.signupOpen = true;
     var u = S.user || {}, st = { av: '', avOn: false, chk: null, seq: 0, busy: false, err: '' };
     var el = D.createElement('div'); el.className = 'su'; el.id = 'wrSignup'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'suH');
-    el.innerHTML = '<div class="su-top"><button type="button" class="x" id="suCancel">‹ 取消登入</button><span class="st">第一次登入・只要設定一次</span></div>' +
-      '<div class="su-body"><h1 id="suH">建立會員資料</h1><p class="sub">設定你的會員 ID 和頭像，之後在論壇、留言裡大家會看到它。</p>' +
-      '<div class="card su-g"><span class="gl">' + ICON.g + '</span><span class="su-gt"><b>' + esc(u.name || '已登入') + '</b><small>' + esc(u.email || '') + '</small></span><span class="ok">✓ Google 已登入</span></div>' +
-      '<div class="card"><label class="su-lab" for="suMid">會員 ID<small>必填</small></label>' +
-      '<div class="su-in" id="suInBox"><input id="suMid" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="20" placeholder="例：White_R" aria-describedby="suMsg"><em id="suLen">0/20</em><i id="suTick" aria-hidden="true"></i></div>' +
-      '<div class="su-ok" id="suMsg" role="status" aria-live="polite"></div>' +
-      '<ul class="su-rules" id="suRules"><li data-r="len">3–20 個字元</li><li data-r="chars">英文、數字、底線（_）</li><li data-r="uniq">不可與他人重複（輸入時即時檢查）</li></ul></div>' +
-      '<div class="card"><div class="su-lab">頭像<small>可之後再改</small></div>' +
-      '<div class="su-seg" role="radiogroup" aria-label="頭像"><button type="button" id="suUp" role="radio" aria-checked="false">' + ICON.cam + '上傳照片</button><button type="button" id="suNo" class="on" role="radio" aria-checked="true">' + ICON.noav + '不使用頭像</button></div>' +
-      '<div class="su-pv" id="suPv" hidden><span class="ring" id="suRing"></span><div class="tx">自動裁成圓形、壓縮到很小（約 20–30KB）。<br><button type="button" class="re" id="suRe">' + ICON.re + '重新選擇</button></div></div>' +
-      '<p class="su-noav" id="suNoTx">不使用頭像：論壇、留言、好友清單只顯示你的會員 ID。</p></div>' +
-      '</div><div class="su-foot"><p class="su-note">會員 ID 會顯示在<b>論壇</b>與<b>留言</b>中；選「不使用頭像」時只顯示 ID。<br>註冊前請先看 <a href="#" id="suPriv">隱私權政策</a></p><button type="button" class="su-go" id="suGo" disabled>完成註冊</button></div>';
+    el.innerHTML = wrT('member.cancel_sign_in_first_sign', [ICON.g, esc(u.name || wrT('app.signed_in')), esc(u.email || ''), ICON.cam, ICON.noav, ICON.re]);
     D.body.appendChild(el); su = el; B.classList.add('su-open');
     var inp = $('suMid');
     function setAv(on, data) {
@@ -272,7 +262,7 @@
     $('suRe').onclick = pick;
     $('suNo').onclick = function () { setAv(false); };
     $('suPriv').onclick = function (e) { e.preventDefault(); openPrivacy(); };
-    $('suCancel').onclick = function () { closeSignup(); try { if (!mocked) root.WRCloud.signOut(); else root.WRMember._mock(BE, null); } catch (e) {} toast('已取消登入（紀錄仍在這台裝置）'); };
+    $('suCancel').onclick = function () { closeSignup(); try { if (!mocked) root.WRCloud.signOut(); else root.WRMember._mock(BE, null); } catch (e) {} toast(wrT('member.sign_in_cancelled_records_are')); };
     function paint() {
       var v = inp.value, c = midCheck(v), box = $('suInBox'), msg = $('suMsg'), bad = !!v && (!c.ok || st.chk === 'taken');
       $('suLen').textContent = v.length + '/20';
@@ -282,7 +272,7 @@
       box.className = 'su-in' + (ok ? ' ok' : bad ? ' bad' : '');
       $('suTick').textContent = ok ? '✓' : bad ? '!' : '';
       msg.className = 'su-ok' + (ok ? '' : ' warn');
-      msg.textContent = !v ? '' : !c.ok ? c.msg : st.chk === 'checking' ? '檢查中…' : st.chk === 'taken' ? '✗ 已經有人使用，換一個吧' : st.chk === 'err' ? '⚠️ 無法檢查（' + st.err + '）' : st.chk === 'ok' ? '✓ 可以使用' : '';
+      msg.textContent = !v ? '' : !c.ok ? c.msg : st.chk === 'checking' ? wrT('member.checking') : st.chk === 'taken' ? wrT('member.already_taken_try_another') : st.chk === 'err' ? wrT('member.couldnt_check', [st.err]) : st.chk === 'ok' ? wrT('member.available') : '';
       $('suGo').disabled = !ok || st.busy;
     }
     var tmr = 0;
@@ -299,14 +289,14 @@
     inp.onkeydown = function (e) { if (e.key === 'Enter' && !$('suGo').disabled) $('suGo').click(); };
     $('suGo').onclick = function () {
       var v = inp.value; if (!midCheck(v).ok || st.busy) return;
-      st.busy = true; $('suGo').textContent = '建立中…'; paint();
+      st.busy = true; $('suGo').textContent = wrT('member.creating'); paint();
       BE.createProfile({ mid: v, avatarOn: st.avOn, avatar: st.avOn ? st.av : '' }).then(function () {
         if (st.avOn) ls(LS_AV, { uid: uid(), av: st.av });
-        toast('歡迎，' + v + '！會員資料已建立', 3000);
+        toast(wrT('member.welcome_your_member_profile_is', [v]), 3000);
         closeSignup(); return loadAll(false);
       }).catch(function (e) {
-        st.busy = false; if ($('suGo')) $('suGo').textContent = '完成註冊';
-        if (errCode(e) === 'permission-denied') { st.chk = 'taken'; toast('這個 ID 剛剛被別人用了，換一個吧', 3200); } else toast('建立失敗：' + errText(e), 3600);
+        st.busy = false; if ($('suGo')) $('suGo').textContent = wrT('member.sign_up');
+        if (errCode(e) === 'permission-denied') { st.chk = 'taken'; toast(wrT('member.that_id_was_just_taken'), 3200); } else toast(wrT('member.couldnt_create', [errText(e)]), 3600);
         if (su) paint();
       });
     };
@@ -322,19 +312,16 @@
     if (!chip) { chip = D.createElement('button'); chip.type = 'button'; chip.id = 'mhChip'; chip.className = 'mh-chip'; chip.setAttribute('data-me', ''); title.parentNode.insertBefore(chip, title); }
     var ver = String(app().version || '').replace(/^v(\d+)\.(\d+)\.0$/, 'v$1.$2');
     chip.innerHTML = avHTML(p, 'mh-av', true) + '<span class="mh-t"><b><span class="mh-id">' + esc(p.mid) + '</span>' + ICON.hchev + '</b><small>WRbeta<i>beta ' + esc(ver) + '</i></small></span><span class="mb-badge" hidden></span>';
-    chip.setAttribute('aria-label', '會員 ' + p.mid + '（點兩下到 設定/說明 › 帳號）');
+    chip.setAttribute('aria-label', wrT('member.member_double_tap_for_settings', [p.mid]));
     title.hidden = true; B.classList.add('has-member');
   }
 
   // ---------- 3) 帳號頁：身分卡、會員資料、好友、分享、管理員 ----------
-  function perkName(k) { return { ghost: '👻 鬼影', pro: '⭐ Pro', referee: '🟨 裁判', coach: '🎯 教練', vip: '💎 VIP' }[k] || '🔓 ' + k; }
+  function perkName(k) { return { ghost: wrT('app.ghost'), pro: '⭐ Pro', referee: wrT('member.judge_2'), coach: wrT('member.coach_2'), vip: '💎 VIP' }[k] || '🔓 ' + k; }
   function identityHTML(u) {
     var p = hasProfile() ? S.profile : null; if (!p) return null; u = u || S.user || {};
     var badges = S.groups.map(function (g) { return '<span class="mb-tag g">' + esc(GROUPS[g] || g) + '</span>'; }).concat(S.perks.map(function (k) { return '<span class="mb-tag">' + esc(perkName(k)) + '</span>'; })).join('');
-    return '<div class="pf-id big">' + (p.avatarOn && p.avatar ? '<button type="button" class="pf-av ph" data-me style="background-image:url(&quot;' + esc(p.avatar) + '&quot;)" aria-label="我的頭像（點兩下到帳號）"><i class="pf-edit" data-act="mbAvChange">更換</i></button>' : '') +
-      '<span class="pf-idt"><span class="pf-lab">會員 ID</span><b class="pf-mid" data-me role="button" tabindex="0">' + esc(p.mid) + '</b>' +
-      '<small>' + esc((u.name || '') + (u.name && u.email ? '・' : '') + (u.email || '')) + '</small><small class="pf-gline">' + ICON.g + '以 Google 帳號登入</small>' +
-      (badges ? '<span class="mb-tags">' + badges + '</span>' : '') + '</span></div>';
+    return wrT('member.member_id_signed_in_with', [p.avatarOn && p.avatar ? wrT('member.change', [esc(p.avatar)]) : '', esc(p.mid), esc((u.name || '') + (u.name && u.email ? '・' : '') + (u.email || '')), ICON.g, badges ? '<span class="mb-tags">' + badges + '</span>' : '']);
   }
   function bindIdentity(box) {
     var ch = box && box.querySelector('[data-act="mbAvChange"]');
@@ -347,16 +334,12 @@
     if (m) {
       if (on) {
         var p = S.profile, avOn = !!(p.avatarOn && p.avatar);
-        m.innerHTML = '<div class="pf-h">會員資料<small>論壇・留言會顯示</small></div>' +
-          '<button type="button" class="pf-row" id="mbMidRow"><span>會員 ID</span><em class="set">' + esc(p.mid) + '</em>' + ICON.chev + '</button>' +
-          '<div class="pf-row mb-avrow"><span class="wide">頭像<small class="pf-hint">' + (avOn ? '論壇和留言顯示頭像＋ID' : '關閉：不顯示頭像框，只顯示 ID') + '</small></span>' +
-          (avOn ? '<button type="button" class="mb-mini" id="mbAvRe">更換</button>' : '') + '<b class="swt">' + (avOn ? '開' : '關') + '</b>' +
-          '<button type="button" class="mb-sw' + (avOn ? ' on' : '') + '" id="mbAvSw" role="switch" aria-checked="' + avOn + '" aria-label="頭像"></button></div>';
+        m.innerHTML = wrT('member.member_profile_shown_in_forum', [esc(p.mid), ICON.chev, avOn ? wrT('member.forum_and_comments_show_avatar') : wrT('member.off_no_avatar_frame_id'), avOn ? wrT('member.change_2') : '', avOn ? wrT('member.on') : wrT('member.off'), avOn ? ' on' : '', avOn]);
         $('mbMidRow').onclick = changeMid;
         $('mbAvSw').onclick = function () { toggleAvatar(!avOn); };
         if ($('mbAvRe')) $('mbAvRe').onclick = changeAvatar;
       } else {
-        m.innerHTML = '<div class="pf-h">會員資料</div><div class="lbl">' + (S.loadErr ? '⚠️ 讀不到會員資料（' + esc(S.loadErr) + '）' : '還沒建立會員資料（會員 ID、頭像）。') + '</div><button type="button" class="pf-btn" id="mbSignupBtn">' + (S.loadErr ? '重試' : '建立會員資料') + '</button>';
+        m.innerHTML = wrT('member.member_profile', [S.loadErr ? wrT('member.couldnt_load_your_member_profile', [esc(S.loadErr)]) : wrT('member.no_member_profile_yet_member'), S.loadErr ? wrT('member.retry') : wrT('member.create_member_profile')]);
         $('mbSignupBtn').onclick = function () { if (S.loadErr) loadAll(true); else openSignup(); };
       }
     }
@@ -365,22 +348,22 @@
   function modal(html) { var bg = D.createElement('div'); bg.className = 'modal-bg mb-modal-bg'; bg.innerHTML = html; D.body.appendChild(bg); return bg; }
   function changeMid() {
     var p = S.profile; if (!p) return;
-    var bg = modal('<div class="modal pf-modal" role="dialog" aria-modal="true"><p class="pf-mh">更改會員 ID</p><input type="text" class="pf-in" id="mbMidIn" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="新的會員 ID"><div class="lbl" id="mbMidMsg">3–20 個字元，英文、數字、底線；舊的 ID 會釋出給別人使用。</div><div class="row"><button class="no">取消</button><button class="primary yes" disabled>儲存</button></div></div>');
+    var bg = modal(wrT('member.change_member_id_3_20'));
     var inp = bg.querySelector('#mbMidIn'), msg = bg.querySelector('#mbMidMsg'), yes = bg.querySelector('.yes'), seq = 0, t = 0;
     inp.value = p.mid;
     inp.oninput = function () {
       var v = inp.value, c = midCheck(v), my = ++seq; yes.disabled = true; clearTimeout(t);
       if (!c.ok) { msg.textContent = c.msg; return; }
-      if (v === p.mid) { msg.textContent = '這是你現在的 ID'; return; }
-      if (v.toLowerCase() === p.midLower) { msg.textContent = '✓ 只改大小寫'; yes.disabled = false; return; }
-      msg.textContent = '檢查中…';
-      t = setTimeout(function () { BE.nameOwner(v.toLowerCase()).then(function (o) { if (my !== seq) return; if (o && o !== uid()) msg.textContent = '✗ 已經有人使用'; else { msg.textContent = '✓ 可以使用'; yes.disabled = false; } }, function (e) { msg.textContent = '⚠️ ' + errText(e); }); }, 300);
+      if (v === p.mid) { msg.textContent = wrT('member.thats_your_current_id'); return; }
+      if (v.toLowerCase() === p.midLower) { msg.textContent = wrT('member.case_change_only'); yes.disabled = false; return; }
+      msg.textContent = wrT('member.checking');
+      t = setTimeout(function () { BE.nameOwner(v.toLowerCase()).then(function (o) { if (my !== seq) return; if (o && o !== uid()) msg.textContent = wrT('member.already_taken'); else { msg.textContent = wrT('member.available'); yes.disabled = false; } }, function (e) { msg.textContent = '⚠️ ' + errText(e); }); }, 300);
     };
     bg.querySelector('.no').onclick = function () { bg.remove(); };
     yes.onclick = function () {
       var v = inp.value; yes.disabled = true;
-      BE.updateProfile(p, { mid: v, avatarOn: p.avatarOn, avatar: p.avatar }).then(function () { bg.remove(); toast('會員 ID 改成 ' + v); return loadAll(false); })
-        .catch(function (e) { yes.disabled = false; msg.textContent = errCode(e) === 'permission-denied' ? '✗ 剛剛被別人用了' : '⚠️ ' + errText(e); });
+      BE.updateProfile(p, { mid: v, avatarOn: p.avatarOn, avatar: p.avatar }).then(function () { bg.remove(); toast(wrT('member.member_id_changed_to', [v])); return loadAll(false); })
+        .catch(function (e) { yes.disabled = false; msg.textContent = errCode(e) === 'permission-denied' ? wrT('member.just_taken_by_someone_else') : '⚠️ ' + errText(e); });
     };
     setTimeout(function () { try { inp.focus(); inp.select(); } catch (e) {} }, 0);
   }
@@ -388,8 +371,8 @@
     var p = S.profile; if (!p) return Promise.resolve();
     return BE.updateProfile(p, { mid: p.mid, avatarOn: on, avatar: on ? data : '' }).then(function () {
       if (on) ls(LS_AV, { uid: uid(), av: data });
-      toast(on ? '頭像已更新' : '已關閉頭像：只顯示會員 ID'); return loadAll(false);
-    }, function (e) { toast('頭像沒有更新：' + errText(e), 3600); });
+      toast(on ? wrT('member.avatar_updated') : wrT('member.avatar_off_member_id_only')); return loadAll(false);
+    }, function (e) { toast(wrT('member.avatar_not_updated', [errText(e)]), 3600); });
   }
   function changeAvatar() { pickImage().then(function (d) { return saveAvatar(true, d); }, function (e) { if (e && e.message !== 'cancel') toast(e.message, 3200); }); }
   function toggleAvatar(on) {
@@ -402,11 +385,10 @@
   function renderFriends(on) {
     var c = show('mbFriends', on); if (!c || !on) return;
     var f = S.friends, n = f.incoming.length;
-    var h = '<div class="pf-h">好友<small>' + f.friends.length + ' 位' + (n ? '・<b class="mb-new">' + n + ' 個新邀請</b>' : '') + '</small></div>' +
-      '<div class="mb-add"><input type="text" id="mbFriendIn" placeholder="輸入對方的會員 ID" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="好友的會員 ID"><button type="button" id="mbFriendGo" class="primary">邀請</button></div>';
-    if (f.incoming.length) h += '<div class="mb-sub">收到的邀請</div>' + f.incoming.map(function (x) { return '<div class="mb-fr in" data-pid="' + esc(x.id) + '" data-uid="' + esc(x.uid) + '">' + whoHTML(x.uid) + '<span class="mb-acts"><button type="button" class="primary" data-a="acc">接受</button><button type="button" data-a="dec">拒絕</button></span></div>'; }).join('');
-    if (f.outgoing.length) h += '<div class="mb-sub">已送出・等對方接受</div>' + f.outgoing.map(function (x) { return '<div class="mb-fr out" data-pid="' + esc(x.id) + '" data-uid="' + esc(x.uid) + '">' + whoHTML(x.uid) + '<span class="mb-acts"><button type="button" data-a="can">取消</button></span></div>'; }).join('');
-    h += '<div class="mb-sub">好友清單</div>' + (f.friends.length ? f.friends.map(function (x) { return '<div class="mb-fr ok" data-pid="' + esc(x.id) + '" data-uid="' + esc(x.uid) + '">' + whoHTML(x.uid) + '<span class="mb-acts"><button type="button" data-a="rm" class="mb-ghost" aria-label="刪除好友 ' + esc(who(x.uid)) + '">刪除</button></span></div>'; }).join('') : '<div class="lbl">還沒有好友。輸入對方的會員 ID 送出邀請，對方打開 App 就會看到。</div>');
+    var h = wrT('member.friends_invite', [f.friends.length, n ? wrT('member.new_invites', [n]) : '']);
+    if (f.incoming.length) h += wrT('member.invites_received', [f.incoming.map(function (x) { return wrT('member.accept_decline', [esc(x.id), esc(x.uid), whoHTML(x.uid)]); }).join('')]);
+    if (f.outgoing.length) h += wrT('member.sent_waiting_for_them_to', [f.outgoing.map(function (x) { return wrT('member.cancel', [esc(x.id), esc(x.uid), whoHTML(x.uid)]); }).join('')]);
+    h += wrT('member.friend_list', [f.friends.length ? f.friends.map(function (x) { return wrT('member.remove', [esc(x.id), esc(x.uid), whoHTML(x.uid), esc(who(x.uid))]); }).join('') : wrT('member.no_friends_yet_enter_someones')]);
     c.innerHTML = h;
     var inp = $('mbFriendIn');
     $('mbFriendGo').onclick = function () { addFriend(inp.value.trim()); };
@@ -415,27 +397,27 @@
       var row = b.closest('.mb-fr'), pid = row.dataset.pid;
       b.onclick = function () {
         var a = b.dataset.a;
-        if (a === 'acc') act(BE.acceptFriend(pid), '已成為好友');
-        else if (a === 'dec') act(BE.deleteFriend(pid), '已拒絕邀請');
-        else if (a === 'can') act(BE.deleteFriend(pid), '已取消邀請');
-        else if (a === 'rm') ask('刪除好友「' + who(row.dataset.uid) + '」？\n你分享給他的紀錄也會一起收回。', function () { act(removeFriend(pid, row.dataset.uid), '已刪除好友'); }, null, { yes: '刪除', danger: true });
+        if (a === 'acc') act(BE.acceptFriend(pid), wrT('member.youre_now_friends'));
+        else if (a === 'dec') act(BE.deleteFriend(pid), wrT('member.invite_declined'));
+        else if (a === 'can') act(BE.deleteFriend(pid), wrT('member.invite_cancelled'));
+        else if (a === 'rm') ask(wrT('member.remove_friend_records_you_shared', [who(row.dataset.uid)]), function () { act(removeFriend(pid, row.dataset.uid), wrT('member.friend_removed')); }, null, { yes: wrT('app.delete'), danger: true });
       };
     });
   }
-  function act(p, ok) { return p.then(function () { if (ok) toast(ok); return refreshSocial(); }, function (e) { toast('沒有完成：' + errText(e), 3600); return refreshSocial(); }); }
+  function act(p, ok) { return p.then(function () { if (ok) toast(ok); return refreshSocial(); }, function (e) { toast(wrT('member.not_completed', [errText(e)]), 3600); return refreshSocial(); }); }
   function addFriend(mid) {
-    var c = midCheck(mid); if (!c.ok) { toast(c.msg || '會員 ID 格式不對'); return Promise.resolve(); }
-    if (S.profile && mid.toLowerCase() === S.profile.midLower) { toast('這是你自己的 ID 喔'); return Promise.resolve(); }
+    var c = midCheck(mid); if (!c.ok) { toast(c.msg || wrT('member.invalid_member_id_format')); return Promise.resolve(); }
+    if (S.profile && mid.toLowerCase() === S.profile.midLower) { toast(wrT('member.thats_your_own_id')); return Promise.resolve(); }
     return BE.nameOwner(mid.toLowerCase()).then(function (o) {
-      if (!o) { toast('找不到會員「' + mid + '」'); return; }
+      if (!o) { toast(wrT('member.member_not_found', [mid])); return; }
       var pid = pairId(uid(), o);
       return BE.getFriendship(pid).then(function (x) {
-        if (x && x.status === 'accepted') { toast('你們已經是好友了'); return; }
-        if (x && x.to === uid()) return act(BE.acceptFriend(pid), '對方也邀請過你，已直接成為好友');
-        if (x) { toast('已經邀請過了，等對方接受'); return; }
-        return act(BE.requestFriend(o), '已送出邀請給 ' + mid + '（對方打開 App 會看到）').then(function () { var i = $('mbFriendIn'); if (i) i.value = ''; });
+        if (x && x.status === 'accepted') { toast(wrT('member.youre_already_friends')); return; }
+        if (x && x.to === uid()) return act(BE.acceptFriend(pid), wrT('member.they_had_invited_you_too'));
+        if (x) { toast(wrT('member.already_invited_waiting_for_them')); return; }
+        return act(BE.requestFriend(o), wrT('member.invite_sent_to_theyll_see', [mid])).then(function () { var i = $('mbFriendIn'); if (i) i.value = ''; });
       });
-    }).catch(function (e) { toast('邀請失敗：' + errText(e), 3600); });
+    }).catch(function (e) { toast(wrT('member.invite_failed', [errText(e)]), 3600); });
   }
   /* 刪好友：刪 friendships 文件，順便收回「我分享給他的」、把自己從「他分享給我的」移除 */
   function removeFriend(pid, other) {
@@ -450,26 +432,24 @@
   // 分享
   function friendsList() { return S.friends.friends.map(function (x) { return x.uid; }); }
   function sharesOf(recId) { return S.mine.filter(function (s) { return s.recId === String(recId); }); }
-  function kindName(s) { return s.kind === 'analysis' ? '分析' : '預報'; }
-  function fmtDate(iso) { var d = new Date(iso); if (!isFinite(d)) return ''; try { return new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(d); } catch (e) { return String(iso).slice(0, 10); } }
+  function kindName(s) { return s.kind === 'analysis' ? wrT('app.analysis_2') : wrT('app.call_2'); }
+  function fmtDate(iso) { var d = new Date(iso); if (!isFinite(d)) return ''; try { return new Intl.DateTimeFormat(wrT.locale(), { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(d); } catch (e) { return String(iso).slice(0, 10); } }
   function renderShares(on) {
     var c = show('mbShares', on); if (!c || !on) return;
-    var seen = ls(LS_SEEN) || {}, h = '<div class="pf-h">好友分享給我的<small>唯讀・點開來看</small></div>';
+    var seen = ls(LS_SEEN) || {}, h = wrT('member.shared_with_me_read_only');
     h += S.toMe.length ? S.toMe.map(function (s) {
-      return '<button type="button" class="mb-sh" data-sid="' + esc(s.id) + '">' + (!seen[s.id] ? '<i class="mb-dot" title="新的"></i>' : '') + '<span class="mb-sht"><b>' + esc(s.name || kindName(s)) + '<span class="mb-tag k">' + kindName(s) + '</span></b><small>' + esc(s.ownerMid) + ' 分享・' + esc(fmtDate(s.recCreated)) + '</small></span>' + ICON.chev + '</button>';
-    }).join('') : '<div class="lbl">還沒有好友分享紀錄給你。</div>';
-    h += '<div class="pf-h mb-h2">我分享出去的<small>可以收回</small></div>';
+      return wrT('member.shared_by', [esc(s.id), !seen[s.id] ? wrT('member.x') : '', esc(s.name || kindName(s)), kindName(s), esc(s.ownerMid), esc(fmtDate(s.recCreated)), ICON.chev]);
+    }).join('') : wrT('member.no_friends_have_shared_records');
+    h += wrT('member.shared_by_me_can_be');
     h += S.mine.length ? S.mine.map(function (s) {
-      return '<div class="mb-mine" data-sid="' + esc(s.id) + '"><div class="mb-sht"><b>' + esc(s.name || kindName(s)) + '</b><small>' + esc(fmtDate(s.recCreated)) + '</small></div><div class="mb-chips">' +
-        (s.to || []).map(function (u) { return '<span class="mb-chip">' + esc(who(u)) + '<button type="button" data-u="' + esc(u) + '" aria-label="收回 ' + esc(who(u)) + '">×</button></span>'; }).join('') +
-        '<button type="button" class="mb-ghost" data-all="1">全部收回</button></div></div>';
-    }).join('') : '<div class="lbl">在「紀錄」頁每筆紀錄按「分享給好友」。</div>';
+      return wrT('member.withdraw_all', [esc(s.id), esc(s.name || kindName(s)), esc(fmtDate(s.recCreated)), (s.to || []).map(function (u) { return wrT('member.x_2', [esc(who(u)), esc(u), esc(who(u))]); }).join('')]);
+    }).join('') : wrT('member.on_the_records_page_tap');
     c.innerHTML = h;
     c.querySelectorAll('.mb-sh').forEach(function (b) { b.onclick = function () { openShared(b.dataset.sid); }; });
     c.querySelectorAll('.mb-mine').forEach(function (row) {
       var s = S.mine.filter(function (x) { return x.id === row.dataset.sid; })[0]; if (!s) return;
-      row.querySelectorAll('[data-u]').forEach(function (b) { b.onclick = function () { act(BE.setShareTo(s.id, s.to.filter(function (u) { return u !== b.dataset.u; })), '已收回'); }; });
-      row.querySelector('[data-all]').onclick = function () { ask('收回這筆分享？好友就看不到了。', function () { act(BE.deleteShare(s.id), '已全部收回'); }, null, { yes: '收回' }); };
+      row.querySelectorAll('[data-u]').forEach(function (b) { b.onclick = function () { act(BE.setShareTo(s.id, s.to.filter(function (u) { return u !== b.dataset.u; })), wrT('member.withdrawn')); }; });
+      row.querySelector('[data-all]').onclick = function () { ask(wrT('member.withdraw_this_share_your_friend'), function () { act(BE.deleteShare(s.id), wrT('member.all_withdrawn')); }, null, { yes: wrT('member.withdraw') }); };
     });
   }
   /* 唯讀檢視：用紀錄碼還原，畫在 ISSF 靶面上（不存進自己的紀錄） */
@@ -478,34 +458,30 @@
     var s = S.toMe.filter(function (x) { return x.id === sid; })[0]; if (!s) return;
     var seen = ls(LS_SEEN) || {}; seen[sid] = 1; ls(LS_SEEN, seen); renderBadges();
     var Code = root.BMCode, rec = null; try { rec = Code && Code.decode(s.code).records[0]; } catch (e) {}
-    var bg = D.createElement('div'); bg.className = 'mb-view mb-shared'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-label', '好友分享的紀錄');
-    bg.innerHTML = '<div class="mb-view-top"><button type="button" class="x">‹ 返回</button><span class="mb-ro">👀 唯讀・好友分享</span></div><div class="mb-view-body">' +
-      '<div class="mb-view-h">' + whoHTML(s.owner) + '<small>分享給你</small></div><h2>' + esc(s.name || kindName(s)) + ' <span class="mb-tag k">' + kindName(s) + '</span></h2><div class="lbl">' + esc(fmtDate(s.recCreated)) + '（台北）</div>' +
-      (rec ? '<div class="svgwrap mb-view-tg"><svg class="target mb-ro-svg" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="mb-view-meta"></div>' : '<div class="card">⚠️ 這筆紀錄碼讀不出來（可能是較新版本的格式，請更新 App）。</div>') + '</div>';
+    var bg = D.createElement('div'); bg.className = 'mb-view mb-shared'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-label', wrT('member.shared_record'));
+    bg.innerHTML = wrT('member.back_read_only_shared_by', [whoHTML(s.owner), esc(s.name || kindName(s)), kindName(s), esc(fmtDate(s.recCreated)), rec ? '<div class="svgwrap mb-view-tg"><svg class="target mb-ro-svg" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="mb-view-meta"></div>' : wrT('member.this_record_code_cant_be')]);
     D.body.appendChild(bg); B.classList.add('mb-view-open');
-    if (rec) { try { var A = app(); A.drawRecord(bg.querySelector('svg'), rec); bg.querySelector('.mb-view-meta').innerHTML = A.recMetaHTML(rec); } catch (e) { bg.querySelector('.mb-view-meta').textContent = '畫不出來：' + e.message; } }
+    if (rec) { try { var A = app(); A.drawRecord(bg.querySelector('svg'), rec); bg.querySelector('.mb-view-meta').innerHTML = A.recMetaHTML(rec); } catch (e) { bg.querySelector('.mb-view-meta').textContent = wrT('member.couldnt_draw', [e.message]); } }
     bg.querySelector('.x').onclick = function () { closeView(bg); renderCards(); };
   }
   /* 紀錄頁「分享給好友」：選好友（最多 5 位） */
   function shareRecord(s) {
-    if (!hasProfile()) { toast('登入並建立會員資料後才能分享給好友'); return; }
-    var fr = friendsList(); if (!fr.length) { toast('還沒有好友：先到「設定/說明 › 帳號」用會員 ID 加好友', 3200); return; }
+    if (!hasProfile()) { toast(wrT('member.sign_in_and_create_a')); return; }
+    var fr = friendsList(); if (!fr.length) { toast(wrT('member.no_friends_yet_add_friends'), 3200); return; }
     var Code = root.BMCode, code = null; try { code = Code.encode(s); } catch (e) {}
-    if (!code) { toast('這筆紀錄還沒有落點，不能分享'); return; }
-    if (code.length > 20000) { toast('這筆紀錄太大，不能分享'); return; }
+    if (!code) { toast(wrT('member.this_record_has_no_shots')); return; }
+    if (code.length > 20000) { toast(wrT('member.this_record_is_too_large')); return; }
     var already = {}; sharesOf(s.id).forEach(function (x) { (x.to || []).forEach(function (u) { already[u] = 1; }); });
-    var bg = modal('<div class="modal pf-modal mb-share" role="dialog" aria-modal="true" aria-label="分享給好友"><p class="pf-mh">分享給好友（唯讀）</p><div class="lbl">好友只能看，不能改；之後可以在「帳號 › 我分享出去的」收回。一次最多 ' + SHARE_MAX + ' 位。</div><div class="mb-pick">' +
-      fr.map(function (u) { return '<label class="mb-pk' + (already[u] ? ' dis' : '') + '"><input type="checkbox" value="' + esc(u) + '"' + (already[u] ? ' disabled' : '') + '>' + whoHTML(u) + (already[u] ? '<small>已分享</small>' : '') + '</label>'; }).join('') +
-      '</div><div class="row"><button class="no">取消</button><button class="primary yes" disabled>分享</button></div></div>');
+    var bg = modal(wrT('member.share_with_friends_read_only', [SHARE_MAX, fr.map(function (u) { return '<label class="mb-pk' + (already[u] ? ' dis' : '') + '"><input type="checkbox" value="' + esc(u) + '"' + (already[u] ? ' disabled' : '') + '>' + whoHTML(u) + (already[u] ? wrT('member.shared') : '') + '</label>'; }).join('')]));
     var yes = bg.querySelector('.yes'), boxes = [].slice.call(bg.querySelectorAll('input[type=checkbox]'));
     function sel() { return boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; }); }
-    boxes.forEach(function (b) { b.onchange = function () { if (sel().length > SHARE_MAX) { b.checked = false; toast('一次最多 ' + SHARE_MAX + ' 位'); } var n = sel().length; yes.disabled = !n; yes.textContent = n ? '分享給 ' + n + ' 位' : '分享'; }; });
+    boxes.forEach(function (b) { b.onchange = function () { if (sel().length > SHARE_MAX) { b.checked = false; toast(wrT('member.up_to_at_a_time', [SHARE_MAX])); } var n = sel().length; yes.disabled = !n; yes.textContent = n ? wrT('member.share_with', [n]) : wrT('member.share'); }; });
     bg.querySelector('.no').onclick = function () { bg.remove(); };
     yes.onclick = function () {
       var to = sel(); if (!to.length) return; yes.disabled = true;
       var sid = (String(uid()).slice(0, 10) + '_' + String(s.id).replace(/[^A-Za-z0-9_-]/g, '').slice(-24) + '_' + Date.now().toString(36)).slice(0, 64);
       BE.createShare(sid, { ownerMid: S.profile.mid, to: to, recId: String(s.id).slice(0, 64), kind: s.kind === 'analysis' ? 'analysis' : 'forecast', targetId: String(s.targetId || 'ap10').slice(0, 16), name: String((s.name && s.name.trim()) || '').slice(0, 120), recCreated: String(s.created || '').slice(0, 40), code: code })
-        .then(function () { bg.remove(); toast('已分享給 ' + to.map(who).join('、')); return refreshSocial(); }, function (e) { yes.disabled = false; toast('分享失敗：' + errText(e), 3600); });
+        .then(function () { bg.remove(); toast(wrT('member.shared_with', [to.map(who).join(wrT('core.x_3'))])); return refreshSocial(); }, function (e) { yes.disabled = false; toast(wrT('member.share_failed', [errText(e)]), 3600); });
     };
   }
 
@@ -517,7 +493,7 @@
       var host = D.querySelector(x[0]); if (!host) return;
       var b = host.querySelector(':scope > .mb-badge');
       if (!b) { b = D.createElement('span'); b.className = 'mb-badge'; host.appendChild(b); }
-      b.hidden = !n; b.textContent = n > 9 ? '9+' : String(n); b.setAttribute('aria-label', n + ' 則新通知');
+      b.hidden = !n; b.textContent = n > 9 ? '9+' : String(n); b.setAttribute('aria-label', wrT('member.new_notifications', [n]));
     });
   }
 
@@ -530,7 +506,7 @@
   function ensureBubble() {
     if (bub) return bub;
     bub = D.createElement('div'); bub.id = 'mbBubble'; bub.className = 'mb-bub'; bub.hidden = true; bub.setAttribute('role', 'status'); bub.setAttribute('aria-live', 'polite');
-    bub.innerHTML = '<span class="mb-bub-in"><span class="mb-bub-tx">點兩下跳到會員頁面</span></span>';
+    bub.innerHTML = wrT('member.double_tap_to_open_your');
     D.body.appendChild(bub);
     bub.addEventListener('pointerdown', bubDown);
     bub.addEventListener('contextmenu', function (e) { e.preventDefault(); });
@@ -615,30 +591,28 @@
 
   // ---------- 6) 作弊碼 ----------
   var RATE_MAX = 5, RATE_WIN = 10 * 60 * 1000;
-  var FAILS = ['不對喔～再想想 🤔', '哼哼，這不是密碼 😏', '差一點點？（其實不知道）', '密碼錯誤，或這組密碼不是給你的', '嗶——不是這個 🙅'];
+  var FAILS = [wrT('member.nope_think_again'), wrT('member.heh_thats_not_the_password'), wrT('member.so_close_no_idea_actually'), wrT('member.wrong_password_or_this_password'), wrT('member.beep_not_this_one')];
   function openCheat() {
     if (D.querySelector('.mb-cheat')) return;
-    var bg = modal('<div class="modal mb-cheat" role="dialog" aria-modal="true" aria-labelledby="mbCheatH"><p class="mb-cheat-h" id="mbCheatH">輸入作弊密碼 <span>哼哼被你發現了</span></p>' +
-      '<input type="text" id="mbCheatIn" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="80" placeholder="作弊密碼" aria-label="作弊密碼">' +
-      '<div class="mb-cheat-msg" id="mbCheatMsg" role="status" aria-live="polite"></div><div class="row"><button class="no">取消</button><button class="primary yes">確定</button></div></div>');
+    var bg = modal(wrT('member.enter_cheat_code_heh_you'));
     bg.classList.add('mb-cheat-bg');
     var inp = bg.querySelector('#mbCheatIn'), msg = bg.querySelector('#mbCheatMsg'), yes = bg.querySelector('.yes'), card = bg.querySelector('.mb-cheat');
     if (anim()) card.classList.add('pop');
     function say(t, cls) { msg.textContent = t; msg.className = 'mb-cheat-msg ' + (cls || ''); if (cls === 'bad' && anim()) { card.classList.remove('shake', 'pop'); void card.offsetWidth; card.classList.add('shake'); } }
-    if (!hasProfile()) { say(signedIn() ? '先建立會員資料才能用作弊密碼' : '要先登入會員才能用作弊密碼（設定/說明 › 帳號）', 'info'); inp.disabled = true; yes.disabled = true; }
+    if (!hasProfile()) { say(signedIn() ? wrT('member.create_a_member_profile_first') : wrT('member.sign_in_as_a_member'), 'info'); inp.disabled = true; yes.disabled = true; }
     bg.querySelector('.no').onclick = function () { bg.remove(); };
     function go() {
-      var raw = inp.value; if (!normCode(raw)) { say('先輸入密碼', 'info'); return; }
+      var raw = inp.value; if (!normCode(raw)) { say(wrT('member.enter_the_code_first'), 'info'); return; }
       var r = rateOk(ls(LS_TRIES) || [], Date.now(), RATE_MAX, RATE_WIN);
-      if (!r.ok) { say('試太多次了，休息 ' + Math.ceil(r.waitMs / 60000) + ' 分鐘再來 😴', 'bad'); return; }
+      if (!r.ok) { say(wrT('member.too_many_tries_take_a', [Math.ceil(r.waitMs / 60000)]), 'bad'); return; }
       r.recent.push(Date.now()); ls(LS_TRIES, r.recent);
-      yes.disabled = true; say('驗證中…', 'info');
+      yes.disabled = true; say(wrT('member.verifying'), 'info');
       redeem(raw).then(function (res) {
         yes.disabled = false;
-        if (res.status === 'granted') { say('🎉 ' + (res.again ? '已經解鎖過了：' : '解鎖成功！') + (res.perks.length ? res.perks.map(perkName).join('、') : ''), 'good'); ls(LS_TRIES, []); }
-        else if (res.status === 'pending') say('📨 已送出申請，等管理員核准後生效', 'good');
-        else if (res.status === 'rejected') say('這組密碼的申請被拒絕了', 'bad');
-        else if (res.status === 'revoked') say('這組密碼的權限已被收回', 'bad');
+        if (res.status === 'granted') { say('🎉 ' + (res.again ? wrT('member.already_unlocked') : wrT('member.unlocked')) + (res.perks.length ? res.perks.map(perkName).join(wrT('core.x_3')) : ''), 'good'); ls(LS_TRIES, []); }
+        else if (res.status === 'pending') say(wrT('member.request_sent_it_takes_effect'), 'good');
+        else if (res.status === 'rejected') say(wrT('member.the_request_for_this_code'), 'bad');
+        else if (res.status === 'revoked') say(wrT('member.access_from_this_code_has'), 'bad');
         else say(FAILS[Math.floor(Math.random() * FAILS.length)], 'bad');
       }, function (e) { yes.disabled = false; say('⚠️ ' + errText(e), 'bad'); });
     }
@@ -671,40 +645,30 @@
       BE.listRedemptions('pending').then(function (a) { S.adm.pending = a; }),
       BE.listRedemptions('granted').then(function (a) { S.adm.granted = a; }),
       BE.listRoles().then(function (a) { S.adm.roles = a; })
-    ]).catch(function (e) { toast('管理員資料讀取失敗：' + errText(e), 3600); }).then(function () { renderAdmin(true); });
+    ]).catch(function (e) { toast(wrT('member.couldnt_load_admin_data', [errText(e)]), 3600); }).then(function () { renderAdmin(true); });
   }
-  function codeLabel(h) { var c = S.adm && S.adm.codes.filter(function (x) { return x.id === h; })[0]; return c ? (c.label || '（無備註）') : String(h).slice(0, 8) + '…'; }
-  function audText(a) { if (!a) return ''; return a.type === 'all' ? '所有人' : a.type === 'users' ? '指定：' + (a.mids || []).join('、') : '群組：' + (a.groups || []).map(function (g) { return GROUPS[g] || g; }).join('、'); }
+  function codeLabel(h) { var c = S.adm && S.adm.codes.filter(function (x) { return x.id === h; })[0]; return c ? (c.label || wrT('member.no_note')) : String(h).slice(0, 8) + '…'; }
+  function audText(a) { if (!a) return ''; return a.type === 'all' ? wrT('member.everyone') : a.type === 'users' ? wrT('member.specific', [(a.mids || []).join(wrT('core.x_3'))]) : wrT('member.groups', [(a.groups || []).map(function (g) { return GROUPS[g] || g; }).join(wrT('core.x_3'))]); }
   function renderAdmin(on) {
     var c = show('mbAdmin', on); if (!c || !on) return;
-    if (!S.adm) { c.innerHTML = '<div class="pf-h">🛠 管理員<small>只有你看得到</small></div><button type="button" class="pf-btn" id="mbAdmOpen">打開管理員畫面</button>'; $('mbAdmOpen').onclick = function () { S.adm = { codes: [], pending: [], granted: [], roles: [] }; loadAdmin(); }; return; }
+    if (!S.adm) { c.innerHTML = wrT('member.admin_only_you_can_see'); $('mbAdmOpen').onclick = function () { S.adm = { codes: [], pending: [], granted: [], roles: [] }; loadAdmin(); }; return; }
     var A = S.adm, gchk = function (name) { return Object.keys(GROUPS).map(function (g) { return '<label class="mb-ck"><input type="checkbox" name="' + name + '" value="' + g + '">' + GROUPS[g] + '</label>'; }).join(''); };
-    var h = '<div class="pf-h">🛠 管理員<small>只有你看得到</small><button type="button" class="mb-mini" id="mbAdmReload">重新整理</button></div>' +
-      '<details class="mb-adm" open><summary>新增作弊碼</summary><div class="mb-form">' +
-      '<label>密碼（只存 SHA-256，不存明碼）<input type="text" id="admCode" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="80" placeholder="自己想一句（不分大小寫、全形半形）"></label>' +
-      '<label>備註（自己看的）<input type="text" id="admLabel" maxlength="60" placeholder="例：給教練的"></label>' +
-      '<label>功能（英文代號，逗號分隔）<input type="text" id="admPerks" maxlength="120" placeholder="例：ghost, pro, coach"></label>' +
-      '<label>對象<select id="admAud"><option value="all">所有人</option><option value="users">指定會員 ID</option><option value="groups">群組</option></select></label>' +
-      '<label id="admMidsRow" hidden>會員 ID（逗號分隔）<input type="text" id="admMids" maxlength="600" placeholder="例：White_R, Coach_A"></label>' +
-      '<div id="admGrpRow" class="mb-cks" hidden>' + gchk('admG') + '</div>' +
-      '<label class="mb-ck"><input type="checkbox" id="admApprove"> 需要我核准才生效</label>' +
-      '<button type="button" class="pf-btn" id="admCreate">建立作弊碼</button></div></details>';
-    h += '<details class="mb-adm" open><summary>待核准（' + A.pending.length + '）</summary>' + (A.pending.length ? A.pending.map(function (r) { return '<div class="mb-fr" data-rid="' + esc(r.id) + '"><span class="mb-sht"><b>' + esc(r.mid) + '</b><small>' + esc(codeLabel(r.code)) + '</small></span><span class="mb-acts"><button type="button" class="primary" data-d="granted">核准</button><button type="button" data-d="rejected">拒絕</button></span></div>'; }).join('') : '<div class="lbl">沒有待核准的申請。</div>') + '</details>';
-    h += '<details class="mb-adm"><summary>作弊碼（' + A.codes.length + '）</summary>' + (A.codes.length ? A.codes.map(function (x) { return '<div class="mb-code" data-h="' + esc(x.id) + '"><div class="mb-sht"><b>' + esc(x.label || '（無備註）') + (x.active ? '' : ' <span class="mb-tag off">停用</span>') + '</b><small>' + esc((x.perks || []).join(', ')) + '・' + esc(audText(x.audience)) + (x.needsApproval ? '・需核准' : '') + '</small></div><span class="mb-acts"><button type="button" data-c="tog">' + (x.active ? '停用' : '啟用') + '</button><button type="button" data-c="del" class="mb-ghost">刪除</button></span></div>'; }).join('') : '<div class="lbl">還沒有作弊碼。</div>') + '</details>';
-    h += '<details class="mb-adm"><summary>已生效（' + A.granted.length + '）</summary>' + (A.granted.length ? A.granted.map(function (r) { return '<div class="mb-fr" data-rid="' + esc(r.id) + '"><span class="mb-sht"><b>' + esc(r.mid) + '</b><small>' + esc(codeLabel(r.code)) + '</small></span><span class="mb-acts"><button type="button" data-d="revoked" class="mb-ghost">收回</button></span></div>'; }).join('') : '<div class="lbl">還沒有人兌換。</div>') + '</details>';
-    h += '<details class="mb-adm"><summary>群組（裁判／教練…）</summary><div class="mb-form"><label>會員 ID<input type="text" id="admRoleMid" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false"></label><div class="mb-cks">' + gchk('admR') + '</div><button type="button" class="pf-btn" id="admRoleSave">儲存群組（全不勾＝移除）</button></div>' +
-      (A.roles.length ? A.roles.map(function (r) { return '<div class="mb-fr"><span class="mb-sht"><b>' + esc(r.mid || r.id) + '</b><small>' + esc((r.groups || []).map(function (g) { return GROUPS[g] || g; }).join('、')) + '</small></span></div>'; }).join('') : '') + '</details>';
+    var h = wrT('member.admin_only_you_can_see_2', [gchk('admG')]);
+    h += wrT('member.pending', [A.pending.length, A.pending.length ? A.pending.map(function (r) { return wrT('member.approve_reject', [esc(r.id), esc(r.mid), esc(codeLabel(r.code))]); }).join('') : wrT('member.no_pending_requests')]);
+    h += wrT('member.cheat_codes', [A.codes.length, A.codes.length ? A.codes.map(function (x) { return wrT('member.delete', [esc(x.id), esc(x.label || wrT('member.no_note')), x.active ? '' : wrT('member.disabled'), esc((x.perks || []).join(', ')), esc(audText(x.audience)), x.needsApproval ? wrT('member.needs_approval') : '', x.active ? wrT('member.disable') : wrT('member.enable')]); }).join('') : wrT('member.no_cheat_codes_yet')]);
+    h += wrT('member.active', [A.granted.length, A.granted.length ? A.granted.map(function (r) { return wrT('member.revoke', [esc(r.id), esc(r.mid), esc(codeLabel(r.code))]); }).join('') : wrT('member.nobody_has_redeemed_one_yet')]);
+    h += wrT('member.groups_judges_coaches_member_id', [gchk('admR'), A.roles.length ? A.roles.map(function (r) { return '<div class="mb-fr"><span class="mb-sht"><b>' + esc(r.mid || r.id) + '</b><small>' + esc((r.groups || []).map(function (g) { return GROUPS[g] || g; }).join(wrT('core.x_3'))) + '</small></span></div>'; }).join('') : '']);
     c.innerHTML = h;
     $('mbAdmReload').onclick = loadAdmin;
     $('admAud').onchange = function () { $('admMidsRow').hidden = this.value !== 'users'; $('admGrpRow').hidden = this.value !== 'groups'; };
     $('admCreate').onclick = adminCreate;
     $('admRoleSave').onclick = adminRole;
-    c.querySelectorAll('[data-rid] [data-d]').forEach(function (b) { b.onclick = function () { var rid = b.closest('[data-rid]').dataset.rid; BE.decide(rid, b.dataset.d).then(function () { toast({ granted: '已核准', rejected: '已拒絕', revoked: '已收回' }[b.dataset.d]); loadAdmin(); }, function (e) { toast('沒有完成：' + errText(e), 3600); }); }; });
+    c.querySelectorAll('[data-rid] [data-d]').forEach(function (b) { b.onclick = function () { var rid = b.closest('[data-rid]').dataset.rid; BE.decide(rid, b.dataset.d).then(function () { toast({ granted: wrT('member.approved'), rejected: wrT('member.rejected'), revoked: wrT('member.withdrawn') }[b.dataset.d]); loadAdmin(); }, function (e) { toast(wrT('member.not_completed', [errText(e)]), 3600); }); }; });
     c.querySelectorAll('.mb-code [data-c]').forEach(function (b) {
       var h2 = b.closest('.mb-code').dataset.h, x = A.codes.filter(function (y) { return y.id === h2; })[0];
       b.onclick = function () {
-        if (b.dataset.c === 'tog') BE.setCodeActive(h2, !x.active).then(function () { toast(x.active ? '已停用' : '已啟用'); loadAdmin(); }, function (e) { toast('沒有完成：' + errText(e), 3600); });
-        else ask('刪除作弊碼「' + (x.label || '') + '」？已兌換的人權限不受影響（要收回請到「已生效」）。', function () { BE.deleteCode(h2).then(function () { toast('已刪除'); loadAdmin(); }, function (e) { toast('沒有完成：' + errText(e), 3600); }); }, null, { yes: '刪除', danger: true });
+        if (b.dataset.c === 'tog') BE.setCodeActive(h2, !x.active).then(function () { toast(x.active ? wrT('member.disabled_2') : wrT('member.enabled')); loadAdmin(); }, function (e) { toast(wrT('member.not_completed', [errText(e)]), 3600); });
+        else ask(wrT('member.delete_cheat_code_people_who', [x.label || '']), function () { BE.deleteCode(h2).then(function () { toast(wrT('member.deleted')); loadAdmin(); }, function (e) { toast(wrT('member.not_completed', [errText(e)]), 3600); }); }, null, { yes: wrT('app.delete'), danger: true });
       };
     });
   }
@@ -713,43 +677,44 @@
   function msgOf(e) { return e && e.message && !e.code ? e.message : errText(e); }
   function adminCreate() {
     var raw = $('admCode').value, perks = parsePerks($('admPerks').value), aud = $('admAud').value, mids = parseMids($('admMids').value), groups = checked('admG');
-    if (normCode(raw).length < 3) { toast('密碼至少 3 個字'); return; }
-    if (!perks.length) { toast('至少填一個功能代號（英文小寫，例如 ghost）'); return; }
-    if (aud === 'users' && !mids.length) { toast('請填會員 ID'); return; }
-    if (aud === 'groups' && !groups.length) { toast('請勾選群組'); return; }
+    if (normCode(raw).length < 3) { toast(wrT('member.the_code_needs_at_least')); return; }
+    if (!perks.length) { toast(wrT('member.enter_at_least_one_perk')); return; }
+    if (aud === 'users' && !mids.length) { toast(wrT('member.please_enter_a_member_id_2')); return; }
+    if (aud === 'groups' && !groups.length) { toast(wrT('member.please_check_a_group')); return; }
     var btn = $('admCreate'); btn.disabled = true;
     Promise.all([codeHash(raw), aud === 'users' ? resolveMids(mids) : Promise.resolve([])]).then(function (r) {
       var h = r[0], miss = r[1].filter(function (x) { return !x.uid; });
-      if (miss.length) throw { message: '找不到會員：' + miss.map(function (x) { return x.mid; }).join('、') };
+      if (miss.length) throw { message: wrT('member.members_not_found', [miss.map(function (x) { return x.mid; }).join(wrT('core.x_3'))]) };
       return BE.getCode(h).then(function (old) {
-        if (old) throw { message: '這組密碼已經存在（' + (old.label || '無備註') + '）' };
+        if (old) throw { message: wrT('member.this_code_already_exists', [old.label || wrT('member.no_note_2')]) };
         return BE.createCode(h, { perks: perks, audience: { type: aud, uids: r[1].map(function (x) { return x.uid; }), mids: r[1].map(function (x) { return x.mid; }), groups: aud === 'groups' ? groups : [] }, needsApproval: $('admApprove').checked, active: true, label: $('admLabel').value.trim().slice(0, 60) });
       });
-    }).then(function () { toast('作弊碼已建立（明碼沒有存起來，請自己記好）', 3600); return loadAdmin(); }, function (e) { btn.disabled = false; toast('沒有建立：' + msgOf(e), 3600); });
+    }).then(function () { toast(wrT('member.cheat_code_created_the_plain'), 3600); return loadAdmin(); }, function (e) { btn.disabled = false; toast(wrT('member.not_created', [msgOf(e)]), 3600); });
   }
   function adminRole() {
     var mid = $('admRoleMid').value.trim(), groups = checked('admR');
-    if (!midCheck(mid).ok) { toast('會員 ID 格式不對'); return; }
+    if (!midCheck(mid).ok) { toast(wrT('member.invalid_member_id_format')); return; }
     BE.nameOwner(mid.toLowerCase()).then(function (u) {
-      if (!u) throw { message: '找不到會員「' + mid + '」' };
+      if (!u) throw { message: wrT('member.member_not_found', [mid]) };
       return BE.setRole(u, groups, mid);
-    }).then(function () { toast(groups.length ? mid + '：' + groups.map(function (g) { return GROUPS[g]; }).join('、') : '已移除 ' + mid + ' 的群組'); return loadAdmin(); }, function (e) { toast('沒有完成：' + msgOf(e), 3600); });
+    }).then(function () { toast(groups.length ? wrT('member.x_3', [mid, groups.map(function (g) { return GROUPS[g]; }).join(wrT('core.x_3'))]) : wrT('member.removed_s_groups', [mid])); return loadAdmin(); }, function (e) { toast(wrT('member.not_completed', [msgOf(e)]), 3600); });
   }
 
   // ---------- 8) 隱私權政策（內容在 privacy.html，App 內用同一份） ----------
-  var PRIV_URL = 'https://whiterhapsody.github.io/WRbeta/privacy.html';
+  var PRIV_URL = 'https://whiterhapsody.github.io/WRbeta/' + (wrT.isEn() ? 'privacy-en.html' : 'privacy.html'); // v2.2.0：英文版
+  var PRIV_FILE = wrT.isEn() ? 'privacy-en.html' : 'privacy.html';
   function openPrivacy() {
     if (D.querySelector('.mb-priv')) return;
-    var bg = D.createElement('div'); bg.className = 'mb-view mb-priv'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-label', '隱私權政策');
-    bg.innerHTML = '<div class="mb-view-top"><button type="button" class="x">‹ 返回</button><a class="mb-ro" href="' + PRIV_URL + '" target="_blank" rel="noopener">在瀏覽器開啟</a></div><div class="mb-view-body prose mb-priv-body" id="mbPrivBody"><p class="lbl">載入中…</p></div>';
+    var bg = D.createElement('div'); bg.className = 'mb-view mb-priv'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-label', wrT('member.privacy_policy'));
+    bg.innerHTML = wrT('member.back_open_in_browser_loading', [PRIV_URL]);
     D.body.appendChild(bg); B.classList.add('mb-view-open');
     bg.querySelector('.x').onclick = function () { closeView(bg); };
     var body = bg.querySelector('#mbPrivBody');
-    function fallback() { body.innerHTML = '<h1>隱私權政策</h1><p>這個版本（單檔版或離線）沒辦法載入完整內容，請用網址版開啟：</p><p><a href="' + PRIV_URL + '" target="_blank" rel="noopener">' + PRIV_URL + '</a></p>'; }
+    function fallback() { body.innerHTML = wrT('member.privacy_policy_this_version_single', [PRIV_URL, PRIV_URL]); }
     if (!/^https?:$/.test(location.protocol)) { fallback(); return; }
-    fetch('privacy.html', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (t) {
+    fetch(PRIV_FILE, { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (t) {
       var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1];
-    }).catch(function () { caches && caches.match ? caches.match('privacy.html', { ignoreSearch: true }).then(function (r) { if (!r) throw 0; return r.text(); }).then(function (t) { var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1]; }).catch(fallback) : fallback(); });
+    }).catch(function () { caches && caches.match ? caches.match(PRIV_FILE, { ignoreSearch: true }).then(function (r) { if (!r) throw 0; return r.text(); }).then(function (t) { var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1]; }).catch(fallback) : fallback(); });
   }
 
   // ---------- 刪除帳號時：清掉會員相關資料（cloud.js 的 deleteAccount 呼叫） ----------

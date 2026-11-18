@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v2.0.1">
-<link rel="icon" href="icon.svg?v=v2.0.1">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.0.1">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.0.1"><link rel="stylesheet" href="themes.css?v=v2.0.1"><!--/STYLE-->
+<link rel="manifest" href="manifest.webmanifest?v=v2.2.0">
+<link rel="icon" href="icon.svg?v=v2.2.0">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.2.0">
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.2.0"><link rel="stylesheet" href="themes.css?v=v2.2.0"><!--/STYLE-->
 </head>
 <body>
 <header>
@@ -22,7 +22,7 @@
 <noscript><div class="notice">⚠️ 瀏覽器停用了 JavaScript，請用 Chrome 開啟。</div></noscript>
 <div id="storageNotice" class="notice soft" style="display:none">此畫面無法存檔（儲存空間被封鎖），可以操作，但關閉後資料會消失。請用 Chrome 開啟以保存紀錄。</div>
 <div id="errNotice" class="notice" style="display:none"></div>
-<script>window.addEventListener('error',function(e){try{var n=document.getElementById('errNotice');n.style.display='';n.textContent='程式錯誤：'+(e.message||e)+'（請截圖回報）';}catch(_){}});</script>
+<script>window.addEventListener('error',function(e){try{var n=document.getElementById('errNotice');n.style.display='';n.textContent=(window.wrT&&wrT.isEn()?'Program error: ':'程式錯誤：')+(e.message||e)+(window.wrT&&wrT.isEn()?' (please take a screenshot and report it)':'（請截圖回報）');}catch(_){}});</script>
 <!-- v1.8.0：順序＝預報·對照／鬼影／分析（中間、稍大、打開 App 預設）／紀錄／設定/說明（齒輪） -->
 <!-- v1.5.0 功能切換（Pro）：A 底部圖示列（預設，閒置自動淡出、輕滑淡入）／B 浮動按鈕／C 左右滑動；在「設定/說明 › 設定」切換 -->
 <nav id="wrNav" class="tabs wr-nav pro-only" aria-label="功能">
@@ -335,6 +335,11 @@
   <div class="lay-col" data-lay="about" data-lay-page="about" data-lay-cols="1">
   <div class="card set-card" id="uiSetCard" data-mod="ui" data-mod-name="介面設定">
     <div class="set-h">介面設定</div>
+    <div class="set-row set-lang" id="langRow"><div class="set-k"><b>語言 / Language</b><small id="langHint"></small></div>
+      <div class="set-seg set-seg2" id="langSeg" role="radiogroup" aria-label="語言 / Language">
+        <button type="button" role="radio" data-lang="zh-TW" aria-checked="false" lang="zh-Hant-TW"><b>繁體中文</b></button>
+        <button type="button" role="radio" data-lang="en" aria-checked="false" lang="en"><b>English</b></button>
+      </div></div>
     <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／鬼影／分析／紀錄／設定/說明」的方式</small></div>
       <div class="set-seg" id="navStyleSeg" role="radiogroup" aria-label="功能切換方式">
         <button type="button" role="radio" data-nav="a" aria-checked="true"><i class="ns-ill ns-a" aria-hidden="true"><s></s><s></s><s></s><s></s><s></s></i><b>A 底部圖示列</b><small>預設・閒置自動隱藏</small></button>
@@ -419,19 +424,20 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v2.0.1"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v2.0.1"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v2.0.1"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v2.0.1"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v2.0.1"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v2.0.1"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v2.0.1"></script><!--/MEMBER-->
-<!--GHOST--><script src="ghost.js?v=v2.0.1"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v2.0.1"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v2.0.1"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v2.0.1"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v2.0.1"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v2.0.1"></script><!--/DOCK-->
-<!--APP--><script src="app.js?v=v2.0.1"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v2.2.0"></script><script src="i18n/en.js?v=v2.2.0"></script><script src="i18n/i18n.js?v=v2.2.0"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v2.2.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v2.2.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v2.2.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v2.2.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v2.2.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v2.2.0"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v2.2.0"></script><!--/MEMBER-->
+<!--GHOST--><script src="ghost.js?v=v2.2.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v2.2.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v2.2.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v2.2.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v2.2.0"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v2.2.0"></script><!--/DOCK-->
+<!--APP--><script src="app.js?v=v2.2.0"></script><!--/APP-->
 </body>
 </html>

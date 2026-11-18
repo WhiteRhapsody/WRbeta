@@ -4,6 +4,7 @@
  *   彈徑 4.5mm：7.4.6 / 8.4.3.5；小數計分：6.3.3.1
  * 座標：單位 mm，原點為靶心，x 向右為正，y 向上為正。
  */
+if (typeof wrT === 'undefined' && typeof require === 'function') { try { require('./i18n/i18n.js'); } catch (e) {} } // v2.2.0：在 Node（測試）也有 wrT（預設繁體中文）
 (function (root) {
   'use strict';
   var EPS = 1e-9;
@@ -11,12 +12,12 @@
   // 各環「外徑」（mm），索引 = 環數
   var TARGETS = {
     ap10: {
-      id: 'ap10', name: '10米空氣手槍', short: '空手',
+      id: 'ap10', name: wrT('core.10m_air_pistol'), short: wrT('core.ap'),
       rule: 'ISSF 6.3.4.6',
       ringDiam: { 10: 11.5, 9: 27.5, 8: 43.5, 7: 59.5, 6: 75.5, 5: 91.5, 4: 107.5, 3: 123.5, 2: 139.5, 1: 155.5 },
       blackDiam: 59.5,          // 7–10 環為黑色
       blackFromRing: 7,
-      innerTen: { mode: 'ring', diam: 5.0, label: '內十' }, // 內十圈 5.0mm，彈孔觸及即算
+      innerTen: { mode: 'ring', diam: 5.0, label: wrT('core.inner_10') }, // 內十圈 5.0mm，彈孔觸及即算
       printedNumbers: [1, 2, 3, 4, 5, 6, 7, 8],             // 9、10 環不標數字
       tenIsDot: false,
       cardSize: 170,            // 最小可見靶紙 170×170mm
@@ -24,12 +25,12 @@
       ringLine: 0.15            // 規定 0.1–0.2mm
     },
     ar10: {
-      id: 'ar10', name: '10米空氣步槍', short: '空步',
+      id: 'ar10', name: wrT('core.10m_air_rifle'), short: wrT('core.ar'),
       rule: 'ISSF 6.3.4.3',
       ringDiam: { 10: 0.5, 9: 5.5, 8: 10.5, 7: 15.5, 6: 20.5, 5: 25.5, 4: 30.5, 3: 35.5, 2: 40.5, 1: 45.5 },
       blackDiam: 30.5,          // 4–9 環為黑色
       blackFromRing: 4,
-      innerTen: { mode: 'dotShotOut', diam: 0.5, label: '內十' }, // 10 環白點被完全打掉
+      innerTen: { mode: 'dotShotOut', diam: 0.5, label: wrT('core.inner_10') }, // 10 環白點被完全打掉
       printedNumbers: [1, 2, 3, 4, 5, 6, 7, 8],             // 9 環不標，10 為白點
       tenIsDot: true,
       cardSize: 80,             // 最小可見靶紙 80×80mm
@@ -275,11 +276,11 @@
     var dist = Math.hypot(cx, cy);
     var off = directionText(cx, cy, th), fix = directionText(-cx, -cy, th);
     var parts = [];
-    if (Math.abs(cx) > th) parts.push((cx < 0 ? '右 ' : '左 ') + round(Math.abs(cx), 1).toFixed(1) + 'mm');
-    if (Math.abs(cy) > th) parts.push((cy < 0 ? '上 ' : '下 ') + round(Math.abs(cy), 1).toFixed(1) + 'mm');
+    if (Math.abs(cx) > th) parts.push((cx < 0 ? wrT('core.right_2') : wrT('core.left_2')) + round(Math.abs(cx), 1).toFixed(1) + 'mm');
+    if (Math.abs(cy) > th) parts.push((cy < 0 ? wrT('core.up') : wrT('core.down')) + round(Math.abs(cy), 1).toFixed(1) + 'mm');
     var centered = off === '置中';
     return { dx: cx, dy: cy, dist: dist, offsetDir: off, fixDir: centered ? '' : fix.replace('偏', ''), parts: parts, centered: centered, threshold: th,
-      text: centered ? '群中心已在靶心附近（' + round(dist, 1).toFixed(1) + 'mm），不需調整' : '群中心' + off + ' ' + round(dist, 1).toFixed(1) + 'mm → 彈著需往' + fix.replace('偏', '') + '修正（' + parts.join('、') + '）' };
+      text: centered ? wrT('core.group_center_is_already_near', [round(dist, 1).toFixed(1)]) : wrT('core.group_center_mm_move_shots', [wrT.dir(off), round(dist, 1).toFixed(1), wrT.dir(fix).replace('偏', ''), parts.join(wrT('core.x_3'))]) };
   }
   /* 趨勢：最小平方斜率；整段變化量 = 斜率 ×（點數−1），|變化| < eps 視為持平 */
   function trend(vals, eps) {

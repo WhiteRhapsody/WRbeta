@@ -3,6 +3,7 @@
  * 2) 把照片重新取樣成「以 mm 為單位」的正面靶圖 → 依黑區／白區背景找出亮（黑區內）或暗（白區）的異常
  *    → 形態學去掉環線與數字 → 連通區塊 → 依面積估計重疊發數並以 k-means 分開
  */
+if (typeof wrT === 'undefined' && typeof require === 'function') { try { require('./i18n/i18n.js'); } catch (e) {} } // v2.2.0：在 Node（測試）也有 wrT（預設繁體中文）
 (function (root) {
   'use strict';
 
@@ -166,7 +167,7 @@
 
   function calibrate(g, w, h, target) {
     var blob = findBlackBlob(g, w, h);
-    if (!blob) return { ok: false, reason: '找不到黑色瞄準區' };
+    if (!blob) return { ok: false, reason: wrT('vision.black_aiming_mark_not_found') };
     var R0 = blob.R, cx = blob.cx, cy = blob.cy;
     // 黑／白參考亮度
     var ins = [], outs = [];
@@ -174,7 +175,7 @@
       for (var r = 0.45; r <= 0.85; r += 0.1) { var v = bilinear(g, w, h, cx + co * R0 * r, cy + si * R0 * r); if (v >= 0) ins.push(v); }
       for (r = 1.12; r <= 1.35; r += 0.06) { v = bilinear(g, w, h, cx + co * R0 * r, cy + si * R0 * r); if (v >= 0) outs.push(v); } }
     var black = median(ins), paper = median(outs), thr = (black + paper) / 2;
-    if (!(paper - black > 15)) return { ok: false, reason: '黑白對比太低' };
+    if (!(paper - black > 15)) return { ok: false, reason: wrT('vision.contrast_too_low') };
     var pts = [], NR = 240, step = 0.5;
     for (k = 0; k < NR; k++) {
       var ang = 2 * Math.PI * k / NR, c2 = Math.cos(ang), s2 = Math.sin(ang), prof = [];
@@ -195,17 +196,17 @@
       var t = (thr - prof[found]) / (prof[found + 1] - prof[found]), rEdge = r0 + (found + t) * step;
       pts.push([cx + c2 * rEdge, cy + s2 * rEdge]);
     }
-    if (pts.length < 40) return { ok: false, reason: '黑區邊緣點太少' };
+    if (pts.length < 40) return { ok: false, reason: wrT('vision.too_few_points_on_the') };
     var E = null, used = pts;
     for (var it = 0; it < 4; it++) {
-      E = fitConic(used, cx, cy); if (!E) return { ok: false, reason: '橢圓擬合失敗' };
+      E = fitConic(used, cx, cy); if (!E) return { ok: false, reason: wrT('vision.ellipse_fit_failed') };
       var res = pts.map(function (p) { return Math.abs(ellipseRho(E, p[0], p[1]) - 1); });
       var md = median(res), lim = Math.max(3 * md, 0.004);
       used = pts.filter(function (p, q) { return res[q] <= lim; });
       if (used.length < 30) break;
     }
     var Rmm = target.blackDiam / 2;
-    var T = affineFromEllipse(E, Rmm); if (!T) return { ok: false, reason: '仿射換算失敗' };
+    var T = affineFromEllipse(E, Rmm); if (!T) return { ok: false, reason: wrT('vision.affine_transform_failed') };
     // 照片旋轉角無法只從圓形判斷：假設照片「上」= 靶紙「上」，使用者可用旋轉微調修正
     var rot = { ok: false };
     var ss = 0; used.forEach(function (p) { var e = (ellipseRho(E, p[0], p[1]) - 1) * Rmm; ss += e * e; });
@@ -543,9 +544,9 @@
     for (q = 0; q < n * n; q += 3) { if (!valid[q]) continue;
       if (rr[q] < Rb - 1) { bx.push(X[q]); by.push(Y[q]); bv.push(G[q]); }
       else if (rr[q] > Rb + 1 && rr[q] < R1 - 0.5) { wx.push(X[q]); wy.push(Y[q]); wv.push(G[q]); } }
-    if (bv.length < 50 || wv.length < 50) return { ok: false, reason: '靶面範圍不足', holes: [] };
+    if (bv.length < 50 || wv.length < 50) return { ok: false, reason: wrT('vision.target_area_incomplete'), holes: [] };
     var PB = robustPlane(bx, by, bv), PW = robustPlane(wx, wy, wv), C = PW[0] - PB[0];
-    if (C < 15) return { ok: false, reason: '黑白對比太低', holes: [] };
+    if (C < 15) return { ok: false, reason: wrT('vision.contrast_too_low'), holes: [] };
     // 在換算後的 mm 座標中重新量黑區邊緣（靶心以環線修正後，黑區圓心可能偏一點點）
     var EB = fitBlackEdgeMm(G, valid, n, s, Rmax, Rb, (PB[0] + PW[0]) / 2);
     var rb = new Float32Array(n * n); for (q = 0; q < n * n; q++) rb[q] = Math.hypot(X[q] - EB.ox, Y[q] - EB.oy) - (EB.R - Rb);

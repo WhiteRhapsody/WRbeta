@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2ecdd">
+<title>WRbeta Privacy Policy</title>
+<link rel="icon" href="icon.svg?v=v2.2.0">
+<style>
+:root{color-scheme:light}
+body{margin:0;background:#f2ecdd;color:#1d1d1b;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:720px;margin:0 auto;padding:24px 18px 48px}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:19px;margin:28px 0 8px;padding-top:4px;border-top:1px solid #dfd6c2}
+p,li{font-size:15.5px}
+.meta{color:#6b6458;font-size:14px;margin:0 0 16px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:8px 0}
+th,td{border:1px solid #dfd6c2;padding:7px 8px;text-align:left;vertical-align:top}
+th{background:#faf6ec}
+.todo{background:#fff1c2;border:1px dashed #c99a00;padding:0 5px;border-radius:4px}
+a{color:#c24d0c}
+.lang{float:right;font-size:14px;margin-top:6px}
+</style>
+</head>
+<body>
+<main>
+<a class="lang" href="privacy.html" hreflang="zh-Hant-TW" lang="zh-Hant-TW">繁體中文</a>
+<h1>WRbeta Privacy Policy</h1>
+<p class="meta">Effective date: November 19, 2026 (beta v2.0)</p>
+<p>WRbeta is a web app (beta) for ISSF 10m Air Pistol / Air Rifle shooters, maintained by an individual developer. This page explains what data the app stores, where it is stored, who can see it, and how to delete it.</p>
+<p class="meta">This is an English translation. If it differs from the <a href="privacy.html">Traditional Chinese version</a>, the Chinese version applies.</p>
+
+<h2>1. You can use it without signing in</h2>
+<p>When you are not signed in, your records (calls, analyses, ghost training), settings and theme are stored only in <b>this device's browser</b> (localStorage) and are not uploaded to any server.</p>
+
+<h2>2. Data stored after you sign in</h2>
+<p>You can choose to sign in with a Google account; sign-in is handled by Google's Firebase Authentication. After you sign in, the following data is stored in Google Firebase's Cloud Firestore database (region: <b>asia-east1, Taiwan</b>):</p>
+<table>
+<tr><th>Data</th><th>Content</th><th>Who can see it</th></tr>
+<tr><td>Account data</td><td>Name, email address and sign-in method provided by your Google account</td><td>Only you</td></tr>
+<tr><td>Records</td><td>Your calls, analyses and ghost records (shot hole coordinates, scores, names, times, etc.); <b>no photos are stored</b></td><td>Only you</td></tr>
+<tr><td>Member ID</td><td>The member ID you choose</td><td>Other signed-in members (used to add friends; it will also be shown in the forum and comments later)</td></tr>
+<tr><td>Avatar (optional)</td><td>The photo you upload; it is first cropped to a square and reduced to about 256×256 on your phone before uploading. If you choose “No avatar”, nothing is uploaded</td><td>Other signed-in members</td></tr>
+<tr><td>Friends</td><td>Friend invitations and friendships (both accounts' IDs, status, time)</td><td>You and the other person</td></tr>
+<tr><td>Shared records</td><td>The record you choose to share (record code), who it is shared with, and your member ID</td><td>You and the friends you choose (read-only); you can withdraw it at any time</td></tr>
+<tr><td>Cheat code redemptions, groups</td><td>The redemption record after you enter a correct cheat code (member ID, status); groups set by the admin (e.g. judge, coach)</td><td>You and the admin</td></tr>
+</table>
+<p>Your Google account profile picture is only displayed on your device and is not stored in WRbeta's database. The “Optional info” on the account page (shooter name, usual gun, pellets) is stored only on this device and is not uploaded.</p>
+
+<h2>3. What we don't do</h2>
+<ul>
+<li>No ads.</li>
+<li>No Google Analytics or other analytics or tracking tools.</li>
+<li>We don't sell your data or give it to third parties for marketing.</li>
+</ul>
+
+<h2>4. Services used</h2>
+<ul>
+<li><b>GitHub Pages</b>: serves the website files.</li>
+<li><b>Google Firebase</b> (Authentication, Cloud Firestore): sign-in and cloud data.</li>
+</ul>
+<p>When providing their connections, these services may process technical data (such as IP addresses) under their own privacy policies. Access to the data is controlled by Firestore security rules: everyone can only read and write their own data, except in the cases listed in the table above.</p>
+
+<h2>5. How to delete your data</h2>
+<ul>
+<li><b>Delete account and cloud data</b>: in the app, go to “Settings › Account”, tap “Delete account and cloud data” at the bottom, and confirm twice. This deletes your cloud records, account data, member ID, avatar, friendships, the records you shared, your name on recipient lists of others' shares, your pending or active cheat code redemptions, and your Firebase sign-in account.</li>
+<li>Exception: cheat code redemptions that the admin <b>rejected or revoked</b> (including the member ID at that time) are kept for the admin to prevent repeated requests; the admin can delete them.</li>
+<li><b>Records others shared with you</b> belong to the person who shared them, who decides whether to withdraw them; when you remove a friend, the app also withdraws the shares between the two of you.</li>
+<li><b>Delete only your avatar</b>: turn off the avatar under “Account › Member profile”, and the avatar in the cloud is deleted.</li>
+<li><b>Data on this device</b>: delete it on the “Records” page, or clear the browser's site data.</li>
+</ul>
+
+<h2>6. Changes to this policy</h2>
+<p>When this policy is updated, the effective date at the top of this page will be changed.</p>
+
+<h2>7. Contact us</h2>
+<p>For any questions about privacy or your data, please email: <span class="todo">[contact email TBD]</span></p>
+</main>
+</body>
+</html>

@@ -47,12 +47,12 @@
     var ctl = m.querySelector(':scope > .lay-ctl');
     if (!ctl) {
       ctl = document.createElement('div'); ctl.className = 'lay-ctl'; ctl.setAttribute('data-lay-ui', '1');
-      ctl.innerHTML = '<button type="button" class="lay-hide" aria-label="隱藏「' + esc(modName(m)) + '」">−</button>' + (oneCol(box) ? '' : '<button type="button" class="lay-size"></button>');
+      ctl.innerHTML = wrT('layout.hide_btn', [esc(modName(m)), oneCol(box) ? '' : '<button type="button" class="lay-size"></button>']);
       m.appendChild(ctl);
       ctl.querySelector('.lay-hide').onclick = function (e) { e.stopPropagation(); setHidden(box, m.dataset.mod, true); };
       var sb = ctl.querySelector('.lay-size'); if (sb) sb.onclick = function (e) { e.stopPropagation(); toggleSize(box, m); };
     }
-    var sb2 = ctl.querySelector('.lay-size'); if (sb2) { sb2.textContent = full ? '全寬' : '半寬'; sb2.setAttribute('aria-label', '「' + modName(m) + '」目前' + (full ? '全寬，按一下改半寬' : '半寬，按一下改全寬')); }
+    var sb2 = ctl.querySelector('.lay-size'); if (sb2) { sb2.textContent = full ? wrT('layout.full_width') : wrT('layout.half_width'); sb2.setAttribute('aria-label', wrT('layout.is', [modName(m), full ? wrT('layout.full_width_tap_for_half') : wrT('layout.half_width_tap_for_full')])); }
     m.classList.add('lay-item');
   }
   function undecorate(m) { var c = m.querySelector(':scope > .lay-ctl'); if (c) c.remove(); m.classList.remove('lay-item', 'lay-ph'); }
@@ -66,7 +66,7 @@
     var c = conf(box.dataset.lay); commitOrder(box, curOrder(box));
     if (on) c.hidden[id] = 1; else delete c.hidden[id];
     save(); flip(box, function () { apply(box); });
-    opts.toast(on ? '已隱藏方塊（下方「＋ 加入方塊」可加回）' : '已加回方塊');
+    opts.toast(on ? wrT('layout.card_hidden_add_it_back') : wrT('layout.card_added_back'));
   }
   function toggleSize(box, m) {
     var c = conf(box.dataset.lay), full = m.classList.contains('lay-w-full');
@@ -79,11 +79,11 @@
     editing = page; B.classList.add('lay-editing');
     boxes.forEach(function (b) { b.classList.add('lay-edit'); watch(b); apply(b); });
     if (!bar) {
-      bar = document.createElement('div'); bar.className = 'lay-bar'; bar.setAttribute('role', 'dialog'); bar.setAttribute('aria-label', '編輯版面');
-      bar.innerHTML = '<div class="lay-bar-h"><b>編輯版面</b><small>拖曳排列・− 隱藏・半寬／全寬</small><button type="button" class="lay-reset">恢復預設</button><button type="button" class="lay-done primary">完成</button></div><div class="lay-tray" aria-label="加入方塊"></div>';
+      bar = document.createElement('div'); bar.className = 'lay-bar'; bar.setAttribute('role', 'dialog'); bar.setAttribute('aria-label', wrT('layout.edit_layout'));
+      bar.innerHTML = wrT('layout.edit_layout_drag_to_reorder');
       document.body.appendChild(bar);
       bar.querySelector('.lay-done').onclick = function () { exit(); };
-      bar.querySelector('.lay-reset').onclick = function () { opts.ask('把這一頁的方塊恢復成預設的順序、寬度，並顯示全部方塊？', function () { reset(editing); }); };
+      bar.querySelector('.lay-reset').onclick = function () { opts.ask(wrT('layout.reset_this_pages_cards_to'), function () { reset(editing); }); };
     }
     bar.hidden = false; renderTray();
     try { bar.querySelector('.lay-done').focus({ preventScroll: true }); } catch (e) {}
@@ -93,9 +93,9 @@
     var tray = bar.querySelector('.lay-tray'), h = '';
     containers(editing).forEach(function (box) {
       var c = data[box.dataset.lay]; if (!c) return;
-      items(box).forEach(function (m) { if (c.hidden[m.dataset.mod]) h += '<button type="button" class="lay-add" data-box="' + esc(box.dataset.lay) + '" data-id="' + esc(m.dataset.mod) + '">＋ ' + esc(modName(m)) + '</button>'; });
+      items(box).forEach(function (m) { if (c.hidden[m.dataset.mod]) h += wrT('layout.add_btn', [esc(box.dataset.lay), esc(m.dataset.mod), esc(modName(m))]); });
     });
-    tray.innerHTML = '<span class="lay-tray-h">＋ 加入方塊</span>' + (h || '<span class="lay-tray-empty">沒有隱藏的方塊</span>');
+    tray.innerHTML = wrT('layout.add_card', [h || wrT('layout.no_hidden_cards')]);
     tray.querySelectorAll('.lay-add').forEach(function (b) { b.onclick = function () { var box = document.querySelector('[data-lay="' + b.dataset.box + '"]'); if (box) setHidden(box, b.dataset.id, false); }; });
   }
   function exit() {
@@ -108,7 +108,7 @@
   function reset(page) {
     containers(page).forEach(function (b) { delete data[b.dataset.lay]; });
     save(); containers(page).forEach(function (b) { flip(b, function () { apply(b); }); });
-    renderTray(); opts.toast('已恢復預設版面');
+    renderTray(); opts.toast(wrT('layout.layout_reset_to_default'));
   }
   // ---------- FLIP 動畫（排列改變時其他方塊滑過去） ----------
   function flip(box, change) {
@@ -129,7 +129,7 @@
     g.classList.add('lay-ghost'); g.classList.remove('lay-item'); g.removeAttribute('data-mod'); g.removeAttribute('id'); g.querySelectorAll('[id]').forEach(function (x) { x.removeAttribute('id'); });
     g.style.cssText = 'position:fixed;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;margin:0;order:0;z-index:90;pointer-events:none';
     document.body.appendChild(g);
-    m.classList.add('lay-ph'); m.setAttribute('data-ph', '↓ 放到這裡');
+    m.classList.add('lay-ph'); m.setAttribute('data-ph', wrT('layout.drop_here'));
     drag = { box: box, m: m, g: g, dx: ev.clientX - r.left, dy: ev.clientY - r.top, x: ev.clientX, y: ev.clientY, raf: 0 };
     B.classList.add('lay-dragging');
     if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
@@ -189,7 +189,7 @@
       var p = press; press = null; suppress();
       enter(p.box.dataset.layPage);
       if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
-      opts.toast('編輯版面：拖曳方塊排列，按「完成」結束');
+      opts.toast(wrT('layout.edit_layout_drag_cards_to'));
     }, LONG_MS);
   }, true);
   document.addEventListener('pointermove', function (ev) {

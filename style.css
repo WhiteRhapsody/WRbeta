@@ -914,6 +914,8 @@ body:not(.lite).nav-b .wr-nav button span{padding:5px 11px;border-radius:9px;bac
 body:not(.lite).nav-b .wr-nav button.active .nv-ic{background:var(--nv-on-bg);color:var(--nv-on-fg);border-color:rgba(255,214,180,.9);box-shadow:0 0 16px var(--nv-glow)}
 body:not(.lite).nav-b .wr-nav button.active span{border-color:var(--nv-acc)}
 body:not(.lite).nav-b .wr-nav button.active span::after{content:" 目前";font-size:10px;color:var(--nv-acc)}
+html.wr-lang-en body:not(.lite).nav-b .wr-nav button.active span::after{content:" ·now"}
+.set-seg.set-seg2{grid-template-columns:repeat(2,1fr)}
 
 /* ---------- C 左右滑動 ---------- */
 body:not(.lite).nav-c .wr-navc{display:flex;align-items:center;gap:6px;position:sticky;top:var(--hdr-h,50px);z-index:4;height:36px;padding:0 calc(10px + env(safe-area-inset-right)) 0 calc(10px + env(safe-area-inset-left));
@@ -998,3 +1000,5 @@ body.lt-glass :is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#navStyleSeg button):is
 @media (min-width:820px){body:not(.lite).nav-b .wr-fab-wrap{right:calc(24px + env(safe-area-inset-right));bottom:calc(24px + env(safe-area-inset-bottom))}}
 /* C 左右滑動：關掉瀏覽器「左右滑＝上一頁／下一頁」（overscroll 手勢），App 自己處理左右滑；頁面本來就不會橫向捲動 */
 html,body{overscroll-behavior-x:none}
+
+.mb-priv-body .lang{display:none}

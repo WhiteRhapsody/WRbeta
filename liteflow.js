@@ -2,6 +2,7 @@
  * 一組（session）可以有很多「輪」：每輪＝預報 N 發 → 拍一張照 → 看結果 → 繼續下一輪。
  * 每一發預報／彈孔用欄位 r 記錄屬於第幾輪（0 起算；舊資料沒有 r 視為第 0 輪），
  * session.round＝目前正在進行的輪次。配對只在同一輪內做（每輪是一張靶紙／一個電子靶畫面）。 */
+if (typeof wrT === 'undefined' && typeof require === 'function') { try { require('./i18n/i18n.js'); } catch (e) {} } // v2.2.0：在 Node（測試）也有 wrT（預設繁體中文）
 (function (root) {
   'use strict';
   var C = root.BMCore || (typeof require !== 'undefined' ? require('./core.js') : null);
@@ -62,7 +63,7 @@
     if (!cmp || !cmp.m) return null;
     var w = C.ringWidth(t), u = cmp.meanErr / w;
     var lv = u <= 0.5 ? 3 : u <= 1 ? 2 : u <= 2 ? 1 : 0;
-    return { rings: u, level: lv, label: ['再練習', '普通', '不錯', '很準'][lv] };
+    return { rings: u, level: lv, label: [wrT('liteflow.keep_practicing'), wrT('liteflow.fair'), wrT('liteflow.good'), wrT('liteflow.very_accurate')][lv] };
   }
 
   /* 拍照偵測結果寫入第 k 輪：只換掉這一輪的彈孔，其他輪不動 */
