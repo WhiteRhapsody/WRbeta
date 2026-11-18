@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.7.0';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.7.1';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
@@ -745,20 +745,9 @@
     P.busy = true; renderLite();
     setTimeout(function () {
       try {
-        if (!P.g) {
-          var maxS = 2000, k = Math.min(1, maxS / Math.max(P.w, P.h)), cw = Math.round(P.w * k), ch = Math.round(P.h * k);
-          var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
-          var ctx = cv.getContext('2d'); ctx.drawImage(P.img, 0, 0, cw, ch);
-          var idata = ctx.getImageData(0, 0, cw, ch).data; P.g = V.grayFromRGBA(idata, cw, ch); P.chroma = V.chromaFromRGBA(idata, cw, ch); P.gw = cw; P.gh = ch; P.k = cw / P.w;
-        }
-        var t = tgt();
-        if (P.mode === 'auto') {
-          var res = V.calibrate(P.g, P.gw, P.gh, t); P.info = res; P.rotDeg = 0;
-          if (res.ok) { P.T = C.scaleT(res.T, P.k); P.T.rms = res.rmsMm; } else P.T = null;
-        }
+        var r = visRun(P, cur.targetId, +$('liteSens').value, false), det = r.det; // v1.7.1：共用流程
+        if (r.mismatch) toast('⚠️ 這張看起來是「' + T[r.mismatch].name + '」靶紙，但目前選的是「' + tgt().name + '」，彈孔的位置和分數會算錯');
         if (P.T) {
-          P.Tinv = C.invertAffine(P.T);
-          var det = V.detectHoles(P.g, P.gw, P.gh, C.scaleT(P.T, 1 / P.k), t, +$('liteSens').value, P.chroma);
           LF.setRoundActuals(cur, P.rk, (det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; }));
           cur.calib = { mode: P.mode, rms: C.round(P.T.rms || 0, 3), at: Date.now() };
           cur.rounds = cur.rounds || []; cur.rounds[P.rk] = { at: new Date().toISOString(), photo: { w: P.w, h: P.h, name: P.name }, calib: { mode: P.mode, rms: C.round(P.T.rms || 0, 3) } };
@@ -1087,6 +1076,82 @@
 
   // 選照片：「從檔案選」可以選到任何檔案，先確認是圖片；HEIC（三星「高效率相片」）Chrome 多半無法解碼，給清楚的說明
   function pickIsHeic(f) { return /heic|heif/i.test(f.type || '') || /\.(heic|heif)$/i.test(f.name || ''); }
+  // ---------- v1.7.1 照片判讀共用流程（Pro 分析／對照／Lite 都用這裡） ----------
+  // 1) 全圖縮到 2000px 校正；2) 靶紙在照片裡偏小（手機原圖、站遠拍）→ 以黑區為中心從「原圖」裁切放大再校正一次；
+  //    全圖找不到黑區時，放寬面積門檻找候選黑區、逐一裁切重試；3) 校正好後用另一種靶種也試一次，
+  //    明顯比較吻合（環線內點多很多、黑區內白環也對得上）＝照片的靶種和目前選的不一樣（例：選步槍卻拍手槍靶紙→幾乎找不到彈孔）。
+  // P.g／P.chroma／P.gw／P.gh＝目前用的灰階；P.k＝縮放、P.ox／P.oy＝裁切原點（原圖像素）。P.T 一律是「原圖像素 → mm」。
+  var VIS_MAX = 2000;
+  function visRender(img, sx, sy, sw, sh) {
+    var V = window.BMVision, k = Math.min(1, VIS_MAX / Math.max(sw, sh)), cw = Math.max(1, Math.round(sw * k)), ch = Math.max(1, Math.round(sh * k));
+    var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+    var ctx = cv.getContext('2d', { willReadFrequently: true }); ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+    var d = ctx.getImageData(0, 0, cw, ch).data; cv.width = cv.height = 1; // 早點放掉畫布記憶體（手機）
+    var g = V.grayFromRGBA(d, cw, ch), mn = 255, mx = 0;
+    for (var i = 0; i < g.length; i += 97) { if (g[i] < mn) mn = g[i]; if (g[i] > mx) mx = g[i]; }
+    if (mx - mn < 4) throw new Error('照片讀不出內容（可能太大，請改用一般解析度拍照）');
+    return { g: g, chroma: V.chromaFromRGBA(d, cw, ch), w: cw, h: ch, k: cw / sw, ox: sx, oy: sy };
+  }
+  function visUse(P, Z) { P.g = Z.g; P.chroma = Z.chroma; P.gw = Z.w; P.gh = Z.h; P.k = Z.k; P.ox = Z.ox; P.oy = Z.oy; P.zoomed = Z.ox !== 0 || Z.oy !== 0 || Z.w !== Math.round(P.w * Z.k); }
+  function visFull(P) { if (!P.full) P.full = visRender(P.img, 0, 0, P.w, P.h); return P.full; }
+  function visToImg(T, Z) { return C.mapT(T, Z.k, -Z.k * Z.ox, -Z.k * Z.oy); } // 灰階座標的 T → 原圖座標的 T
+  function visToG(P) { return C.mapT(P.T, 1 / P.k, P.ox || 0, P.oy || 0); }      // 原圖座標的 T → 目前灰階座標
+  function visInl(r) { return r && r.ok ? (r.proj && r.proj.inliers || 0) : 0; }
+  function visRings(r) { return r && r.ok && r.rings ? r.rings.length : 0; }
+  function visZoom(P, F, cx, cy, R) { // 以全圖灰階上的黑區（中心、半徑）從原圖裁切；回傳 null＝不值得放大
+    var half = R / F.k * 3.4, sx = Math.max(0, Math.round(cx / F.k - half)), sy = Math.max(0, Math.round(cy / F.k - half));
+    var ex = Math.min(P.w, Math.round(cx / F.k + half)), ey = Math.min(P.h, Math.round(cy / F.k + half)), sw = ex - sx, sh = ey - sy;
+    if (sw < 50 || sh < 50) return null;
+    if (Math.min(1, VIS_MAX / Math.max(sw, sh)) < F.k * 1.25) return null; // 解析度提升不到 25%：不用放大
+    return visRender(P.img, sx, sy, sw, sh);
+  }
+  function visCalibOne(P, t) { // 回傳 { res, Z }（Z＝校正成功時用的灰階；失敗時是全圖）
+    var V = window.BMVision, F = visFull(P), res = V.calibrate(F.g, F.w, F.h, t), best = { res: res, Z: F };
+    if (res.ok) {
+      var Ti = C.invertAffine(res.T), c0 = C.applyAffine(Ti, 0, 0), R = res.pxPerMm * t.blackDiam / 2;
+      var Z = visZoom(P, F, c0.x, c0.y, R);
+      if (Z) { var r2 = V.calibrate(Z.g, Z.w, Z.h, t); if (r2.ok && visInl(r2) >= 0.8 * visInl(res)) best = { res: r2, Z: Z }; }
+      return best;
+    }
+    var cands = V.findBlackBlobs(F.g, F.w, F.h, 0.0006).slice(0, 3);
+    for (var i = 0; i < cands.length; i++) {
+      var Zc = visZoom(P, F, cands[i].cx, cands[i].cy, cands[i].R) || null; if (!Zc) continue;
+      var rc = V.calibrate(Zc.g, Zc.w, Zc.h, t);
+      if (rc.ok && rc.proj && rc.proj.used) return { res: rc, Z: Zc };
+    }
+    return best;
+  }
+  // 自動校正：回傳 { res, Z, tid（實際採用的靶種）, mismatch（照片看起來是哪一種靶；null＝和選的一樣） }
+  function visAutoCalib(P, tid) {
+    var t = T[tid], a = visCalibOne(P, t), out = { res: a.res, Z: a.Z, tid: tid, mismatch: null, alt: null };
+    Object.keys(T).forEach(function (oid) {
+      if (oid === tid || out.mismatch) return;
+      var o = T[oid], V = window.BMVision, b;
+      if (a.res.ok) { var ro = V.calibrate(a.Z.g, a.Z.w, a.Z.h, o); b = { res: ro, Z: a.Z }; if (!ro.ok || visInl(ro) < 1.8 * visInl(a.res)) b = null; }
+      if (!a.res.ok || b) { var full = visCalibOne(P, o); if (full.res.ok) b = full; } // 換靶種要重新決定裁切範圍
+      if (!b || !b.res.ok) return;
+      var ia = visInl(a.res), ib = visInl(b.res);
+      if (ib >= 150 && (!a.res.ok || (ib > 1.8 * ia && visRings(b.res) >= Math.max(2, visRings(a.res) + 2)))) { out.mismatch = oid; out.alt = b; }
+    });
+    return out;
+  }
+  // 讀進來的照片跑一次「校正＋找彈孔」（mode＝auto 時自動校正；manual 時用使用者點的 P.T）
+  // 回傳 { det, mismatch }；失敗時 P.T＝null、P.info.reason 有原因
+  function visRun(P, tid, sens, useAlt) {
+    var V = window.BMVision, t = T[tid], mism = null;
+    if (P.mode === 'auto') {
+      var r = P._cal && P._cal.tid === tid ? P._cal : (P._cal = visAutoCalib(P, tid)); mism = r.mismatch;
+      if (useAlt && r.mismatch && r.alt) { t = T[r.mismatch]; r = { res: r.alt.res, Z: r.alt.Z }; }
+      else if (P._cal) P._cal.alt = null; // 不換靶種就不用留另一種的裁切圖
+      P.info = r.res; P.rotDeg = 0; visUse(P, r.Z);
+      if (r.res.ok) { P.T = visToImg(r.res.T, r.Z); P.T.rms = r.res.rmsMm; } else P.T = null;
+      if (P.zoomed) P.full = null; // 放大裁切成功：全圖灰階先丟掉（手機記憶體），需要時再算
+    } else if (!P.g || P.zoomed) visUse(P, visFull(P)); // 手動校正：用全圖
+    var det = null;
+    if (P.T) { P.Tinv = C.invertAffine(P.T); det = V.detectHoles(P.g, P.gw, P.gh, visToG(P), t, sens, P.chroma); }
+    P.mismatch = mism;
+    return { det: det, mismatch: mism, tid: useAlt && mism ? mism : tid };
+  }
   function pickIsImage(f) { return /^image\//i.test(f.type || '') || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(f.name || ''); }
   function pickError(f) {
     if (pickIsHeic(f)) alert('這張照片是 HEIC 格式（三星相機「高效率相片」），瀏覽器無法讀取。\n\n請改用其中一種方式：\n1. 相機 › 設定 › 進階圖片選項 › 關閉「高效率相片」，之後拍的都是 JPG。\n2. 在「相簿」打開這張照片 › 分享 › 選「轉換為 JPG」後儲存，再選那張。');
@@ -1109,7 +1174,7 @@
     var state = { rotDeg: 0, loaded: false, w: 0, h: 0, zoom: 1, calPts: [], T: null, Tinv: null, mode: 'auto', g: null, gw: 0, gh: 0, k: 1, info: null, det: null, busy: false };
     var stepNames = ['靶心（中心點）', '上緣', '右緣', '下緣', '左緣'];
     function clearCal() { state.rotDeg = 0; state.calPts = []; state.T = null; state.Tinv = null; state.info = null; state.det = null; }
-    function reset() { clearCal(); state.mode = 'auto'; img.removeAttribute('src'); state.loaded = false; state.g = null; draw(); hint(); }
+    function reset() { clearCal(); state.mode = 'auto'; img.removeAttribute('src'); state.loaded = false; state.g = null; state.full = null; state._cal = null; state.zoomed = false; draw(); hint(); }
     function ringN() { return +$('calRing').value; }
     function sens() { return +($('sensSel') ? $('sensSel').value : 1); }
     function hint() {
@@ -1133,22 +1198,11 @@
       state.busy = true; hint();
       setTimeout(function () {
         try {
-          if (!state.g) {
-            var maxS = 2000, k = Math.min(1, maxS / Math.max(state.w, state.h)), cw = Math.round(state.w * k), ch = Math.round(state.h * k);
-            var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
-            var ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, cw, ch);
-            var idata = ctx.getImageData(0, 0, cw, ch).data; state.g = V.grayFromRGBA(idata, cw, ch); state.chroma = V.chromaFromRGBA(idata, cw, ch); state.gw = cw; state.gh = ch; state.k = cw / state.w;
-          }
-          var t = tgt();
-          if (state.mode === 'auto') {
-            var res = V.calibrate(state.g, state.gw, state.gh, t); state.info = res;
-            if (res.ok) { state.T = C.scaleT(res.T, state.k); state.T.rms = res.rmsMm; }
-            else state.T = null;
-          }
+          state.img = img; // v1.7.1：共用流程（visRun）——放大裁切、靶種檢查
+          var r = visRun(state, cur.targetId, sens(), false), det = r.det;
+          if (r.mismatch) toast('⚠️ 這張看起來是「' + T[r.mismatch].name + '」靶紙，但目前選的是「' + tgt().name + '」，彈孔的位置和分數會算錯。請先在右上角換靶種。');
           if (state.T) {
-            state.Tinv = C.invertAffine(state.T);
-            var Tc = C.scaleT(state.T, 1 / state.k);
-            var det = V.detectHoles(state.g, state.gw, state.gh, Tc, t, sens(), state.chroma); state.det = det;
+            state.det = det;
             cur.actuals = (det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; });
             cur.calib = { mode: state.mode, rms: state.T.rms, at: Date.now() }; persist();
             if (cur.preds.length) $('pairMode').value = 'optimal';
@@ -1162,7 +1216,7 @@
       if (!pickIsImage(file)) { pickError(file); return; }
       var url = URL.createObjectURL(file);
       img.onerror = function () { pickError(file); };
-      img.onload = function () { state.loaded = true; state.w = img.naturalWidth; state.h = img.naturalHeight; clearCal(); state.g = null; state.mode = 'auto';
+      img.onload = function () { state.loaded = true; state.w = img.naturalWidth; state.h = img.naturalHeight; clearCal(); state.g = null; state.full = null; state._cal = null; state.zoomed = false; state.mode = 'auto';
         svg.setAttribute('viewBox', '0 0 ' + state.w + ' ' + state.h); setZoom(1); analyze(); };
       img.src = url;
     }
@@ -1340,31 +1394,47 @@
     sel.value = t.blackFromRing;
   }
   function anaProcess(sh, done) {
-    var P = anaPhotos[sh.id], V = window.BMVision; if (!P) { if (done) done(); return; }
+    var P = anaPhotos[sh.id]; if (!P) { if (done) done(); return; }
     P.busy = true; renderAnalysis();
     setTimeout(function () {
+      var mism = null, autoSw = null;
       try {
-        if (!P.g) {
-          var maxS = 2000, k = Math.min(1, maxS / Math.max(P.w, P.h)), cw = Math.round(P.w * k), ch = Math.round(P.h * k);
-          var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
-          var ctx = cv.getContext('2d'); ctx.drawImage(P.img, 0, 0, cw, ch);
-          var idata = ctx.getImageData(0, 0, cw, ch).data; P.g = V.grayFromRGBA(idata, cw, ch); P.chroma = V.chromaFromRGBA(idata, cw, ch); P.gw = cw; P.gh = ch; P.k = cw / P.w;
-        }
-        var t = atgt();
-        if (P.mode === 'auto') {
-          var res = V.calibrate(P.g, P.gw, P.gh, t); P.info = res; P.rotDeg = 0;
-          if (res.ok) { P.T = C.scaleT(res.T, P.k); P.T.rms = res.rmsMm; } else P.T = null;
-        }
+        // v1.7.1：這次分析還沒有別張（只有這一張）時，照片的靶種和選的不一樣就直接改用照片的靶種
+        var alone = acur.sheets.length === 1 && acur.sheets[0] === sh && P.mode === 'auto' && !P.noAuto;
+        var r = visRun(P, acur.targetId, +$('anaSens').value, alone);
+        if (alone && r.tid !== acur.targetId) {
+          var from = acur.targetId; acur.targetId = r.tid; AV.reset(); fillAnaCalRing(); if (curTab === 'analysis') syncTargetSel(); P.mismatch = null;
+          autoSw = { sh: sh, from: from, to: r.tid };
+        } else mism = r.mismatch;
         if (P.T) {
-          P.Tinv = C.invertAffine(P.T);
-          var Tc = C.scaleT(P.T, 1 / P.k);
-          var det = V.detectHoles(P.g, P.gw, P.gh, Tc, t, +$('anaSens').value, P.chroma);
-          sh.shots = (det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; });
+          sh.shots = (r.det && r.det.holes || []).map(function (q) { return { x: C.round(q.x, 3), y: C.round(q.y, 3), src: 'auto', conf: C.round(q.conf, 2) }; });
           sh.calib = { mode: P.mode, rms: C.round(P.T.rms, 3), rotDeg: P.rotDeg || 0, at: new Date().toISOString() };
         } else sh.calib = { mode: 'failed', reason: P.info && P.info.reason || '', at: new Date().toISOString() };
       } catch (e) { P.T = null; P.info = { reason: '分析錯誤：' + e.message }; }
-      P.busy = false; persistA(); renderAnalysis(); if (done) done();
+      P.busy = false; persistA(); renderAnalysis();
+      if (autoSw) { var A = autoSw; toastAct('已依照片切換為' + T[A.to].name, '復原', function () { anaUndoAutoSwitch(A); }); }
+      if (mism && !P._mismAsked && !anaMismOpen) { P._mismAsked = true; anaAskMismatch(sh, mism); }
+      if (done) done();
     }, 30);
+  }
+  // 這次分析已經有別張、這張的靶種卻不一樣：問要不要把這張移到新的分析（用照片的靶種）
+  // 自動換靶種的「復原」：換回原本選的靶種，用它重新分析這張（之後不再自動換，提示改成警告）
+  function anaUndoAutoSwitch(A) {
+    var P = anaPhotos[A.sh.id]; if (!P || acur.sheets.indexOf(A.sh) < 0 || acur.targetId !== A.to) return;
+    acur.targetId = A.from; P.noAuto = true; P._mismAsked = true; AV.reset(); fillAnaCalRing(); if (curTab === 'analysis') syncTargetSel();
+    anaProcess(A.sh); toast('已改回' + T[A.from].name);
+  }
+  var anaMismOpen = false;
+  function anaAskMismatch(sh, mid) {
+    anaMismOpen = true;
+    ask('這張照片看起來是「' + T[mid].name + '」靶紙，但這次分析用的是「' + atgt().name + '」，彈孔的位置和分數會算錯，也可能抓不到。要把這張移到新的「' + T[mid].name + '」分析嗎？（目前這次保留在「紀錄」）', function () {
+      anaMismOpen = false;
+      var P = anaPhotos[sh.id], i = acur.sheets.indexOf(sh); if (!P || i < 0) return;
+      acur.sheets.splice(i, 1); persistA();
+      acur = newAnalysis(mid); anaPhotos = {}; anaPhotos[sh.id] = P; sh.shots = []; acur.sheets.push(sh); anaSel = sh.id; anaView = 'target';
+      P.mode = 'auto'; P.calPts = []; P.mismatch = null; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); if (curTab === 'analysis') syncTargetSel();
+      anaProcess(sh); toast('已移到新的「' + T[mid].name + '」分析');
+    }, function () { anaMismOpen = false; });
   }
   function anaLoadFile(file, done) {
     var sh = { id: 'h' + Date.now() + Math.floor(Math.random() * 1000), created: new Date().toISOString(), shots: [], calib: null, photo: { w: 0, h: 0, name: file.name || '' } };
@@ -1419,7 +1489,8 @@
     }
     if (!P.T) { h.innerHTML = '⚠️ 自動校正失敗（' + (P.info && P.info.reason || '原因不明') + '）。請按「手動校正」，或重拍一張正對、清楚的照片。'; return; }
     var un = sh.shots.filter(isUnsure).length;
-    h.innerHTML = '第 ' + sheetNo(sh) + ' 張：偵測到 <b>' + sh.shots.length + '</b> 個彈孔' + (un ? '，其中 <b style="color:#b26a00">' + un + ' 個不確定</b>（橘色虛線＋「?」）' : '') +
+    var mw = P.mismatch && T[P.mismatch] ? '<b style="color:#c62828">⚠️ 這張看起來是「' + T[P.mismatch].name + '」靶紙，和這次分析的「' + atgt().name + '」不一樣，彈孔的位置和分數會算錯，也可能抓不到。</b>請按右上角換靶種（會開新的分析）後重新選這張。<br>' : '';
+    h.innerHTML = mw + '第 ' + sheetNo(sh) + ' 張：偵測到 <b>' + sh.shots.length + '</b> 個彈孔' + (un ? '，其中 <b style="color:#b26a00">' + un + ' 個不確定</b>（橘色虛線＋「?」）' : '') +
       '。<b>點紅圈＝刪除，點空白處＝新增</b>（下方靶面也可以直接點）。綠圈要對齊靶環，紫線要穿過環數數字，歪了按「轉正」。' +
       '（校正誤差約 ' + f2(P.T.rms || 0) + 'mm' + (P.rotDeg ? '，已轉 ' + P.rotDeg + '°' : '') + '）';
   }
@@ -2008,7 +2079,13 @@
     bg.querySelector('.yes').onclick = function () { bg.remove(); onYes(); };
     document.body.appendChild(bg);
   }
-  function toast(msg, ms) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, ms || (String(msg).length > 24 ? 2800 : 1800)); }
+  function toast(msg, ms) { var t = $('toast'); t.textContent = msg; t.classList.remove('act'); t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, ms || (String(msg).length > 24 ? 2800 : 1800)); }
+  // v1.7.1：帶一顆按鈕的提示（例：「復原」）；6 秒後消失
+  function toastAct(msg, label, fn) {
+    toast(msg, 6000); var t = $('toast'), b = document.createElement('button'); b.type = 'button'; b.className = 'toast-act'; b.textContent = label;
+    b.onclick = function (e) { e.stopPropagation(); t.classList.remove('show', 'act'); clearTimeout(toast._t); fn(); };
+    t.appendChild(document.createTextNode(' ')); t.appendChild(b); t.classList.add('act');
+  }
   // showTab：v1.5.0 起「預報」與「對照」合併成「預報·對照」（Pro 在預報下面直接接對照）；showTab('compare') 仍可用＝回到預報·對照並捲到對照區
   var curTab = 'predict';
   function showTab(name) {

@@ -218,6 +218,13 @@
     return R;
   }
   // 原圖像素 ↔ 縮小圖像素（縮放 k）：T 吃原圖座標 → 吃縮圖座標要除以 k
+  // v1.7.1：T'(p) = T(s·p + (tx,ty))——原圖像素 ↔ 放大裁切圖像素（裁切原點＋縮放）；投影 T 也適用
+  function mapT(T, s, tx, ty) {
+    var g = T.g || 0, h = T.h || 0, w = g * tx + h * ty + 1;
+    var R = { a: T.a * s / w, b: T.b * s / w, c: (T.a * tx + T.b * ty + T.c) / w, d: T.d * s / w, e: T.e * s / w, f: (T.d * tx + T.e * ty + T.f) / w };
+    if (g || h) { R.g = g * s / w; R.h = h * s / w; }
+    if (T.rms != null) R.rms = T.rms; return R;
+  }
   function scaleT(T, k) { var R = { a: T.a * k, b: T.b * k, c: T.c, d: T.d * k, e: T.e * k, f: T.f }; if (T.g || T.h) { R.g = (T.g || 0) * k; R.h = (T.h || 0) * k; } if (T.rms != null) R.rms = T.rms; return R; }
   // 校正點對應的靶面座標：中心、上、右、下、左（選定環的外緣）
   function calibTargets(t, ringN) {
@@ -307,7 +314,7 @@
   var api = {
     TARGETS: TARGETS, ringWidth: ringWidth, scoreShot: scoreShot, computeStats: computeStats,
     comparePredictions: comparePredictions, matchOptimal: matchOptimal, hungarian: hungarian, directionText: directionText,
-    fitAffine: fitAffine, applyAffine: applyAffine, invertAffine: invertAffine, scaleT: scaleT, calibTargets: calibTargets, round: round,
+    fitAffine: fitAffine, applyAffine: applyAffine, invertAffine: invertAffine, scaleT: scaleT, mapT: mapT, calibTargets: calibTargets, round: round,
     median: median, stdev: stdev, findOutliers: findOutliers, OUTLIER_RULE: OUTLIER_RULE, decimalHistogram: decimalHistogram, adjustAdvice: adjustAdvice, adjustClicks: adjustClicks, CLICK_PROFILES: CLICK_PROFILES, trend: trend, analyzeShots: analyzeShots
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.BMCore = api;

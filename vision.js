@@ -94,12 +94,22 @@
     var s = downsample(g, w, h, f), sg = boxBlur(s.g, s.w, s.h, 1);
     return findBlackBlobIn(sg, s.w, s.h, f) || findBlackBlobIn(flattenLight(sg, s.w, s.h, Math.round(Math.max(s.w, s.h) / 10)), s.w, s.h, f);
   }
-  function findBlackBlobIn(sg, W, H, f) {
+  // v1.7.1：列出所有候選黑區（面積門檻可調，給「靶紙在照片裡很小」時放大重試用），依分數由高到低
+  function findBlackBlobs(g, w, h, minFrac) {
+    var f = Math.max(1, Math.ceil(Math.max(w, h) / 500));
+    var s = downsample(g, w, h, f), sg = boxBlur(s.g, s.w, s.h, 1), all = [];
+    findBlackBlobIn(sg, s.w, s.h, f, minFrac, all);
+    findBlackBlobIn(flattenLight(sg, s.w, s.h, Math.round(Math.max(s.w, s.h) / 10)), s.w, s.h, f, minFrac, all);
+    all.sort(function (a, b) { return b.score - a.score; });
+    var out = []; all.forEach(function (c) { if (!out.some(function (o) { return Math.hypot(o.cx - c.cx, o.cy - c.cy) < 0.5 * Math.min(o.R, c.R) && Math.max(o.R, c.R) < 1.4 * Math.min(o.R, c.R); })) out.push(c); });
+    return out;
+  }
+  function findBlackBlobIn(sg, W, H, f, minFrac, list) {
     var thr = otsu(sg), mask = new Uint8Array(W * H);
     for (var i = 0; i < mask.length; i++) mask[i] = sg[i] < thr ? 1 : 0;
-    var L = labelComponents(mask, W, H), best = null;
+    var L = labelComponents(mask, W, H), best = null, mf = minFrac || 0.004;
     L.comps.forEach(function (c) {
-      if (c.border || c.area < W * H * 0.004) return;
+      if (c.border || c.area < W * H * mf) return;
       // 填補內部（彈孔、白色環線造成的洞）
       var bw = c.maxx - c.minx + 3, bh = c.maxy - c.miny + 3, out = new Uint8Array(bw * bh), st = [], ox = c.minx - 1, oy = c.miny - 1;
       var inC = function (x, y) { var X = x + ox, Y = y + oy; return X >= 0 && Y >= 0 && X < W && Y < H && L.lab[Y * W + X] === c.id; };
@@ -113,7 +123,9 @@
       if (round < 0.85 || round > 1.12 || axis < 0.6) return;
       var dc = Math.hypot(e.cx - W / 2, e.cy - H / 2) / Math.hypot(W / 2, H / 2);
       var score = n * Math.pow(Math.min(round, 1 / round), 4) * (1 - 0.5 * dc);
-      if (!best || score > best.score) best = { score: score, cx: (e.cx + 0.5) * f - 0.5, cy: (e.cy + 0.5) * f - 0.5, R: Math.sqrt(e.a * e.b) * f, round: round };
+      var cand = { score: score, cx: (e.cx + 0.5) * f - 0.5, cy: (e.cy + 0.5) * f - 0.5, R: Math.sqrt(e.a * e.b) * f, round: round };
+      if (list) list.push(cand);
+      if (!best || score > best.score) best = cand;
     });
     return best;
   }
@@ -632,6 +644,6 @@
     out = out || [0, 0]; out[0] = (T.a * x + T.b * y + T.c) / w; out[1] = (T.d * x + T.e * y + T.f) / w; return out;
   }
 
-  var api = { applyT: applyT, invertAffine: invertAffine, refineProjective: refineProjective, chromaFromRGBA: chromaFromRGBA, rotateAffine: rotateAffine, grayFromRGBA: grayFromRGBA, calibrate: calibrate, detectHoles: detectHoles, findBlackBlob: findBlackBlob, fitConic: fitConic, affineFromEllipse: affineFromEllipse };
+  var api = { applyT: applyT, invertAffine: invertAffine, refineProjective: refineProjective, chromaFromRGBA: chromaFromRGBA, rotateAffine: rotateAffine, grayFromRGBA: grayFromRGBA, calibrate: calibrate, detectHoles: detectHoles, findBlackBlob: findBlackBlob, findBlackBlobs: findBlackBlobs, fitConic: fitConic, affineFromEllipse: affineFromEllipse };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.BMVision = api;
 })(typeof window !== 'undefined' ? window : this);
