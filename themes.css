@@ -1222,3 +1222,102 @@ body.lay-editing .dk-eye,body:not(.on-analysis) .dk-eye{visibility:hidden}
 .dk-eye[data-edge="top"]{z-index:4}
 /* v1.7.0 修正：C 小圓點列「目前那一點」被通用的 button.on 樣式塗成橘色方塊（v1.6.0 起）；圓點本身由 ::before 畫 */
 .wr-navc .navc-dots button,.wr-navc .navc-dots button.on{background:none;box-shadow:none;border:0;min-height:0}
+
+/* ===== v1.8.0 ===== */
+/* 功能列：中間的「分析」稍大（A 底部圖示列） */
+body:not(.lite).nav-a .wr-nav button.nv-main{flex:1.22;margin-top:-7px;border-radius:16px;font-size:12px}
+body:not(.lite).nav-a .wr-nav button.nv-main .nv-ic{width:27px;height:27px}
+/* 簡約亮色：乳白底＋斜 45° 細髮絲紋（看得到但很淡）；Lite 同樣處理 */
+body.lt-light{
+  --w-page0:#f2ecdd;
+  --w-page:
+    repeating-linear-gradient(135deg,rgba(255,255,255,0) 0,rgba(255,255,255,.55) 1px,rgba(255,255,255,0) 2px),
+    repeating-linear-gradient(135deg,rgba(110,84,40,0) 0,rgba(110,84,40,.05) 1px,rgba(110,84,40,0) 3px),
+    repeating-linear-gradient(135deg,rgba(255,255,255,0) 0,rgba(255,255,255,.28) 2px,rgba(255,255,255,0) 5px,rgba(110,84,40,.035) 7px),
+    linear-gradient(180deg,#f6f1e4,#ece4d2);
+  --w-bar:#faf6ec;--w-barBd:#dfd6c2;
+  --w-tgBg:#e9e2d2;--w-tgBd:#d6cdb9;
+  --w-card:linear-gradient(180deg,rgba(255,253,247,.94),rgba(250,246,236,.94));
+  --w-cardBd:#e2d9c5;
+  --w-cardSh:0 1px 0 #fff inset,0 2px 6px rgba(80,60,20,.08);
+  --w-th:#f3eddf;--w-inBd:#d6cdb9;
+  --nv-base:linear-gradient(180deg,#fcf8ee,#e9e1cf);
+  --nv-btn:repeating-linear-gradient(0deg,rgba(255,255,255,0) 0,rgba(255,255,255,.55) 1px,rgba(255,255,255,0) 2px),linear-gradient(180deg,rgba(255,252,244,.96),rgba(236,229,213,.94));
+  --nv-scrim:rgba(236,229,213,.6)}
+body.lite.lt-light{
+  --lt-page:radial-gradient(120% 50% at 50% -10%,rgba(255,255,255,.7),transparent 60%),
+    repeating-linear-gradient(135deg,rgba(255,255,255,0) 0,rgba(255,255,255,.55) 1px,rgba(255,255,255,0) 2px),
+    repeating-linear-gradient(135deg,rgba(110,84,40,0) 0,rgba(110,84,40,.05) 1px,rgba(110,84,40,0) 3px),
+    repeating-linear-gradient(135deg,rgba(255,255,255,0) 0,rgba(255,255,255,.28) 2px,rgba(255,255,255,0) 5px,rgba(110,84,40,.035) 7px),
+    linear-gradient(180deg,#f6f1e4,#e9e0cc 55%,#efe8d8);
+  --lt-frame:#f5efe2}
+body.lite.lt-light header{background:linear-gradient(180deg,#faf5ea,#ede5d3);border-bottom-color:#d8ceb8}
+
+/*「設定/說明」三個子標籤：設定／帳號／說明 */
+.st-tabs{grid-template-columns:1fr 1fr 1fr}
+.st-ink{width:33.3333%}
+#tab-about[data-sub="acct"] .st-ink{transform:translateX(100%)}
+#tab-about[data-sub="help"] .st-ink{transform:translateX(200%)}
+body:not(.lite).nav-b .st-ink{width:calc((100% - 8px) / 3)}
+
+/* 帳號（個人畫面） */
+.pf .pf-card{border-radius:14px;padding:12px 14px}
+.pf-h{font-weight:800;font-size:16px;margin:0 0 8px;color:var(--w-tx);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.pf-h small{font-weight:500;font-size:12px;color:var(--w-tx2)}
+.pf-id{display:flex;align-items:center;gap:13px}
+.pf-av{position:relative;width:58px;height:58px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:25px;font-weight:800;color:#fff;background:linear-gradient(145deg,var(--w-camA),var(--w-camB));box-shadow:0 0 0 3px var(--w-bar),0 2px 8px rgba(0,0,0,.25)}
+.pf-photo{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover}
+.pf-g{position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.pf-g svg{width:14px;height:14px}
+.pf-idt{min-width:0}
+.pf-idt b{display:block;font-size:19px;color:var(--w-tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-idt small{display:block;font-size:13px;color:var(--w-tx2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf .cloud-card .pf-gbtn{width:100%;min-height:52px;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:12px;font-size:16px;font-weight:800;background:#fff;color:#1f1f1f;border:1px solid #d5d5d5;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.pf-gl{display:grid;place-items:center;width:22px;height:22px}.pf-gl svg{width:22px;height:22px}
+.pf-err{color:var(--w-bad,#c62828);font-size:13px;margin-top:6px}
+.pf-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pf-st{background:var(--w-th);border:1px solid var(--w-cardBd);border-radius:11px;padding:8px 10px;min-width:0}
+.pf-st small{display:block;font-size:12px;color:var(--w-tx2)}
+.pf-st small.pf-sub{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-st b{display:block;font-size:22px;color:var(--w-tx);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pf-st b i{font-style:normal;font-size:12px;color:var(--w-tx2);margin-left:3px;font-weight:600}
+.pf-st b.acc{color:var(--w-accTxt)}
+.pf-st b.pf-date{font-size:17px;line-height:30px}
+.pf-sync div{font-size:14px;color:var(--w-tx);line-height:1.6}
+.pf-sync .pend{color:var(--w-warn,#a35a00);font-weight:700}
+.pf-sync .ok{color:var(--w-tx2)}
+.pf-sync .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--w-good,#3d8a4f);margin-right:6px;vertical-align:1px}
+.pf-sync .dot.bad{background:var(--w-bad,#c62828)}
+.pf .pf-btn{position:static;display:flex;flex-direction:row;width:100%;justify-content:center;align-items:center;gap:6px;margin-top:10px;min-height:52px;border-radius:12px;font-weight:800;font-size:16px;padding:0 16px;border:0;
+  color:var(--w-camTx,#fff);background:linear-gradient(180deg,var(--w-camA),var(--w-camB));box-shadow:0 2px 8px var(--w-accSh);white-space:nowrap}
+.pf .pf-btn .nv-ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.pf .pf-btn:disabled{opacity:.6}
+.pf-rows{padding-bottom:4px}
+.pf-row{display:flex;width:100%;align-items:center;min-height:52px;gap:10px;padding:0;border:0;border-bottom:1px solid var(--w-line);border-radius:0;background:none;box-shadow:none;color:var(--w-tx);text-align:left}
+.pf-row:last-child{border-bottom:0}
+.pf-row span{flex:none;width:80px;font-size:15px;font-weight:700}
+.pf-row em{flex:1;min-width:0;font-style:normal;text-align:right;font-size:15px;color:var(--w-tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-row em.set{color:var(--w-tx)}
+.pf-chev{width:18px;height:18px;flex:none;fill:none;stroke:var(--w-tx2);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+#pfEnd{display:block}
+#pfEnd[hidden]{display:none}
+.pf-out{width:100%;min-height:52px;border-radius:12px;font-size:16px;font-weight:800;color:var(--w-tx);background:var(--w-card);border:1px solid var(--w-cardBd);box-shadow:var(--w-cardSh);margin:2px 0 10px}
+.pf-del{width:100%;min-height:52px;border:0;background:none;box-shadow:none;color:var(--w-bad,#c62828);font-size:15px;font-weight:800;margin-bottom:8px}
+.pf-del small{display:block;font-weight:400;font-size:12px;color:var(--w-tx2);margin-top:2px}
+.pf-modal .pf-mh{font-weight:800;font-size:16px;margin:0 0 8px}
+.pf-modal .pf-in{width:100%;min-height:46px;font-size:16px;box-sizing:border-box;margin-bottom:6px}
+.modal p{white-space:pre-line}
+.modal.danger .yes{background:var(--w-bad,#c62828);border-color:var(--w-bad,#c62828);color:#fff}
+
+/* 紀錄頁：紀錄碼 */
+.rec-codecard .rc-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.rec-codecard .rc-h b{font-size:16px;color:var(--w-tx)}
+.rec-codecard .rc-h small{font-size:12px;color:var(--w-tx2)}
+.rec-codecard .rc-main button{min-height:46px}
+.rc-paste textarea{width:100%;box-sizing:border-box;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;margin:6px 0}
+.rc-adv{margin-top:8px;font-size:13px;color:var(--w-tx2)}
+.rc-adv summary{cursor:pointer;min-height:36px;line-height:36px}
+.rec-code{display:flex;align-items:center;gap:8px;margin-top:6px;min-width:0}
+.rec-code code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--w-tx2);background:var(--w-th);border:1px solid var(--w-line);border-radius:6px;padding:3px 6px}
+.rec-code .rc-len{flex:none;font-size:12px;color:var(--w-tx2)}
+.rec-code .rc-copy{flex:none;min-height:40px;padding:4px 12px}

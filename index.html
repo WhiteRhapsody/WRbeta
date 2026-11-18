@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v1.7.1">
+<link rel="manifest" href="manifest.webmanifest?v=v1.8.0">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.7.1"><link rel="stylesheet" href="themes.css?v=v1.7.1"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.8.0"><link rel="stylesheet" href="themes.css?v=v1.8.0"><!--/STYLE-->
 </head>
 <body>
 <header>
@@ -23,22 +23,23 @@
 <div id="storageNotice" class="notice soft" style="display:none">此畫面無法存檔（儲存空間被封鎖），可以操作，但關閉後資料會消失。請用 Chrome 開啟以保存紀錄。</div>
 <div id="errNotice" class="notice" style="display:none"></div>
 <script>window.addEventListener('error',function(e){try{var n=document.getElementById('errNotice');n.style.display='';n.textContent='程式錯誤：'+(e.message||e)+'（請截圖回報）';}catch(_){}});</script>
+<!-- v1.8.0：順序＝預報·對照／鬼影／分析（中間、稍大、打開 App 預設）／紀錄／設定/說明（齒輪） -->
 <!-- v1.5.0 功能切換（Pro）：A 底部圖示列（預設，閒置自動淡出、輕滑淡入）／B 浮動按鈕／C 左右滑動；在「設定/說明 › 設定」切換 -->
 <nav id="wrNav" class="tabs wr-nav pro-only" aria-label="功能">
   <div class="wr-nav-in">
-    <button type="button" data-tab="predict" data-ic="fc" class="active" aria-current="page"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>預報·對照</span></button>
-    <button type="button" data-tab="analysis" data-ic="an"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M6 17v-5M10.5 17V7M15 17v-7.5M19.5 17V4.5"/></svg><span>分析</span></button>
-    <button type="button" data-tab="records" data-ic="rec"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="3" width="15" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>紀錄</span></button>
+    <button type="button" data-tab="predict" data-ic="fc"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>預報·對照</span></button>
     <button type="button" data-tab="ghost" data-ic="gh"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20.5V11a7 7 0 0 1 14 0v9.5l-2.4-1.8-2.3 1.8-2.3-1.8-2.3 1.8-2.3-1.8z"/><circle cx="9.5" cy="11" r="1" fill="currentColor"/><circle cx="14.5" cy="11" r="1" fill="currentColor"/></svg><span>鬼影</span></button>
-    <button type="button" data-tab="about" data-ic="help"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 0 1 5.2 1c0 1.9-2.6 2.2-2.6 3.9"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg><span>設定/說明</span></button>
+    <button type="button" data-tab="analysis" data-ic="an" class="nv-main active" aria-current="page"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M6 17v-5M10.5 17V7M15 17v-7.5M19.5 17V4.5"/></svg><span>分析</span></button>
+    <button type="button" data-tab="records" data-ic="rec"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="3" width="15" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>紀錄</span></button>
+    <button type="button" data-tab="about" data-ic="set"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.93 9.39 L21.37 9.90 L21.37 14.10 L18.93 14.61 L18.74 15.05 L20.11 17.14 L17.14 20.11 L15.05 18.74 L14.61 18.93 L14.10 21.37 L9.90 21.37 L9.39 18.93 L8.95 18.74 L6.86 20.11 L3.89 17.14 L5.26 15.05 L5.07 14.61 L2.63 14.10 L2.63 9.90 L5.07 9.39 L5.26 8.95 L3.89 6.86 L6.86 3.89 L8.95 5.26 L9.39 5.07 L9.90 2.63 L14.10 2.63 L14.61 5.07 L15.05 5.26 L17.14 3.89 L20.11 6.86 L18.74 8.95Z"/><circle cx="12" cy="12" r="3.3"/></svg><span>設定/說明</span></button>
   </div>
 </nav>
 <button type="button" id="wrNavHandle" class="wr-nav-handle pro-only" aria-label="顯示功能列" tabindex="-1"><i></i></button>
 <div id="wrFabScrim" class="wr-fab-scrim pro-only" aria-hidden="true"></div>
-<div id="wrFabWrap" class="wr-fab-wrap pro-only"><span id="wrFabLbl" class="wr-fab-lbl" aria-hidden="true">預報·對照</span><button type="button" id="wrFab" class="wr-fab" aria-label="功能選單（目前：預報·對照）" aria-expanded="false" aria-controls="wrNav"><span class="wr-fab-ic"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg></span><span class="wr-fab-x"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></span></button></div>
+<div id="wrFabWrap" class="wr-fab-wrap pro-only"><span id="wrFabLbl" class="wr-fab-lbl" aria-hidden="true">分析</span><button type="button" id="wrFab" class="wr-fab" aria-label="功能選單（目前：分析）" aria-expanded="false" aria-controls="wrNav"><span class="wr-fab-ic"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M6 17v-5M10.5 17V7M15 17v-7.5M19.5 17V4.5"/></svg></span><span class="wr-fab-x"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></span></button></div>
 <div id="wrNavC" class="wr-navc pro-only" aria-label="功能（左右滑動切換）">
   <span class="navc-side navc-prev" id="navcPrev"></span>
-  <span class="navc-mid"><b id="navcCur">預報·對照</b><span class="navc-dots" role="tablist"><button type="button" role="tab" data-tab="predict" aria-label="預報·對照" class="on" aria-selected="true"></button><button type="button" role="tab" data-tab="analysis" aria-label="分析" aria-selected="false"></button><button type="button" role="tab" data-tab="records" aria-label="紀錄" aria-selected="false"></button><button type="button" role="tab" data-tab="ghost" aria-label="鬼影" aria-selected="false"></button><button type="button" role="tab" data-tab="about" aria-label="設定/說明" aria-selected="false"></button></span></span>
+  <span class="navc-mid"><b id="navcCur">分析</b><span class="navc-dots" role="tablist"><button type="button" role="tab" data-tab="predict" aria-label="預報·對照" aria-selected="false"></button><button type="button" role="tab" data-tab="ghost" aria-label="鬼影" aria-selected="false"></button><button type="button" role="tab" data-tab="analysis" aria-label="分析" class="on" aria-selected="true"></button><button type="button" role="tab" data-tab="records" aria-label="紀錄" aria-selected="false"></button><button type="button" role="tab" data-tab="about" aria-label="設定/說明" aria-selected="false"></button></span></span>
   <span class="navc-side navc-next" id="navcNext"></span>
 </div>
 
@@ -301,11 +302,16 @@
 <section id="tab-records" class="tab">
   <div class="lay-tophead"><button type="button" class="lay-btn" data-lay-page="records" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
   <div class="lay-col" data-lay="records" data-lay-page="records" data-lay-cols="1">
-  <div class="card" data-mod="tools" data-mod-name="新增／匯出／比較">
-    <div class="row"><button id="newSession2" class="primary">＋ 新的一組</button><button id="exportAll">匯出全部（JSON）</button>
-    <label class="btn">匯入 JSON<input type="file" id="importFile" accept="application/json,.json" hidden></label></div>
+  <!-- v1.8.0：紀錄全面改用「紀錄碼」（座標系統 A：每一發相對靶心的座標 0.01mm＋預報點＋靶種，算術編碼壓縮）備份與還原 -->
+  <div class="card rec-codecard" data-mod="tools" data-mod-name="紀錄碼／新增／比較">
+    <div class="rc-h"><b>紀錄碼</b><small id="recCodeInfo">每一發相對靶心的座標（0.01mm）＋預報點＋靶種</small></div>
+    <div class="row rc-main"><button type="button" id="recCopyAll" class="primary">複製全部紀錄碼</button><button type="button" id="recShareAll" hidden>分享</button><button type="button" id="recPaste">貼上紀錄碼還原</button></div>
+    <div id="recPasteBox" class="rc-paste" hidden><textarea id="recPasteArea" rows="4" placeholder="把紀錄碼貼在這裡（可以一次貼很多筆，重複的會自動略過）" aria-label="貼上紀錄碼"></textarea>
+      <div class="row"><button type="button" id="recPasteGo" class="primary">還原</button><button type="button" id="recPasteCancel">取消</button></div></div>
+    <div class="row"><button id="newSession2">＋ 新的一組預報</button></div>
     <div class="row rec-cmp-row"><button id="recCmpBtn" class="primary" disabled>比較勾選的紀錄</button><button id="recCmpClear">取消勾選</button><span class="lbl" id="recCmpInfo">勾選 2 筆以上紀錄（分析或預報）即可比較</span></div>
-    <div class="hint">紀錄存在這台裝置的瀏覽器裡（localStorage）。照片不會保存，只保存換算後的彈著座標。清除瀏覽器資料會一起刪掉，重要的請先匯出。</div>
+    <div class="hint">紀錄存在這台裝置，並以「紀錄碼」備份：只存彈孔與預報的座標（不存照片），一筆通常只有幾十到幾百個字，可以貼到備忘錄或 LINE 保存，之後「貼上紀錄碼還原」。登入「設定/說明 › 帳號」後也會自動同步到你自己的雲端。</div>
+    <details class="rc-adv"><summary>舊格式（JSON 檔案）</summary><div class="row"><button id="exportAll">匯出全部（JSON）</button><label class="btn">匯入 JSON<input type="file" id="importFile" accept="application/json,.json" hidden></label></div><div class="lbl">舊版的備份檔仍可匯入；新的備份請用紀錄碼。</div></details>
   </div>
   <div id="recCompare" data-mod="compare" data-mod-name="紀錄比較"></div>
   <div id="recordList" data-mod="list" data-mod-name="紀錄清單"></div>
@@ -317,10 +323,11 @@
   <div class="st-head">
   <div class="st-tabs" id="stTabs" role="tablist" aria-label="設定/說明">
     <button type="button" role="tab" id="stTabSet" data-sub="set" aria-controls="stPaneSet" aria-selected="true" class="on"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/></svg><span>設定</span></button>
+    <button type="button" role="tab" id="stTabAcct" data-sub="acct" aria-controls="stPaneAcct" aria-selected="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg><span>帳號</span></button>
     <button type="button" role="tab" id="stTabHelp" data-sub="help" aria-controls="stPaneHelp" aria-selected="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5a2 2 0 0 1 2-2h5v16H6a2 2 0 0 0-2 2z"/><path d="M20 5.5a2 2 0 0 0-2-2h-5v16h5a2 2 0 0 1 2 2z"/></svg><span>說明</span></button>
     <i class="st-ink" aria-hidden="true"></i>
   </div>
-  <div class="st-dots" aria-hidden="true"><i data-sub="set" class="on"></i><i data-sub="help"></i><small>左右滑動切換</small></div>
+  <div class="st-dots" aria-hidden="true"><i data-sub="set" class="on"></i><i data-sub="acct"></i><i data-sub="help"></i><small>左右滑動切換</small></div>
   </div>
   <div class="st-panes" id="stPanes">
   <div class="st-pane" id="stPaneSet" role="tabpanel" aria-labelledby="stTabSet">
@@ -328,7 +335,7 @@
   <div class="lay-col" data-lay="about" data-lay-page="about" data-lay-cols="1">
   <div class="card set-card" id="uiSetCard" data-mod="ui" data-mod-name="介面設定">
     <div class="set-h">介面設定</div>
-    <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／分析／紀錄／鬼影／設定/說明」的方式</small></div>
+    <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／鬼影／分析／紀錄／設定/說明」的方式</small></div>
       <div class="set-seg" id="navStyleSeg" role="radiogroup" aria-label="功能切換方式">
         <button type="button" role="radio" data-nav="a" aria-checked="true"><i class="ns-ill ns-a" aria-hidden="true"><s></s><s></s><s></s><s></s><s></s></i><b>A 底部圖示列</b><small>預設・閒置自動隱藏</small></button>
         <button type="button" role="radio" data-nav="b" aria-checked="false"><i class="ns-ill ns-b" aria-hidden="true"><s></s></i><b>B 浮動按鈕</b><small>右下角圓鈕展開</small></button>
@@ -341,10 +348,20 @@
     <div class="set-row" id="dockResetRow"><button type="button" id="dockResetSet" class="set-btn">拍照按鈕回到預設位置（下方中間）</button></div>
   </div>
   <div class="card set-card" id="liteThemeCard" data-mod="theme" data-mod-name="主題"><div class="set-h">主題 <small class="set-sub">10 款・Pro 與 Lite 共用</small></div>
-    <div class="th-grid" id="themeGrid" role="radiogroup" aria-label="主題"><button type="button" role="radio" data-th="sport" aria-checked="false"><i class="sw sw-sport" aria-hidden="true"></i><b>運動風</b><small>深藍碳纖維＋橘（預設）</small></button><button type="button" role="radio" data-th="hud" aria-checked="false"><i class="sw sw-hud" aria-hidden="true"></i><b>戰術 HUD</b><small>黑碳纖維＋青光</small></button><button type="button" role="radio" data-th="light" aria-checked="false"><i class="sw sw-light" aria-hidden="true"></i><b>簡約亮色</b><small>拉絲鋁・戶外清楚</small></button><button type="button" role="radio" data-th="glass" aria-checked="false"><i class="sw sw-glass" aria-hidden="true"></i><b>玻璃漸層</b><small>夜空霓虹玻璃</small></button><button type="button" role="radio" data-th="cyberpunk" aria-checked="false"><i class="sw sw-cyberpunk" aria-hidden="true"></i><b>賽博龐克</b><small>霓虹故障・會動的靶面</small></button><button type="button" role="radio" data-th="tron" aria-checked="false"><i class="sw sw-tron" aria-hidden="true"></i><b>電子世界</b><small>光跡網格・會動的靶面</small></button><button type="button" role="radio" data-th="piano" aria-checked="false"><i class="sw sw-piano" aria-hidden="true"></i><b>鋼琴烤漆與霧面</b><small>黑白鋼琴漆</small></button><button type="button" role="radio" data-th="racing" aria-checked="false"><i class="sw sw-racing" aria-hidden="true"></i><b>賽車</b><small>碳纖維＋紅橘</small></button><button type="button" role="radio" data-th="appliance" aria-checked="false"><i class="sw sw-appliance" aria-hidden="true"></i><b>科技家電</b><small>霧面深藍＋暖橘點</small></button><button type="button" role="radio" data-th="luxury" aria-checked="false"><i class="sw sw-luxury" aria-hidden="true"></i><b>精密精品</b><small>黑金細線</small></button></div>
+    <div class="th-grid" id="themeGrid" role="radiogroup" aria-label="主題"><button type="button" role="radio" data-th="sport" aria-checked="false"><i class="sw sw-sport" aria-hidden="true"></i><b>運動風</b><small>深藍碳纖維＋橘</small></button><button type="button" role="radio" data-th="hud" aria-checked="false"><i class="sw sw-hud" aria-hidden="true"></i><b>戰術 HUD</b><small>黑碳纖維＋青光</small></button><button type="button" role="radio" data-th="light" aria-checked="false"><i class="sw sw-light" aria-hidden="true"></i><b>簡約亮色</b><small>乳白斜髮絲紋・戶外清楚（預設）</small></button><button type="button" role="radio" data-th="glass" aria-checked="false"><i class="sw sw-glass" aria-hidden="true"></i><b>玻璃漸層</b><small>夜空霓虹玻璃</small></button><button type="button" role="radio" data-th="cyberpunk" aria-checked="false"><i class="sw sw-cyberpunk" aria-hidden="true"></i><b>賽博龐克</b><small>霓虹故障・會動的靶面</small></button><button type="button" role="radio" data-th="tron" aria-checked="false"><i class="sw sw-tron" aria-hidden="true"></i><b>電子世界</b><small>光跡網格・會動的靶面</small></button><button type="button" role="radio" data-th="piano" aria-checked="false"><i class="sw sw-piano" aria-hidden="true"></i><b>鋼琴烤漆與霧面</b><small>黑白鋼琴漆</small></button><button type="button" role="radio" data-th="racing" aria-checked="false"><i class="sw sw-racing" aria-hidden="true"></i><b>賽車</b><small>碳纖維＋紅橘</small></button><button type="button" role="radio" data-th="appliance" aria-checked="false"><i class="sw sw-appliance" aria-hidden="true"></i><b>科技家電</b><small>霧面深藍＋暖橘點</small></button><button type="button" role="radio" data-th="luxury" aria-checked="false"><i class="sw sw-luxury" aria-hidden="true"></i><b>精密精品</b><small>黑金細線</small></button></div>
     <select id="liteThemeSel" aria-label="主題（下拉選單）" hidden><option value="sport">1 運動風</option><option value="hud">2 戰術 HUD</option><option value="light">3 簡約亮色</option><option value="glass">4 玻璃漸層</option><option value="cyberpunk">5 賽博龐克</option><option value="tron">6 電子世界</option><option value="piano">7 鋼琴烤漆與霧面</option><option value="racing">8 賽車</option><option value="appliance">9 科技家電</option><option value="luxury">10 精密精品</option></select>
     <div class="lbl">主題只改變畫面外觀；照片檢視與自動偵測彈孔不受影響。只有賽博龐克、電子世界會改畫靶面（環徑不變）。</div></div>
-  <div class="card cloud-card" id="cloudCard" data-mod="cloud" data-mod-name="雲端帳號"><div class="cloud-h">雲端帳號</div><div id="cloudBody"></div></div>
+  </div>
+  </div>
+  <!-- v1.8.0「帳號」子標籤：沒登入＝說明＋用 Google 帳號登入；登入後＝個人資料、我的統計、同步狀態、選填資料、登出、刪除帳號 -->
+  <div class="st-pane" id="stPaneAcct" role="tabpanel" aria-labelledby="stTabAcct" hidden>
+  <div class="lay-tophead"><button type="button" class="lay-btn" data-lay-page="about" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
+  <div class="lay-col pf" data-lay="aboutAcct" data-lay-page="about" data-lay-cols="1">
+  <div class="card pf-card cloud-card" id="cloudCard" data-mod="cloud" data-mod-name="帳號"><div id="cloudBody"></div></div>
+  <div class="card pf-card" id="pfStats" data-mod="stats" data-mod-name="我的統計"></div>
+  <div class="card pf-card" id="pfSync" data-mod="sync" data-mod-name="同步狀態" hidden></div>
+  <div class="card pf-card pf-rows" id="pfExtra" data-mod="extra" data-mod-name="選填資料"></div>
+  <div id="pfEnd" data-mod="end" data-mod-name="登出與刪除帳號" hidden></div>
   </div>
   </div>
   <div class="st-pane" id="stPaneHelp" role="tabpanel" aria-labelledby="stTabHelp" hidden>
@@ -361,9 +378,9 @@
   <div class="lt-sheet-card">
     <div class="lt-sheet-h">選擇主題</div>
     <div class="lt-sheet-list lt-th-list">
-      <button type="button" data-th="sport"><i class="sw sw-sport"></i><span><b>1 運動風</b><small>深藍碳纖維＋橘（預設）</small></span></button>
+      <button type="button" data-th="sport"><i class="sw sw-sport"></i><span><b>1 運動風</b><small>深藍碳纖維＋橘</small></span></button>
       <button type="button" data-th="hud"><i class="sw sw-hud"></i><span><b>2 戰術 HUD</b><small>黑碳纖維＋青光</small></span></button>
-      <button type="button" data-th="light"><i class="sw sw-light"></i><span><b>3 簡約亮色</b><small>拉絲鋁・戶外清楚</small></span></button>
+      <button type="button" data-th="light"><i class="sw sw-light"></i><span><b>3 簡約亮色</b><small>乳白斜髮絲紋・戶外清楚（預設）</small></span></button>
       <button type="button" data-th="glass"><i class="sw sw-glass"></i><span><b>4 玻璃漸層</b><small>夜空霓虹玻璃</small></span></button>
       <button type="button" data-th="cyberpunk"><i class="sw sw-cyberpunk"></i><span><b>5 賽博龐克</b><small>霓虹故障・會動的靶面</small></span></button>
       <button type="button" data-th="tron"><i class="sw sw-tron"></i><span><b>6 電子世界</b><small>光跡網格・會動的靶面</small></span></button>
@@ -385,29 +402,29 @@
   <div class="lt-sheet-card">
     <div class="lt-sheet-h">更多</div>
     <div class="lt-more-list">
-      <button type="button" data-act="theme"><b>🎨 外觀</b><small>四種主題</small></button>
-      <button type="button" data-act="records"><b>🗂 紀錄</b><small>存檔、比較、匯出</small></button>
+      <button type="button" data-act="theme"><b>🎨 外觀</b><small>10 款主題</small></button>
+      <button type="button" data-act="records"><b>🗂 紀錄</b><small>紀錄碼備份、比較、還原</small></button>
       <button type="button" data-act="ghost"><b>👻 鬼影模式</b><small>60 發，和上一次同一發比</small></button>
       <button type="button" data-act="analysis"><b>📈 多張分析</b><small>不預報，連拍多張</small></button>
-      <button type="button" data-act="about"><b>⚙️ 設定/說明</b><small>外觀、雲端帳號、使用方法、更新</small></button>
+      <button type="button" data-act="about"><b>⚙️ 設定/說明</b><small>外觀、帳號（雲端）、使用方法、更新</small></button>
       <button type="button" data-act="pro"><b>⚙️ 切到 Pro</b><small>完整功能</small></button>
     </div>
     <button type="button" class="lt-sheet-x">關閉</button>
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v1.7.1"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v1.7.1"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v1.7.1"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v1.7.1"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v1.7.1"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v1.7.1"></script><!--/CLOUD-->
-<!--GHOST--><script src="ghost.js?v=v1.7.1"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v1.7.1"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v1.7.1"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v1.7.1"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v1.7.1"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v1.7.1"></script><!--/DOCK-->
-<!--APP--><script src="app.js?v=v1.7.1"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v1.8.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v1.8.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v1.8.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v1.8.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v1.8.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v1.8.0"></script><!--/CLOUD-->
+<!--GHOST--><script src="ghost.js?v=v1.8.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v1.8.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v1.8.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v1.8.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v1.8.0"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v1.8.0"></script><!--/DOCK-->
+<!--APP--><script src="app.js?v=v1.8.0"></script><!--/APP-->
 </body>
 </html>

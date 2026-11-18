@@ -2,7 +2,11 @@
  * 原則：離線優先。本機 localStorage 永遠是主要資料，沒登入時完全不連網；登入後在背景同步。
  * 只有在 firebase-config.js 有設定時，才從 gstatic CDN 動態載入 Firebase 模組（沒設定＝零流量、零影響）。
  * Firestore 結構：users/{uid}（個人資料）、users/{uid}/records/{紀錄id}（每筆紀錄一份文件，data＝紀錄 JSON 字串）。
- * 衝突處理：以紀錄的 updated（ISO 時間）較新者為準；刪除用「墓碑」（deleted:true）讓其他裝置也刪掉。 */
+ * 衝突處理：以紀錄的 updated（ISO 時間）較新者為準；刪除用「墓碑」（deleted:true）讓其他裝置也刪掉。
+ * v1.8.0：正式啟用（wrbeta-81118）。只在網址版（https 或 localhost）啟用；單檔版（file://）不能登入 Google，維持離線。
+ *   寫入的欄位要跟 firestore.rules 一致：users/{uid} 只能有 email／name／provider／relay／updated／app；
+ *   records 只能有 id／kind／targetId／created／updated／name／v／data／size（墓碑＝id／updated／deleted）。
+ *   新增：pending()（這台裝置待上傳幾筆）、deleteAccount()（刪雲端紀錄＋個人資料文件＋Firebase 帳號）。 */
 (function (root) {
   'use strict';
   var SDK = '13.4.0', BASE = 'https://www.gstatic.com/firebasejs/' + SDK + '/';
@@ -58,33 +62,67 @@
     return { list: out, upload: upload, del: del, changed: changed };
   }
   function isRelayEmail(e) { return RELAY_RE.test(String(e || '')); }
+  /* 待上傳：上次上傳之後有改過的紀錄＋還沒送出的刪除 */
+  function countPending(list, sinceMs, tombs) {
+    var n = 0; (list || []).forEach(function (s) { if (s && validId(String(s.id)) && ts(s) > (sinceMs || 0)) n++; });
+    return n + (tombs || []).filter(validId).length;
+  }
+  /* 跟 firestore.rules 的 validProfile 一樣的檢查（測試用，也在寫入前把關） */
+  var PROFILE_KEYS = ['email', 'name', 'provider', 'relay', 'updated', 'app'];
+  function profileDoc(u, email, prov, now) {
+    return { email: String(email || '').slice(0, 320), name: String(u.displayName || '').slice(0, 100), provider: String(prov || '').slice(0, 40), relay: isRelayEmail(email), updated: String(now).slice(0, 40), app: 'WRbeta' };
+  }
+  function validProfile(d) {
+    return Object.keys(d).every(function (k) { return PROFILE_KEYS.indexOf(k) >= 0; }) && typeof d.email === 'string' && d.email.length <= 320 && typeof d.name === 'string' && d.name.length <= 100 &&
+      typeof d.provider === 'string' && d.provider.length <= 40 && typeof d.relay === 'boolean' && typeof d.updated === 'string' && d.updated.length <= 40 && typeof d.app === 'string' && d.app.length <= 20;
+  }
+  var REC_KEYS = ['id', 'kind', 'targetId', 'created', 'updated', 'name', 'v', 'data', 'size'];
+  function validRecordDoc(id, d) {
+    if (!d || d.id !== id || String(id).length > 64 || typeof d.updated !== 'string' || d.updated.length > 40) return false;
+    var ks = Object.keys(d);
+    if (d.deleted === true) return ks.every(function (k) { return ['id', 'updated', 'deleted'].indexOf(k) >= 0; });
+    return ks.every(function (k) { return REC_KEYS.indexOf(k) >= 0; }) && (d.kind === 'forecast' || d.kind === 'analysis') && typeof d.targetId === 'string' && d.targetId.length <= 16 &&
+      typeof d.created === 'string' && d.created.length <= 40 && typeof d.name === 'string' && d.name.length <= 120 && Number.isInteger(d.v) && typeof d.data === 'string' && d.data.length <= 400000 && Number.isInteger(d.size);
+  }
+  function webOK(loc) { // Google 登入只在 https（或本機 localhost 測試）可用
+    if (!loc) return false;
+    return loc.protocol === 'https:' || (loc.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(loc.hostname));
+  }
 
-  var pure = { SDK: SDK, MAX_DATA: MAX_DATA, ts: ts, toDoc: toDoc, fromDoc: fromDoc, mergeSessions: mergeSessions, isRelayEmail: isRelayEmail, validId: validId };
+  var pure = { SDK: SDK, MAX_DATA: MAX_DATA, ts: ts, toDoc: toDoc, fromDoc: fromDoc, mergeSessions: mergeSessions, isRelayEmail: isRelayEmail, validId: validId,
+    countPending: countPending, profileDoc: profileDoc, validProfile: validProfile, validRecordDoc: validRecordDoc, webOK: webOK };
   if (typeof module !== 'undefined' && module.exports) { module.exports = pure; return; }
 
   // ---------- 瀏覽器端 ----------
-  var cfg = root.WR_FIREBASE_CONFIG || null;
+  var hasCfg = !!root.WR_FIREBASE_CONFIG, web = webOK(root.location);
+  var cfg = hasCfg && web ? root.WR_FIREBASE_CONFIG : null;
   var providers = (root.WR_AUTH_PROVIDERS || ['google']).filter(function (p) { return p === 'google' || p === 'apple'; });
-  var state = { status: cfg ? 'loading' : 'off', providers: providers, user: null, lastSync: null, syncing: false, error: '' };
-  var hooks = null, M = null, app = null, auth = null, db = null, user = null, timer = null, busy = false, again = false;
+  var state = { status: cfg ? 'loading' : 'off', offReason: cfg ? '' : hasCfg ? 'file' : 'nocfg', providers: providers, user: null, lastSync: null, syncing: false, error: '', deleting: false };
+  var hooks = null, M = null, app = null, auth = null, db = null, user = null, timer = null, busy = false, again = false, blocked = false;
   function ls(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
   function meta() { var m = ls(LS_META) || {}; return user && m.uid === user.uid ? m : { uid: user && user.uid }; }
   function emit() { if (hooks && hooks.onState) try { hooks.onState(state); } catch (e) {} }
   function setErr(e) { state.error = e ? (e.code ? e.code.replace('auth/', '') : String(e.message || e)).slice(0, 80) : ''; }
   function load() {
     return Promise.all(['firebase-app', 'firebase-auth', 'firebase-firestore'].map(function (n) { return import(BASE + n + '.js'); }))
-      .then(function (m) { M = { A: m[0], U: m[1], F: m[2] }; app = M.A.initializeApp(cfg); auth = M.U.getAuth(app); db = M.F.getFirestore(app); });
+      .then(function (m) {
+        M = { A: m[0], U: m[1], F: m[2] }; app = M.A.initializeApp(cfg); auth = M.U.getAuth(app); db = M.F.getFirestore(app);
+        try { auth.languageCode = 'zh-TW'; } catch (e) {}
+        state.sdk = SDK; root.WRCloud._ready = true;
+      });
   }
   function onUser(u) {
     user = u;
     if (!u) { state.status = 'signed-out'; state.user = null; emit(); return; }
+    blocked = false;
     var email = u.email || (u.providerData && u.providerData[0] && u.providerData[0].email) || '';
     var prov = (u.providerData && u.providerData[0] && u.providerData[0].providerId) || '';
-    state.status = 'signed-in'; state.user = { uid: u.uid, name: u.displayName || '', email: email, relay: isRelayEmail(email), provider: prov };
+    var photo = u.photoURL || (u.providerData && u.providerData[0] && u.providerData[0].photoURL) || '';
+    state.status = 'signed-in'; state.user = { uid: u.uid, name: u.displayName || '', email: email, relay: isRelayEmail(email), provider: prov, photo: /^https:\/\//.test(photo) ? photo : '' };
     state.lastSync = meta().lastSync || null; emit();
     // 個人資料：Apple 轉寄信箱照樣存（寄信到轉寄信箱會轉給本人），名字只在第一次登入時由 Apple 提供
-    M.F.setDoc(M.F.doc(db, 'users', u.uid), { email: email.slice(0, 320), name: (u.displayName || '').slice(0, 100), provider: prov.slice(0, 40), relay: isRelayEmail(email), updated: new Date().toISOString(), app: 'WRbeta' }, { merge: true })
-      .catch(function () {});
+    var pd = profileDoc(u, email, prov, new Date().toISOString());
+    if (validProfile(pd)) M.F.setDoc(M.F.doc(db, 'users', u.uid), pd, { merge: true }).catch(function () {});
     syncNow();
   }
   function init(h) {
@@ -109,8 +147,47 @@
     }).catch(function (e) { state.status = user ? 'signed-in' : 'signed-out'; if (!/popup-closed|cancelled-popup/.test(e && e.code || '')) setErr(e); emit(); });
   }
   function signOut() { if (auth) M.U.signOut(auth).catch(function (e) { setErr(e); emit(); }); }
+  function pending(list) {
+    if (!user) return 0;
+    var m = meta();
+    return countPending(list || (hooks && hooks.getSessions()) || [], m.lastPush ? Date.parse(m.lastPush) : 0, ls(LS_TOMB) || []);
+  }
+  /* 刪除帳號與雲端資料：users/{uid}/records/* → users/{uid} → Firebase 帳號。
+   * Firebase 規定刪帳號前要「最近登入過」：登入超過 4 分鐘就先重新確認 Google 帳號（要在按鈕的點擊裡直接呼叫，彈出視窗才不會被擋）。
+   * 這台裝置的紀錄（與紀錄碼）不受影響。回傳 Promise。 */
+  function deleteAccount() {
+    if (!user || !auth) return Promise.reject({ code: 'not-signed-in', message: '還沒登入' });
+    var u = user, uid = u.uid, prov = (u.providerData && u.providerData[0] && u.providerData[0].providerId) || 'google.com';
+    var last = Date.parse(u.metadata && u.metadata.lastSignInTime) || 0;
+    var reauth = Date.now() - last > 4 * 60 * 1000
+      ? M.U.reauthenticateWithPopup(u, provider(prov === 'apple.com' ? 'apple' : 'google'))
+      : Promise.resolve();
+    state.deleting = true; setErr(null); emit();
+    return reauth.then(function () {
+      blocked = true; clearTimeout(timer); // 刪除途中與刪除後都不要再同步（不然會把本機紀錄又傳上去）
+      var col = M.F.collection(db, 'users', uid, 'records');
+      return M.F.getDocs(col).then(function (snap) {
+        var refs = []; snap.forEach(function (d) { refs.push(d.ref); });
+        var chain = Promise.resolve();
+        for (var i = 0; i < refs.length; i += 400) (function (part) {
+          chain = chain.then(function () { var b = M.F.writeBatch(db); part.forEach(function (r) { b.delete(r); }); return b.commit(); });
+        })(refs.slice(i, i + 400));
+        return chain.then(function () { return refs.length; });
+      });
+    }).then(function (n) {
+      return M.F.deleteDoc(M.F.doc(db, 'users', uid)).then(function () { return M.U.deleteUser(u); }).then(function () {
+        try { localStorage.removeItem(LS_META); localStorage.removeItem(LS_TOMB); } catch (e) {}
+        state.deleting = false; state.lastSync = null; emit();
+        return { deletedRecords: n };
+      });
+    }).catch(function (e) {
+      state.deleting = false; blocked = false;
+      if (!/popup-closed|cancelled-popup/.test(e && e.code || '')) setErr(e);
+      emit(); throw e;
+    });
+  }
   function syncNow() {
-    if (!user || !hooks) return Promise.resolve();
+    if (!user || !hooks || blocked) return Promise.resolve();
     if (busy) { again = true; return Promise.resolve(); }
     busy = true; state.syncing = true; setErr(null); emit();
     var uid = user.uid, m = meta(), col = M.F.collection(db, 'users', uid, 'records');
@@ -121,7 +198,7 @@
       var tombs = (ls(LS_TOMB) || []).filter(validId);
       var r = mergeSessions(hooks.getSessions(), remote, tombs, m.lastPush ? Date.parse(m.lastPush) : 0);
       var ops = [], skipped = 0, now = new Date().toISOString();
-      r.upload.forEach(function (s) { if (!validId(String(s.id))) { skipped++; return; } var d = toDoc(s); if (d) ops.push([s.id, d]); else skipped++; });
+      r.upload.forEach(function (s) { if (!validId(String(s.id))) { skipped++; return; } var d = toDoc(s); if (d && validRecordDoc(String(s.id), d)) ops.push([s.id, d]); else skipped++; });
       r.del.forEach(function (id) { ops.push([id, { id: id, updated: now, deleted: true }]); });
       var chain = Promise.resolve();
       for (var i = 0; i < ops.length; i += 400) (function (part) {
@@ -145,5 +222,6 @@
   function schedule(ms) { clearTimeout(timer); timer = setTimeout(syncNow, ms); }
   function markDirty() { if (user) schedule(4000); }
   function remove(id) { if (!cfg) return; var t = ls(LS_TOMB) || []; if (t.indexOf(id) < 0) t.push(id); ls(LS_TOMB, t); markDirty(); }
-  root.WRCloud = { enabled: !!cfg, state: state, init: init, signIn: signIn, signOut: signOut, syncNow: syncNow, markDirty: markDirty, remove: remove, _pure: pure };
+  root.WRCloud = { enabled: !!cfg, state: state, init: init, signIn: signIn, signOut: signOut, syncNow: syncNow, markDirty: markDirty, remove: remove,
+    pending: pending, deleteAccount: deleteAccount, get lastPush() { var m = meta(); return m.lastPush || null; }, _pure: pure };
 })(typeof window !== 'undefined' ? window : this);

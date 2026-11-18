@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.7.1';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.8.0';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
@@ -23,6 +23,8 @@
   // 雲端同步（備註4）：本機 localStorage 永遠是主要資料；登入後才在背景上傳／下載（見 cloud.js）
   function cloudDirty() { try { if (window.WRCloud && window.WRCloud.markDirty) window.WRCloud.markDirty(); } catch (e) {} }
   var prefs = (function () { try { return JSON.parse(store.get(LS_PREF)) || {}; } catch (e) { return {}; } })();
+  // v1.8.0：第一次打開（還沒有任何設定）＝新使用者 → 預設主題「簡約亮色」；舊使用者照樣用上次的主題（prefs.liteTheme）
+  var FRESH = !prefs || !Object.keys(prefs).length;
   function savePrefs() { store.set(LS_PREF, JSON.stringify(prefs)); }
   /* 資料格式（v2）：sessions 陣列同時放兩種紀錄
    *   預報：{ v:2, kind:'forecast', id:'s…', created ISO(UTC), name, note, targetId, preds:[{x,y,t}], actuals:[{x,y,src,conf}], calib }
@@ -277,7 +279,7 @@
   // v1.6.0：10 款主題（前 4 款沿用；後 6 款見 docs/theme6）。只有賽博龐克、電子世界會改畫靶面（幾何不變，見 themefx.js）
   var LITE_THEMES = ['sport', 'hud', 'light', 'glass', 'cyberpunk', 'tron', 'piano', 'racing', 'appliance', 'luxury'];
   var THEME_NAME = { sport: '運動風', hud: '戰術 HUD', light: '簡約亮色', glass: '玻璃漸層', cyberpunk: '賽博龐克', tron: '電子世界', piano: '鋼琴烤漆與霧面', racing: '賽車', appliance: '科技家電', luxury: '精密精品' };
-  var THEME_META = { hud: '#050a0e', light: '#f0ede5', sport: '#002776', glass: '#0b0221', cyberpunk: '#07050d', tron: '#000207', piano: '#050505', racing: '#0d0e10', appliance: '#0e1520', luxury: '#0c0a08' };
+  var THEME_META = { hud: '#050a0e', light: '#f2ecdd', sport: '#002776', glass: '#0b0221', cyberpunk: '#07050d', tron: '#000207', piano: '#050505', racing: '#0d0e10', appliance: '#0e1520', luxury: '#0c0a08' };
   // 各款外觀的方塊外形（viewBox 100×52；數字框位置固定，見 style.css .lp-c-*）
   var HEX = { big: '0,12.5 5,0.6 60.5,0.6 65.5,12.5 60.5,24.4 5,24.4', cnt: '62.2,0.6 94.6,0.6 99.6,12.5 94.6,24.4 62.2,24.4 67.2,12.5',
     est: '0.4,38.6 5.4,26.2 49.4,26.2 44.4,38.6 49.4,51 5.4,51', sum: '51.1,26.2 94.6,26.2 99.6,38.6 94.6,51 51.1,51 46.1,38.6' };
@@ -292,7 +294,7 @@
   };
   // 新 6 款的 Lite 資訊方塊外形沿用相近的舊款
   LITE_GEOM.cyberpunk = LITE_GEOM.hud; LITE_GEOM.tron = LITE_GEOM.hud; LITE_GEOM.piano = LITE_GEOM.light; LITE_GEOM.appliance = LITE_GEOM.light; LITE_GEOM.racing = LITE_GEOM.sport; LITE_GEOM.luxury = HEX;
-  var liteTheme = LITE_THEMES.indexOf(prefs.liteTheme) >= 0 ? prefs.liteTheme : 'sport';
+  var liteTheme = LITE_THEMES.indexOf(prefs.liteTheme) >= 0 ? prefs.liteTheme : FRESH ? 'light' : 'sport';
   function setLiteTheme(th, quiet) {
     if (LITE_THEMES.indexOf(th) < 0) th = 'sport';
     liteTheme = th; LITE_THEMES.forEach(function (k) { document.body.classList.toggle('lt-' + k, k === th); });
@@ -1908,24 +1910,30 @@
   $('anaPasteCode').onclick = function () { showPasteBox(true); };
   $('anaPasteCancel').onclick = function () { showPasteBox(false); };
   $('anaPasteGo').onclick = function () {
-    var Code = window.BMCode, text = $('anaPasteArea').value, r, i, added;
-    if (!Code) { toast('無法還原'); return; }
-    if (!stripWait(text)) { toast('請先貼上紀錄碼'); return; }
-    r = Code.merge(sessions, text);
-    if (!r.added.length && !r.skipped && !r.invalid) { toast('沒有讀到紀錄碼'); return; }
-    added = r.added.slice().sort(function (a, b) { return Date.parse(a.created) - Date.parse(b.created); });
-    for (i = 0; i < added.length; i++) sessions.unshift(added[i]);
-    if (added.length) {
-      saveSessions(sessions);
-      requestPersist();
-      acur = added[added.length - 1];
+    var added = restoreCodes($('anaPasteArea').value), ana;
+    if (!added) return;
+    ana = added.filter(isAna);
+    if (ana.length) {
+      acur = ana[ana.length - 1];
       anaPhotos = {}; anaSel = 'all';
       store.set(LS_ACUR, acur.id);
     }
     showPasteBox(false);
     renderAnalysis(); renderRecords();
-    toast((added.length ? '還原 ' + added.length + ' 筆' : '沒有新增') + (r.skipped ? '，略過 ' + r.skipped + ' 筆重複' : '') + (r.invalid ? '，' + r.invalid + ' 筆無效' : ''), 3200);
   };
+  /* v1.8.0：貼上紀錄碼還原（分析頁與紀錄頁共用）；分析、預報、鬼影都可以，重複的略過。回傳新增的紀錄（失敗＝null） */
+  function restoreCodes(text) {
+    var Code = window.BMCode, r, i, added, now = new Date().toISOString();
+    if (!Code) { toast('無法還原'); return null; }
+    if (!stripWait(text)) { toast('請先貼上紀錄碼'); return null; }
+    r = Code.merge(sessions, text);
+    if (!r.added.length && !r.skipped && !r.invalid) { toast('沒有讀到紀錄碼'); return null; }
+    added = r.added.slice().sort(function (a, b) { return Date.parse(a.created) - Date.parse(b.created); });
+    for (i = 0; i < added.length; i++) { delete added[i].hash; added[i].updated = now; sessions.unshift(added[i]); } // updated＝現在：登入雲端時會上傳
+    if (added.length) { saveSessions(sessions); requestPersist(); }
+    toast((added.length ? '還原 ' + added.length + ' 筆' : '沒有新增') + (r.skipped ? '，略過 ' + r.skipped + ' 筆重複' : '') + (r.invalid ? '，' + r.invalid + ' 筆無效' : ''), 3200);
+    return added;
+  }
   function stripWait(text) { return String(text || '').replace(/\s+/g, ''); }
 
   // ---------- 紀錄 ----------
@@ -1935,11 +1943,25 @@
     if (s.actuals && s.actuals.length) return { shots: s.actuals, src: '實際' };
     return { shots: s.preds || [], src: '預報' };
   }
+  function recCode(s) { var Code = window.BMCode; if (!Code) return null; try { return Code.encode(s); } catch (e) { return null; } }
+  function recAllCodes() { var s = '', n = 0; sessions.forEach(function (x) { var c = recCode(x); if (c) { s += c; n++; } }); return { code: s, n: n }; }
+  function updateRecCodeInfo() {
+    var a = recAllCodes(), info = $('recCodeInfo'); if (!info) return;
+    $('recCopyAll').disabled = !a.n; $('recShareAll').disabled = !a.n;
+    info.textContent = a.n ? '共 ' + a.n + ' 筆・' + a.code.length + ' 字（座標 0.01mm＋預報點＋靶種）' : '每一發相對靶心的座標（0.01mm）＋預報點＋靶種';
+  }
+  if (navigator.share) $('recShareAll').hidden = false;
+  $('recCopyAll').onclick = function () { var a = recAllCodes(); if (!a.n) { toast('目前沒有可複製的紀錄'); return; } copyText(a.code, '已複製 ' + a.n + ' 筆紀錄碼（' + a.code.length + ' 字）'); };
+  $('recShareAll').onclick = function () { var a = recAllCodes(); if (!a.n) { toast('目前沒有可分享的紀錄'); return; } try { navigator.share({ title: 'WRbeta 紀錄碼', text: a.code }); } catch (e) { copyText(a.code, '已複製 ' + a.n + ' 筆紀錄碼'); } };
+  function showRecPaste(on) { $('recPasteBox').hidden = !on; if (on) { $('recPasteArea').value = ''; setTimeout(function () { $('recPasteArea').focus(); }, 0); } }
+  $('recPaste').onclick = function () { showRecPaste($('recPasteBox').hidden); };
+  $('recPasteCancel').onclick = function () { showRecPaste(false); };
+  $('recPasteGo').onclick = function () { var added = restoreCodes($('recPasteArea').value); if (!added) return; showRecPaste(false); renderAll(); };
   function recTitle(s) { return (s.name && s.name.trim()) || (isAna(s) ? '分析' : '預報') + ' ' + fmtTW(s.created).replace(/^\d{4}\//, ''); }
   function renderRecords() {
     var box = $('recordList');
     Object.keys(recPick).forEach(function (id) { if (!sessions.some(function (x) { return x.id === id; })) delete recPick[id]; });
-    updateCmpBtn();
+    updateCmpBtn(); updateRecCodeInfo();
     if (!sessions.length) { box.innerHTML = '<div class="card">尚無紀錄</div>'; return; }
     box.innerHTML = '';
     sessions.forEach(function (s) {
@@ -1960,7 +1982,7 @@
         '<div class="meta"><span class="badge ' + (ana ? 'b-ana' : gho ? 'b-gh' : 'b-fc') + '">' + (ana ? '分析' : gho ? '👻 鬼影' : '預報') + '</span> <b>' + esc(fmtTW(s.created)) + '</b>　' + t.name + (isCur ? '（目前）' : '') + '<br>' + meta + '</div>';
       div.querySelector('.rec-chk').onchange = function () { if (this.checked) recPick[s.id] = 1; else delete recPick[s.id]; updateCmpBtn(); };
       var name = document.createElement('input'); name.className = 'rec-name'; name.placeholder = '自訂名稱'; name.value = s.name != null && s.name !== '' ? s.name : (s.note || ''); name.setAttribute('aria-label', '紀錄名稱');
-      name.onchange = function () { s.name = name.value.trim(); if (!ana) s.note = s.note || ''; if (ana && s.id === acur.id) acur.name = s.name; saveSessions(sessions); toast('名稱已更新'); };
+      name.onchange = function () { s.name = name.value.trim(); s.updated = new Date().toISOString(); if (!ana) s.note = s.note || ''; if (ana && s.id === acur.id) acur.name = s.name; saveSessions(sessions); renderRecords(); toast('名稱已更新'); };
       var open = document.createElement('button'); open.textContent = '開啟';
       open.onclick = function () {
         if (ana) { acur = s; anaPhotos = {}; anaSel = 'all'; store.set(LS_ACUR, s.id); fillAnaCalRing(); renderAnalysis(); showTab('analysis'); }
@@ -1979,7 +2001,16 @@
         });
       };
       var r = document.createElement('div'); r.className = 'row'; r.appendChild(name); r.appendChild(open); r.appendChild(del);
-      div.appendChild(r); box.appendChild(div);
+      div.appendChild(r);
+      // v1.8.0：每筆紀錄都顯示自己的紀錄碼（座標系統 A），可以單獨複製
+      var code = recCode(s), cl = document.createElement('div'); cl.className = 'rec-code';
+      if (code) {
+        cl.innerHTML = '<code>' + esc(code.slice(0, 22)) + '…</code><span class="rc-len">' + code.length + ' 字</span>';
+        var cb = document.createElement('button'); cb.type = 'button'; cb.className = 'rc-copy'; cb.textContent = '複製紀錄碼';
+        cb.onclick = function () { copyText(code, '已複製「' + recTitle(s) + '」的紀錄碼（' + code.length + ' 字）'); };
+        cl.appendChild(cb);
+      } else cl.innerHTML = '<span class="lbl">還沒有落點，沒有紀錄碼</span>';
+      div.appendChild(cl); box.appendChild(div);
     });
   }
   function updateCmpBtn() {
@@ -2037,7 +2068,7 @@
     var f = this.files[0]; if (!f) return; var rd = new FileReader();
     rd.onload = function () {
       try { var data = JSON.parse(rd.result); var add = (data.sessions || []).filter(function (s) { return s.id && T[s.targetId] && (isAna(s) ? Array.isArray(s.sheets) : Array.isArray(s.preds)) && !sessions.some(function (x) { return x.id === s.id; }); });
-        add.forEach(function (s) { if (!isAna(s)) { s.actuals = s.actuals || []; } });
+        add.forEach(function (s) { if (!isAna(s)) { s.actuals = s.actuals || []; } if (!s.updated) s.updated = new Date().toISOString(); });
         sessions = sessions.concat(add); saveSessions(sessions); renderRecords(); toast('匯入 ' + add.length + ' 組'); } catch (e) { toast('檔案格式錯誤'); }
     };
     rd.readAsText(f); this.value = '';
@@ -2071,10 +2102,12 @@
   }
 
   // ---------- 共用 ----------
-  function ask(msg, onYes, onNo) {
+  function ask(msg, onYes, onNo, o) { // o（v1.8.0）：{ yes:'按鈕文字', danger:true＝紅色按鈕 }
+    o = o || {};
     var bg = document.createElement('div'); bg.className = 'modal-bg';
-    bg.innerHTML = '<div class="modal"><p></p><div class="row"><button class="no">取消</button><button class="primary yes">確定</button></div></div>';
+    bg.innerHTML = '<div class="modal' + (o.danger ? ' danger' : '') + '"><p></p><div class="row"><button class="no">取消</button><button class="primary yes">確定</button></div></div>';
     bg.querySelector('p').textContent = msg;
+    if (o.yes) bg.querySelector('.yes').textContent = o.yes;
     bg.querySelector('.no').onclick = function () { bg.remove(); if (onNo) onNo(); };
     bg.querySelector('.yes').onclick = function () { bg.remove(); onYes(); };
     document.body.appendChild(bg);
@@ -2087,7 +2120,7 @@
     t.appendChild(document.createTextNode(' ')); t.appendChild(b); t.classList.add('act');
   }
   // showTab：v1.5.0 起「預報」與「對照」合併成「預報·對照」（Pro 在預報下面直接接對照）；showTab('compare') 仍可用＝回到預報·對照並捲到對照區
-  var curTab = 'predict';
+  var curTab = 'predict'; // 啟動時先畫預報（Lite 用），Pro 初始化完成後切到「分析」（v1.8.0）
   function showTab(name) {
     var toCmp = name === 'compare'; if (toCmp) name = 'predict';
     if (!$('tab-' + name)) name = 'predict';
@@ -2096,6 +2129,7 @@
     document.querySelectorAll('.tab').forEach(function (s) { s.classList.toggle('active', s.id === 'tab-' + name); });
     if (name === 'records') renderRecords();
     if (name === 'analysis') renderAnalysis();
+    if (name === 'about' && stSub && stSub.cur === 'acct') { try { renderAcct(); } catch (e) {} }
     try { syncTargetSel(); } catch (e) {}
     document.body.classList.toggle('on-predict', name === 'predict');
     document.body.classList.toggle('on-ghost', name === 'ghost');
@@ -2113,16 +2147,17 @@
 
   // ---------- v1.7.0「設定/說明」子標籤：設定｜說明（記住上次看的；樣式跟主題，切換方式跟 A/B/C） ----------
   // A／B／Lite：點標籤切換（A 底線分頁、B 膠囊）；C：點標籤或在頁面上左右滑（標籤下有小圓點），規則見 nav 的 tEnd。
-  var ST_SUBS = ['set', 'help'];
+  var ST_SUBS = ['set', 'acct', 'help']; // v1.8.0：中間多了「帳號」
   var stSub = (function () {
-    var S = $('tab-about'), P = $('stPanes'), cur = prefs.aboutSub === 'help' ? 'help' : 'set', anim = 0;
+    var S = $('tab-about'), P = $('stPanes'), cur = ST_SUBS.indexOf(prefs.aboutSub) >= 0 ? prefs.aboutSub : 'set', anim = 0;
     function reduced() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
     function set(name, o) {
       o = o || {}; if (ST_SUBS.indexOf(name) < 0) name = 'set';
       var old = cur; cur = name; S.setAttribute('data-sub', name);
       document.querySelectorAll('#stTabs [data-sub]').forEach(function (b) { var on = b.dataset.sub === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; });
       document.querySelectorAll('#tab-about .st-dots i').forEach(function (d) { d.classList.toggle('on', d.dataset.sub === name); });
-      $('stPaneSet').hidden = name !== 'set'; $('stPaneHelp').hidden = name !== 'help';
+      $('stPaneSet').hidden = name !== 'set'; $('stPaneAcct').hidden = name !== 'acct'; $('stPaneHelp').hidden = name !== 'help';
+      if (name === 'acct' && old !== name) { try { renderAcct(); } catch (e) {} }
       if (prefs.aboutSub !== name) { prefs.aboutSub = name; savePrefs(); }
       if (old !== name && o.dir && !reduced()) {
         clearTimeout(anim); P.style.transition = 'none'; P.style.transform = 'translateX(' + (o.dir * 22) + '%)'; P.style.opacity = '0.2'; void P.offsetWidth;
@@ -2145,9 +2180,10 @@
 
   // ---------- v1.5.0 功能切換（只在 Pro；Lite 用底部步驟列）：A 底部圖示列／B 浮動按鈕／C 左右滑動 ----------
   // A（預設）：閒置 3 秒淡出（opacity 300ms，隱藏時不能按）；在靶面以外輕輕一滑（或從畫面下方往上滑）就淡入。點靶面、雙指縮放不會叫出來。
-  // B：右下角浮動圓鈕，按一下往上展開 5 個功能。C：在靶面以外左右滑動換功能，上方小圓點顯示目前位置。
+  // B：右下角浮動圓鈕，按一下往上展開 5 個功能（順序同 NAV_ORDER）。C：在靶面以外左右滑動換功能，上方小圓點顯示目前位置。
   // 設定存在 prefs.nav（'a'｜'b'｜'c'）與 prefs.navAutoHide（預設 true）。
-  var NAV_ORDER = ['predict', 'analysis', 'records', 'ghost', 'about'];
+  // v1.8.0：順序改成 預報·對照／鬼影／分析（中間）／紀錄／設定/說明；打開 App 預設在「分析」
+  var NAV_ORDER = ['predict', 'ghost', 'analysis', 'records', 'about'];
   var NAV_NAME = { predict: '預報·對照', analysis: '分析', records: '紀錄', ghost: '鬼影', about: '設定/說明' };
   var nav = (function () {
     var N = $('wrNav'), H = $('wrNavHandle'), fab = $('wrFab'), scrim = $('wrFabScrim'), B = document.body, M = document.querySelector('main');
@@ -2277,7 +2313,7 @@
       if (style !== 'c' || G.dir !== 'h') return;
       var t = e.changedTouches && e.changedTouches[0]; if (!t || e.type === 'touchcancel') { cDragEnd(); stSub.dragEnd(); return; }
       var dx = t.clientX - G.x, dt = Math.max(1, Date.now() - G.t), W = window.innerWidth || 400;
-      // v1.7.0：在「設定/說明」裡左右滑＝先換子標籤（設定 ⇄ 說明）；已經在最邊的子標籤再往外滑，才換到相鄰的功能頁
+      // v1.7.0：在「設定/說明」裡左右滑＝先換子標籤（設定 ⇄ 帳號 ⇄ 說明）；已經在最邊的子標籤再往外滑，才換到相鄰的功能頁
       if (Math.abs(dx) > Math.max(56, W * 0.2) || (Math.abs(dx) > 32 && Math.abs(dx) / dt > 0.45)) { var dir = dx < 0 ? 1 : -1; if (curTab === 'about' && stSub.step(dir)) { cDragEnd(true); return; } stSub.dragEnd(); cStep(dir); } else { cDragEnd(); stSub.dragEnd(); }
     }
     document.addEventListener('touchend', tEnd, { passive: true, capture: true });
@@ -2318,7 +2354,7 @@
       ask('目前這組已有紀錄。換靶種會開始新的一組，舊的保留在「紀錄」。繼續？', function () { cur = newSession(id); sessions.unshift(cur); go(); });
     } else { cur.targetId = id; go(); }
   };
-  function renderAll() { renderAnalysis(); syncTargetSel(); $('pairMode').value = cur.pairMode || (cur.actuals.some(function (a) { return a.src === 'auto'; }) ? 'optimal' : 'order'); fillCalRing(); renderPredict(); renderCompare(); renderRecords(); if (document.body.classList.contains('on-ghost')) renderGhost(); }
+  function renderAll() { renderAnalysis(); syncTargetSel(); $('pairMode').value = cur.pairMode || (cur.actuals.some(function (a) { return a.src === 'auto'; }) ? 'optimal' : 'order'); fillCalRing(); renderPredict(); renderCompare(); renderRecords(); if (document.body.classList.contains('on-ghost')) renderGhost(); if (typeof acctState !== 'undefined' && curTab === 'about' && stSub.cur === 'acct') { try { renderAcct(); } catch (e) {} } }
   try { var nj = $('nojsNotice'); if (nj) nj.style.display = 'none'; } catch (e) {}
   if (!storageOK) { var sw = $('storageNotice'); if (sw) sw.style.display = ''; }
   setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); nav.sync('predict'); renderAbout(); persist(true); renderAll(); liteLayout();
@@ -2330,34 +2366,139 @@
     $('dockAutoHide').onchange = function () { prefs.dockAutoHide = this.checked; savePrefs(); WRDock.setEnabled(this.checked); toast(this.checked ? '拍照按鈕：閒置自動收到邊緣' : '拍照按鈕：一直顯示'); };
     $('dockResetSet').onclick = function () { WRDock.home(); };
   }
+  // v1.8.0：Pro 打開 App 預設在「分析」（Lite 照舊從三步驟的預報開始）
+  if (!document.body.classList.contains('lite')) { showTab('analysis'); window.scrollTo(0, 0); }
   window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; }, get liteStep() { return liteStep(); }, setLiteStep: setLiteStep, get litePhoto() { return lp; }, get liteSel() { return liteSel; }, renderLite: function () { renderLite(); }, get gcur() { return gcur; }, renderGhost: function () { renderGhost(); }, showTab: function (n) { showTab(n); }, get ghostPreview() { return ghPrev; }, nav: nav, get tab() { return curTab; }, predZoom: function (z) { PV.zoom(z); renderPredict(); }, cmpZoom: function (z) { CV.zoom(z); renderCompare(); }, get predView() { return PV.v; },
     // v1.6.0
     get anaView() { return anaView; }, setAnaView: function (v) { anaSetView(v); }, anaZoom: function (z) { AV.zoom(z); renderAnalysis(); }, get anaViewBox() { return AV.v; }, get anaPZ() { return anaPZ; }, themes: LITE_THEMES.slice(), themeName: THEME_NAME, get theme() { return liteTheme; },
     // v1.7.0
-    stSub: stSub, get aboutSub() { return stSub.cur; }, dock: window.WRDock };
+    stSub: stSub, get aboutSub() { return stSub.cur; }, dock: window.WRDock,
+    // v1.8.0
+    renderAcct: function (st) { renderAcct(st); }, profileStats: function () { return profileStats(); }, restoreCodes: function (t) { return restoreCodes(t); } };
 
-  // ---------- 雲端帳號（備註4，Firebase；沒有設定檔時只顯示「即將推出」） ----------
-  (function () {
+  // ---------- v1.8.0「設定/說明 › 帳號」：雲端帳號（Firebase Google 登入）＋個人畫面 ----------
+  // 沒登入：說明＋「用 Google 帳號登入」。登入後：頭像／名字／email、我的統計（這台裝置的真實紀錄）、同步狀態、選填資料、登出、刪除帳號與雲端資料。
+  // 選填資料（射手名稱／慣用槍枝／彈種）存在這台裝置（localStorage 'wr_profile_v1'）；Firestore 規則目前不收這些欄位，所以不上傳。
+  var LS_PROFILE = 'wr_profile_v1';
+  var PF_FIELDS = [['shooter', '射手名稱', '例：White', 30], ['gun', '慣用槍枝', '例：Steyr EVO 10', 40], ['ammo', '彈種', '例：H&N Finale Match 4.50', 40]];
+  function pfLoad() { try { var v = JSON.parse(store.get(LS_PROFILE)); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
+  var WEEK = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+  function fmtTWShort(iso) { // 11/18 週二 23:09（台北）
+    var d = new Date(iso); if (!isFinite(d)) return '—';
+    try {
+      var p = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d).forEach(function (x) { p[x.type] = x.value; });
+      var wd = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[p.weekday];
+      return p.month + '/' + p.day + ' ' + WEEK[wd] + ' ' + (p.hour === '24' ? '00' : p.hour) + ':' + p.minute;
+    } catch (e) { return fmtTW(iso); }
+  }
+  /* 我的統計：全部用這台裝置的紀錄（登入後也包含從雲端同步下來的）。發數＝實際彈著（分析的彈孔、預報／鬼影的實際落點；預報點不算）。
+   * 最佳成績：10 發以上的紀錄裡平均最高的那筆（沒有 10 發以上就看全部），顯示「總分 /滿分」。 */
+  function profileStats() {
+    var out = { records: 0, shots: 0, best: null, last: null };
+    var pool = [];
+    sessions.forEach(function (s) {
+      var shots = isAna(s) ? anaShots(s) : (s.actuals || []), preds = isAna(s) ? [] : (s.preds || []);
+      if (!shots.length && !preds.length) return;
+      out.records++; out.shots += shots.length;
+      if (!out.last || Date.parse(s.created) > Date.parse(out.last.created)) out.last = s;
+      if (shots.length) { var t = T[s.targetId] || T.ap10, st = C.analyzeShots(t, shots); pool.push({ s: s, n: st.n, total: st.total, avg: st.n ? st.total / st.n : 0 }); }
+    });
+    var big = pool.filter(function (x) { return x.n >= 10; }), cand = big.length ? big : pool;
+    cand.forEach(function (x) { if (!out.best || x.avg > out.best.avg || (x.avg === out.best.avg && x.n > out.best.n)) out.best = x; });
+    return out;
+  }
+  var GLOGO = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+  var CHEV = '<svg class="pf-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+  var SYNC_IC = '<svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path d="M18.5 3.5v3.8h-3.8M5.5 20.5v-3.8h3.8"/></svg>';
+  var acctState = null;
+  function renderAcct(st) {
     var W = window.WRCloud, box = $('cloudBody'); if (!box) return;
-    function render(st) {
-      st = st || (W && W.state) || { status: 'off' };
-      var h = '';
-      if (!W || st.status === 'off') h = '<div class="cloud-soon">☁️ 雲端帳號即將推出</div><div class="lbl">之後可以用 Google 帳號登入，把紀錄同步到雲端、換手機也不會不見。目前紀錄存在這台裝置（可用紀錄碼或匯出備份）。</div>';
-      else if (st.status === 'loading') h = '<div class="lbl">連線中…</div>';
-      else if (st.status === 'signed-in') {
-        var u = st.user || {};
-        h = '<div class="cloud-user"><b>' + esc(u.name || '已登入') + '</b><span class="lbl">' + esc(u.email || '') + (u.relay ? '（Apple 轉寄信箱）' : '') + '</span></div>' +
-          '<div class="lbl">' + (st.syncing ? '同步中…' : st.lastSync ? '上次同步：' + esc(fmtTW(st.lastSync)) + '（台北）' : '尚未同步') + (st.error ? '　⚠️ ' + esc(st.error) : '') + '</div>' +
-          '<div class="row"><button type="button" id="cloudSync" class="primary">立即同步</button><button type="button" id="cloudOut">登出</button></div>';
-      } else {
-        h = '<div class="lbl">登入後，紀錄會自動備份到你自己的雲端空間（只有你看得到）。沒登入也可以照常使用。</div><div class="row">' +
-          (st.providers || ['google']).map(function (p) { return '<button type="button" class="cloud-in" data-p="' + p + '">' + (p === 'apple' ? ' 用 Apple 登入' : '用 Google 帳號登入') + '</button>'; }).join('') + '</div>' + (st.error ? '<div class="lbl">⚠️ ' + esc(st.error) + '</div>' : '');
-      }
-      box.innerHTML = h;
-      box.querySelectorAll('.cloud-in').forEach(function (b) { b.onclick = function () { W.signIn(b.dataset.p); }; });
-      if ($('cloudSync')) $('cloudSync').onclick = function () { W.syncNow(); };
-      if ($('cloudOut')) $('cloudOut').onclick = function () { ask('登出後紀錄仍留在這台裝置。確定登出？', function () { W.signOut(); }); };
+    st = st || acctState || (W && W.state) || { status: 'off' }; acctState = st;
+    var signed = st.status === 'signed-in', u = st.user || {}, h = '';
+    // 1) 帳號卡
+    if (!W || st.status === 'off') {
+      h = st.offReason === 'file'
+        ? '<div class="pf-h">雲端帳號</div><div class="lbl">雲端帳號只能在網址版使用（這個單檔版不能登入 Google）。請用 <b>whiterhapsody.github.io/WRbeta</b> 開啟，或把它加到主畫面。紀錄照樣存在這台裝置，也可以用紀錄碼備份。</div>'
+        : '<div class="cloud-soon">☁️ 雲端帳號即將推出</div><div class="lbl">之後可以用 Google 帳號登入，把紀錄同步到雲端、換手機也不會不見。目前紀錄存在這台裝置（可用紀錄碼備份）。</div>';
+    } else if (st.status === 'loading') h = '<div class="pf-h">雲端帳號</div><div class="lbl pf-loading">連線中…</div>';
+    else if (signed) {
+      var nm = u.name || (u.email ? u.email.split('@')[0] : '已登入'), ini = (nm.trim().charAt(0) || 'W').toUpperCase();
+      h = '<div class="pf-id"><span class="pf-av" aria-hidden="true">' + esc(ini) + (u.photo ? '<img class="pf-photo" src="' + esc(u.photo) + '" alt="" referrerpolicy="no-referrer">' : '') + '<i class="pf-g">' + GLOGO + '</i></span>' +
+        '<span class="pf-idt"><b>' + esc(nm) + '</b><small>' + esc(u.email || '') + (u.relay ? '（Apple 轉寄信箱）' : '') + '</small><small>以 ' + (u.provider === 'apple.com' ? 'Apple' : 'Google') + ' 帳號登入</small></span></div>';
+    } else {
+      h = '<div class="pf-h">登入雲端帳號</div><div class="lbl">登入後，紀錄會自動備份到你自己的雲端空間（只有你看得到），換手機或重裝也拿得回來。沒登入也可以照常使用，紀錄存在這台裝置。</div>' +
+        (st.providers || ['google']).map(function (p) { return '<button type="button" class="cloud-in pf-gbtn" data-p="' + p + '">' + (p === 'apple' ? ' 用 Apple 登入' : '<i class="pf-gl">' + GLOGO + '</i>用 Google 帳號登入') + '</button>'; }).join('') +
+        (st.error ? '<div class="lbl pf-err">⚠️ ' + esc(cloudErrText(st.error)) + '</div>' : '');
     }
+    box.innerHTML = h;
+    var img = box.querySelector('.pf-photo'); if (img) img.onerror = function () { img.remove(); };
+    box.querySelectorAll('.cloud-in').forEach(function (b) { b.onclick = function () { W.signIn(b.dataset.p); }; });
+    // 2) 我的統計
+    var S = profileStats();
+    $('pfStats').innerHTML = '<div class="pf-h">我的統計<small>' + (signed ? '全部紀錄・含雲端同步' : '這台裝置的全部紀錄') + '</small></div><div class="pf-stats">' +
+      '<div class="pf-st"><small>總紀錄數</small><b id="pfRecN">' + S.records.toLocaleString('en-US') + '<i>筆</i></b></div>' +
+      '<div class="pf-st"><small>總發數</small><b id="pfShotN">' + S.shots.toLocaleString('en-US') + '<i>發</i></b></div>' +
+      '<div class="pf-st"><small>最佳成績</small>' + (S.best ? '<b class="acc" id="pfBest">' + S.best.total + '<i>/' + (S.best.n * 10) + '</i></b><small class="pf-sub">' + esc(recTitle(S.best.s)) + '</small>' : '<b id="pfBest">—</b>') + '</div>' +
+      '<div class="pf-st"><small>最近一次練習</small><b class="pf-date" id="pfLast">' + (S.last ? esc(fmtTWShort(S.last.created)) : '—') + '</b></div></div>';
+    // 3) 同步狀態（登入後）
+    var sy = $('pfSync'); sy.hidden = !signed;
+    if (signed) {
+      var pend = W.pending ? W.pending(sessions) : 0;
+      sy.innerHTML = '<div class="pf-h">同步狀態</div><div class="pf-sync"><div><i class="dot' + (st.error ? ' bad' : '') + '"></i>' + (st.syncing ? '同步中…' : st.lastSync ? '上次同步 ' + esc(fmtTWShort(st.lastSync).replace(/ 週. /, ' ')) + '（台北）' : '還沒同步過') + '</div>' +
+        '<div class="' + (pend ? 'pend' : 'ok') + '" id="pfPend">' + (pend ? '這台裝置待上傳 ' + pend + ' 筆' : '這台裝置的紀錄都已上傳') + '</div>' +
+        (st.error ? '<div class="pf-err">⚠️ ' + esc(cloudErrText(st.error)) + '</div>' : '') + '</div>' +
+        '<button type="button" id="cloudSync" class="pf-btn"' + (st.syncing ? ' disabled' : '') + '>' + SYNC_IC + (st.syncing ? '同步中…' : '立即同步') + '</button>';
+      $('cloudSync').onclick = function () { W.syncNow(); };
+    } else sy.innerHTML = '';
+    // 4) 選填資料（這台裝置）
+    var pf = pfLoad();
+    $('pfExtra').innerHTML = '<div class="pf-h">選填資料<small>可不填・只存在這台裝置</small></div>' + PF_FIELDS.map(function (f) {
+      var v = pf[f[0]] || ''; return '<button type="button" class="pf-row" data-f="' + f[0] + '"><span>' + f[1] + '</span><em class="' + (v ? 'set' : '') + '">' + esc(v || '未設定') + '</em>' + CHEV + '</button>';
+    }).join('');
+    $('pfExtra').querySelectorAll('.pf-row').forEach(function (b) { b.onclick = function () { pfEdit(b.dataset.f); }; });
+    // 5) 登出／刪除帳號（登入後）
+    var end = $('pfEnd'); end.hidden = !signed;
+    if (signed) {
+      end.innerHTML = '<button type="button" id="cloudOut" class="pf-out">登出</button>' +
+        '<button type="button" id="pfDel" class="pf-del"' + (st.deleting ? ' disabled' : '') + '>' + (st.deleting ? '刪除中…' : '刪除帳號與雲端資料') + '<small>會永久刪除雲端紀錄；這台手機上的紀錄碼不受影響</small></button>';
+      $('cloudOut').onclick = function () { ask('登出後紀錄仍留在這台裝置。確定登出？', function () { W.signOut(); toast('已登出'); }, null, { yes: '登出' }); };
+      $('pfDel').onclick = pfDelete;
+    } else end.innerHTML = '';
+  }
+  function cloudErrText(e) {
+    var m = { 'popup-blocked': '彈出視窗被擋住了，請允許後再試一次', 'network-request-failed': '網路連線失敗，請稍後再試', 'unauthorized-domain': '這個網址還沒有被授權登入（請回報）',
+      'operation-not-allowed': 'Google 登入尚未啟用（請回報）', 'too-many-requests': '嘗試太多次，請稍後再試', 'requires-recent-login': '要先重新確認 Google 帳號，請再按一次',
+      'user-mismatch': '請選擇目前登入的同一個 Google 帳號', 'permission-denied': '雲端拒絕存取（請重新登入）', 'unavailable': '雲端暫時連不上，稍後會再試', 'internal-error': '登入發生錯誤，請再試一次' };
+    var k = String(e || '').replace(/^firestore\//, '');
+    return m[k] || String(e || '');
+  }
+  function pfEdit(key) {
+    var f = PF_FIELDS.filter(function (x) { return x[0] === key; })[0]; if (!f) return;
+    var pf = pfLoad(), bg = document.createElement('div'); bg.className = 'modal-bg';
+    bg.innerHTML = '<div class="modal pf-modal"><p class="pf-mh"></p><input type="text" class="pf-in" autocomplete="off"><div class="lbl">只存在這台裝置；留空＝不設定。</div><div class="row"><button class="no">取消</button><button class="primary yes">儲存</button></div></div>';
+    bg.querySelector('.pf-mh').textContent = f[1];
+    var inp = bg.querySelector('.pf-in'); inp.value = pf[key] || ''; inp.placeholder = f[2]; inp.maxLength = f[3]; inp.setAttribute('aria-label', f[1]);
+    function done(save) {
+      if (save) { var v = inp.value.trim().slice(0, f[3]); if (v) pf[key] = v; else delete pf[key]; store.set(LS_PROFILE, JSON.stringify(pf)); toast(f[1] + (v ? '已儲存' : '已清除')); }
+      bg.remove(); renderAcct();
+    }
+    bg.querySelector('.no').onclick = function () { done(false); };
+    bg.querySelector('.yes').onclick = function () { done(true); };
+    inp.onkeydown = function (e) { if (e.key === 'Enter') done(true); else if (e.key === 'Escape') done(false); };
+    document.body.appendChild(bg); setTimeout(function () { inp.focus(); }, 0);
+  }
+  function pfDelete() {
+    var W = window.WRCloud;
+    ask('刪除帳號與雲端資料？\n會永久刪除你在雲端的全部紀錄與帳號資料，無法復原。這台手機上的紀錄（與紀錄碼）不受影響。', function () {
+      ask('最後確認：真的要永久刪除帳號與雲端資料嗎？（如果登入超過幾分鐘，會請你再選一次 Google 帳號確認）', function () {
+        // 在點擊裡直接呼叫（需要重新確認時，Google 視窗才不會被擋）
+        W.deleteAccount().then(function (r) { toast('帳號與雲端資料已刪除（' + r.deletedRecords + ' 筆雲端紀錄）。這台裝置的紀錄還在。', 4200); renderAcct(); })
+          .catch(function (e) { var c = e && e.code ? String(e.code).replace('auth/', '') : ''; if (!/popup-closed|cancelled-popup/.test(c)) toast('刪除沒有完成：' + cloudErrText(c || (e && e.message)), 4200); renderAcct(); });
+      }, null, { yes: '永久刪除', danger: true });
+    }, null, { yes: '繼續', danger: true });
+  }
+  (function () {
+    var W = window.WRCloud;
     if (W && W.init) W.init({
       getSessions: function () { return sessions; },
       setSessions: function (list) { // 雲端合併後的結果寫回本機，畫面重畫
@@ -2366,9 +2507,9 @@
         acur = sessions.filter(function (x) { return x.id === acur.id; })[0] || acur;
         renderAll();
       },
-      onState: render
+      onState: function (st) { renderAcct(st); }
     });
-    render();
+    renderAcct();
   })();
 
   // ---------- 版本更新 ----------

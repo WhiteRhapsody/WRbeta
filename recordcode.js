@@ -7,12 +7,18 @@
  *   - 同一筆內自適應更新尺度
  * 混淆：固定金鑰的 XOR 流（這是混淆，不是加密；金鑰在程式裡，無法當作保密通訊）。
  * 分段：每段有獨特開頭、長度與校驗，可直接接在一起；空白與換行會被忽略。
+ *
+ * v1.8.0：也能存「預報」紀錄（含鬼影、Lite 多輪）——第一個 4 位元（模型版號）＝2 代表預報紀錄（沿用模型 1 的數字）：
+ *   靶種、建立時間（分）、名稱、模式（一般／鬼影）、配對方式、目前輪次、每輪的預報發數與實際發數，
+ *   之後是「預報點」一組、「實際彈著」一組，各自用群中心＋相對座標（0.01mm）的同一套機率模型編碼。
+ *   舊版 App（v1.7.x）看到這種碼會當作無效略過，不會出錯。
  */
 (function (root) {
   'use strict';
 
   var FORMAT = 1;
   var MODEL_VER = 1;
+  var FC_VER = 2; /* 第一個 4 位元＝2：預報紀錄（v1.8.0） */
   var MARK = '*A1';
   /* 複製貼上安全的 86 字元字母表（不含空白、引號、反斜線、<>& 與開頭符號 *） */
   var ALPH = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%()+,-./:;=?@[]^_{|}~';
@@ -374,7 +380,7 @@
     }
     return parts.join(';');
   }
-  function contentHash(rec) { return fnv1a(contentKey(rec)); }
+  function contentHash(rec) { return fnv1a(isForecast(rec) ? contentKeyFc(rec) : contentKey(rec)); }
 
   function packRecord(rec) {
     var model = modelOf(MODEL_VER);
@@ -428,6 +434,7 @@
     if (!bytes || !bytes.length) return null;
     var d = new AcDec(bytes);
     var mv = decRawBits(d, 4);
+    if (mv === FC_VER) return unpackForecast(d);
     var model = modelOf(mv);
     if (!model) return null;
     var ti = decRawBits(d, 4);
@@ -469,15 +476,123 @@
     return { v: 2, kind: 'analysis', targetId: tid, created: created, tz: 'Asia/Taipei', name: name, note: '', sheets: sheets };
   }
 
-  function newId() { return 'a' + Date.now() + Math.floor(Math.random() * 1000); }
+  /* ---------- 預報紀錄（v1.8.0） ---------- */
+  function roundOf(p) { return p && p.r > 0 ? Math.min(255, p.r | 0) : 0; }
+  function byRound(list) { // 依輪次排好（同一輪內保持原本順序）
+    return (list || []).map(function (p, i) { return { p: p, i: i, r: roundOf(p) }; }).sort(function (a, b) { return a.r - b.r || a.i - b.i; });
+  }
+  function encGroup(e, model, tid, pts) { // 一組點：尺度桶＋群中心＋相對座標
+    var n = pts.length, i, sx = 0, sy = 0, mx, my, sumSq = 0, dx, dy;
+    if (!n) return;
+    for (i = 0; i < n; i++) { sx += pts[i][0]; sy += pts[i][1]; }
+    mx = Math.round(sx / n); my = Math.round(sy / n);
+    for (i = 0; i < n; i++) { dx = pts[i][0] - mx; dy = pts[i][1] - my; sumSq += dx * dx + dy * dy; }
+    var bkt = pickBucket(model, Math.sqrt(sumSq / (2 * n)));
+    encSym(e, bkt, lookup(model.scalePrior, tid));
+    var mpiS = lookup(model.mpiScale, tid);
+    encInt(e, mx, mpiS); encInt(e, my, mpiS);
+    var st = newAdapt(model, model.scaleBuckets[bkt]), s;
+    for (i = 0; i < n; i++) { s = adaptScale(st); dx = pts[i][0] - mx; dy = pts[i][1] - my; encInt(e, dx, s); encInt(e, dy, s); adaptAdd(st, dx, dy); }
+  }
+  function decGroup(d, model, tid, n) {
+    var out = [], i;
+    if (!n) return out;
+    var bkt = decSym(d, lookup(model.scalePrior, tid));
+    if (bkt < 0 || bkt >= model.scaleBuckets.length) return null;
+    var mpiS = lookup(model.mpiScale, tid), mx = decInt(d, mpiS), my = decInt(d, mpiS);
+    var st = newAdapt(model, model.scaleBuckets[bkt]), s, dx, dy;
+    for (i = 0; i < n; i++) { s = adaptScale(st); dx = decInt(d, s); dy = decInt(d, s); adaptAdd(st, dx, dy); out.push([mx + dx, my + dy]); }
+    return out;
+  }
+  var PAIR = ['', 'optimal', 'order'];
+  function packForecast(rec) {
+    var model = modelOf(MODEL_VER), tid = rec.targetId || 'ap10';
+    var ti = TARGET_IDS.indexOf(tid); if (ti < 0) ti = 0;
+    var name = rec.name ? String(rec.name).slice(0, 60) : '';
+    var nb = utf8Bytes(name); if (nb.length > 240) nb = nb.slice(0, 240);
+    var P = byRound(rec.preds), A = byRound(rec.actuals), nR = 1, i, k;
+    P.concat(A).forEach(function (o) { if (o.r + 1 > nR) nR = o.r + 1; });
+    var ghost = rec.mode === 'ghost';
+    var e = new AcEnc();
+    encRawBits(e, FC_VER, 4);
+    encRawBits(e, ti, 4);
+    encRawBits(e, minuteOf(rec.created) >>> 0, 32);
+    encBit(e, nb.length ? 1 : 0, TOT >> 1);
+    if (nb.length) { encRawBits(e, nb.length, 8); for (i = 0; i < nb.length; i++) encRawBits(e, nb[i], 8); }
+    encRawBits(e, ghost ? 1 : 0, 2);
+    encRawBits(e, Math.max(0, PAIR.indexOf(rec.pairMode || '')), 2);
+    encRawBits(e, rec.round > 0 ? Math.min(255, rec.round | 0) : 0, 8);
+    if (ghost) { var g = rec.ghost || {}; encRawBits(e, g.src === 'round' ? 1 : 0, 1); encRawBits(e, g.done ? 1 : 0, 1); }
+    encRawBits(e, nR, 8);
+    for (k = 0; k < nR; k++) {
+      encRawBits(e, P.filter(function (o) { return o.r === k; }).length, 12);
+      encRawBits(e, A.filter(function (o) { return o.r === k; }).length, 12);
+    }
+    encGroup(e, model, tid, P.map(function (o) { return [qmm(o.p.x), qmm(o.p.y)]; }));
+    encGroup(e, model, tid, A.map(function (o) { return [qmm(o.p.x), qmm(o.p.y)]; }));
+    return e.finish();
+  }
+  function unpackForecast(d) {
+    var model = modelOf(MODEL_VER), i, k;
+    var ti = decRawBits(d, 4);
+    if (ti < 0 || ti >= TARGET_IDS.length) return null;
+    var tid = TARGET_IDS[ti], created = isoOfMinute(decRawBits(d, 32)), name = '';
+    if (decBit(d, TOT >> 1)) {
+      var nl = decRawBits(d, 8), nb = [];
+      for (i = 0; i < nl; i++) nb.push(decRawBits(d, 8));
+      name = utf8String(nb); if (name == null) return null;
+    }
+    var mode = decRawBits(d, 2), pm = PAIR[decRawBits(d, 2)], round = decRawBits(d, 8), gsrc = 0, gdone = 0;
+    if (mode > 1 || pm == null) return null;
+    if (mode === 1) { gsrc = decRawBits(d, 1); gdone = decRawBits(d, 1); }
+    var nR = decRawBits(d, 8), pr = [], ar = [], nP = 0, nA = 0;
+    if (nR < 1) return null;
+    for (k = 0; k < nR; k++) { pr[k] = decRawBits(d, 12); ar[k] = decRawBits(d, 12); nP += pr[k]; nA += ar[k]; }
+    if (nP > 4000 || nA > 4000) return null;
+    var P = decGroup(d, model, tid, nP), A = decGroup(d, model, tid, nA);
+    if (!P || !A) return null;
+    function pts(list, cnt, isPred) {
+      var out = [], j = 0;
+      for (k = 0; k < nR; k++) for (i = 0; i < cnt[k]; i++, j++) {
+        var q = { x: umm(list[j][0]), y: umm(list[j][1]) };
+        if (!isPred) q.src = 'code';
+        if (k > 0) q.r = k;
+        out.push(q);
+      }
+      return out;
+    }
+    var rec = { v: 2, kind: 'forecast', created: created, name: name, note: '', targetId: tid, preds: pts(P, pr, true), actuals: pts(A, ar, false), calib: null };
+    if (pm) rec.pairMode = pm;
+    if (round) rec.round = round;
+    if (mode === 1) { rec.mode = 'ghost'; rec.round = round; rec.ghost = { src: gsrc ? 'round' : 'prev', ref: null, done: !!gdone }; }
+    return rec;
+  }
+  function isForecast(rec) { return !!rec && rec.kind !== 'analysis'; }
+  function contentKeyFc(rec) {
+    var parts = ['F', String(rec.targetId || ''), String(minuteOf(rec.created)), String(rec.name || ''), rec.mode === 'ghost' ? 'g' : ''];
+    function add(list) { byRound(list).forEach(function (o) { parts.push(o.r + ':' + qmm(o.p.x) + ',' + qmm(o.p.y)); }); }
+    add(rec.preds); parts.push('|'); add(rec.actuals);
+    return parts.join(';');
+  }
+
+  function newId(rec) {
+    var p = rec && rec.kind !== 'analysis' ? (rec.mode === 'ghost' ? 'g' : 's') : 'a';
+    return p + Date.now() + Math.floor(Math.random() * 1000);
+  }
 
   function encode(rec) {
-    if (!rec || rec.kind === 'forecast') return null;
-    var sheets = rec.sheets || [];
-    var n = 0, i;
-    for (i = 0; i < sheets.length; i++) n += (sheets[i].shots || []).length;
-    if (!n) return null;
-    var plain = packRecord(rec);
+    if (!rec) return null;
+    var plain, n = 0, i;
+    if (isForecast(rec)) {
+      n = (rec.preds || []).length + (rec.actuals || []).length;
+      if (!n) return null;
+      plain = packForecast(rec);
+    } else {
+      var sheets = rec.sheets || [];
+      for (i = 0; i < sheets.length; i++) n += (sheets[i].shots || []).length;
+      if (!n) return null;
+      plain = packRecord(rec);
+    }
     var crc = crc16(plain);
     var body = bytesToAlpha(scramble(plain, crc));
     return MARK + toDigits(body.length, 3) + toDigits(crc, 3) + body;
@@ -516,9 +631,9 @@
       if (body.length < len) { invalid++; break; }
       rec = decodeOneBytes(body, crc);
       if (!rec) { if (!resync) invalid++; resync = true; i = p + 1; continue; }
-      rec.id = newId();
+      rec.id = newId(rec);
       rec.hash = contentHash(rec);
-      for (var si = 0; si < rec.sheets.length; si++) rec.sheets[si].id = rec.id + 's' + si;
+      for (var si = 0; si < (rec.sheets || []).length; si++) rec.sheets[si].id = rec.id + 's' + si;
       records.push(rec);
       i = p + 9 + len;
       resync = false;
@@ -532,7 +647,7 @@
     var have = {};
     var i, h, add = [];
     for (i = 0; i < (existing || []).length; i++) {
-      if (existing[i] && existing[i].kind === 'analysis') have[contentHash(existing[i])] = true;
+      if (existing[i]) have[contentHash(existing[i])] = true;
     }
     for (i = 0; i < got.records.length; i++) {
       h = got.records[i].hash;
@@ -594,6 +709,7 @@
 
   var api = {
     FORMAT: FORMAT, MODEL_VER: MODEL_VER, MARK: MARK, ALPH: ALPH, MODELS: MODELS,
+    FC_VER: FC_VER,
     encode: encode, encodeMany: encodeMany, decode: decode, merge: merge,
     contentHash: contentHash, encodeVarintBaseline: encodeVarintBaseline,
     /* 測試用 */
