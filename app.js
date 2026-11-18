@@ -1,9 +1,9 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.8.0';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.0.0', APP_LABEL = 'beta v2.0'; // v2.0.0：畫面上顯示「beta v2.0」
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
-  try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
+  try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = APP_LABEL; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = APP_LABEL + '（' + APP_VERSION + '）'; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
   var $ = function (id) { return document.getElementById(id); };
   var f1 = function (v) { return (Math.round(v * 10) / 10).toFixed(1); };
@@ -1957,6 +1957,21 @@
   $('recPaste').onclick = function () { showRecPaste($('recPasteBox').hidden); };
   $('recPasteCancel').onclick = function () { showRecPaste(false); };
   $('recPasteGo').onclick = function () { var added = restoreCodes($('recPasteArea').value); if (!added) return; showRecPaste(false); renderAll(); };
+  /* v2.0.0：好友分享的唯讀檢視（member.js）：把一筆紀錄畫在 ISSF 靶面上（分析＝全部彈孔；預報＝實際彈著＋預報點） */
+  function drawRecord(svg, s) {
+    var t = T[s.targetId] || T.ap10; drawTarget(svg, t, 1);
+    var g = svg.querySelector('#marks'), pel = t.pellet, shots = isAna(s) ? anaShots(s) : (s.actuals || []);
+    if (!isAna(s)) (s.preds || []).forEach(function (p, i) { drawShot(g, svg, p, i + 1, 'pred-c', pel); });
+    shots.forEach(function (p, i) { drawShot(g, svg, p, i + 1, 'act-c', pel); });
+  }
+  function recMetaHTML(s) {
+    var t = T[s.targetId] || T.ap10, rs = recShots(s), st = C.analyzeShots(t, rs.shots), h = '<div class="pf-stats">';
+    var box = function (k, v, u) { return '<div class="pf-st"><small>' + k + '</small><b>' + v + (u ? '<i>' + u + '</i>' : '') + '</b></div>'; };
+    h += box('靶種', esc(t.name)) + box('發數', st.n, '發');
+    if (st.n) h += box('總分', st.total + '<i>（' + f1(st.totalDec) + '）</i>') + box('平均', f2(st.avgDec)) + (st.n > 1 ? box('群大小', f1(st.groupSize), 'mm') : '');
+    if (!isAna(s) && s.preds && s.preds.length && s.actuals && s.actuals.length) { var cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal'); if (cmp.m) h += box('平均預報誤差', f2(cmp.meanErr), 'mm'); }
+    return h + '</div><div class="lbl">' + (isAna(s) ? '分析・' + (s.sheets || []).length + ' 張' : G.isGhost(s) ? '鬼影訓練' : '預報（藍＝預報點、紅＝實際）') + '・資料：' + rs.src + '</div>';
+  }
   function recTitle(s) { return (s.name && s.name.trim()) || (isAna(s) ? '分析' : '預報') + ' ' + fmtTW(s.created).replace(/^\d{4}\//, ''); }
   function renderRecords() {
     var box = $('recordList');
@@ -2002,6 +2017,17 @@
       };
       var r = document.createElement('div'); r.className = 'row'; r.appendChild(name); r.appendChild(open); r.appendChild(del);
       div.appendChild(r);
+      // v2.0.0：分享給好友（唯讀）；登入並建立會員資料後才出現
+      var WM = window.WRMember;
+      if (WM && WM.canShare() && recCode(s)) {
+        var sr = document.createElement('div'); sr.className = 'rec-share';
+        var sh = WM.sharesOf(s.id), nTo = 0; sh.forEach(function (x) { nTo += (x.to || []).length; });
+        var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'rc-share'; sb.innerHTML = '<svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.6"/><circle cx="17.5" cy="6" r="2.6"/><circle cx="17.5" cy="18" r="2.6"/><path d="M8.3 10.8l6.9-3.6M8.3 13.2l6.9 3.6"/></svg>分享給好友';
+        sb.onclick = function () { WM.shareRecord(s); };
+        sr.appendChild(sb);
+        if (nTo) { var si = document.createElement('span'); si.className = 'rc-shared'; si.textContent = '已分享給 ' + nTo + ' 位'; sr.appendChild(si); }
+        div.appendChild(sr);
+      }
       // v1.8.0：每筆紀錄都顯示自己的紀錄碼（座標系統 A），可以單獨複製
       var code = recCode(s), cl = document.createElement('div'); cl.className = 'rec-code';
       if (code) {
@@ -2078,7 +2104,7 @@
   function renderAbout() {
     var rows = function (t) { var h = ''; for (var n = 10; n >= 1; n--) h += '<tr><td>' + n + '</td><td>' + t.ringDiam[n] + '</td><td>' + f2(t.ringDiam[n] / 2 + t.pellet / 2) + '</td></tr>'; return h; };
     $('aboutText').innerHTML =
-      '<p class="appver"><b>' + APP_NAME + '</b> 版本 beta ' + APP_VERSION + '</p>' +
+      '<p class="appver"><b>' + APP_NAME + '</b> 版本 ' + APP_LABEL + '（' + APP_VERSION + '）・<a href="#" class="wr-priv-link">隱私權政策</a></p>' +
       '<h3>怎麼用</h3><ol><li>上方選靶種。</li>' +
       '<li><b>切換功能</b>（Pro）：預設是畫面下方的<b>圖示列</b>（預報·對照、分析、紀錄、鬼影、設定/說明），閒置 3 秒會淡出；在靶面以外輕輕一滑（或從畫面最下方往上滑）就會出現。也可以在「設定」子標籤的「介面設定」改成 <b>B 浮動按鈕</b>（右下角圓鈕）或 <b>C 左右滑動</b>（在靶面以外左右滑）。</li>' +
       '<li><b>設定/說明</b>：上方分成「設定」與「說明」兩個子標籤，會記住你上次看的那一個。用 C 左右滑動時，在這一頁左右滑會先換子標籤；已經在「設定」再往右滑，才會回到「鬼影」。</li>' +
@@ -2374,7 +2400,9 @@
     // v1.7.0
     stSub: stSub, get aboutSub() { return stSub.cur; }, dock: window.WRDock,
     // v1.8.0
-    renderAcct: function (st) { renderAcct(st); }, profileStats: function () { return profileStats(); }, restoreCodes: function (t) { return restoreCodes(t); } };
+    renderAcct: function (st) { renderAcct(st); }, profileStats: function () { return profileStats(); }, restoreCodes: function (t) { return restoreCodes(t); },
+    // v2.0.0（member.js 用）
+    label: APP_LABEL, toast: toast, ask: ask, drawRecord: drawRecord, recMetaHTML: recMetaHTML, renderRecShare: function () { if (curTab === 'records') renderRecords(); }, navBulge: function () { navBulge(); } };
 
   // ---------- v1.8.0「設定/說明 › 帳號」：雲端帳號（Firebase Google 登入）＋個人畫面 ----------
   // 沒登入：說明＋「用 Google 帳號登入」。登入後：頭像／名字／email、我的統計（這台裝置的真實紀錄）、同步狀態、選填資料、登出、刪除帳號與雲端資料。
@@ -2421,6 +2449,7 @@
         ? '<div class="pf-h">雲端帳號</div><div class="lbl">雲端帳號只能在網址版使用（這個單檔版不能登入 Google）。請用 <b>whiterhapsody.github.io/WRbeta</b> 開啟，或把它加到主畫面。紀錄照樣存在這台裝置，也可以用紀錄碼備份。</div>'
         : '<div class="cloud-soon">☁️ 雲端帳號即將推出</div><div class="lbl">之後可以用 Google 帳號登入，把紀錄同步到雲端、換手機也不會不見。目前紀錄存在這台裝置（可用紀錄碼備份）。</div>';
     } else if (st.status === 'loading') h = '<div class="pf-h">雲端帳號</div><div class="lbl pf-loading">連線中…</div>';
+    else if (signed && window.WRMember && window.WRMember.identityHTML(u)) h = window.WRMember.identityHTML(u); // v2.0.0：有會員資料＝會員 ID 身分卡
     else if (signed) {
       var nm = u.name || (u.email ? u.email.split('@')[0] : '已登入'), ini = (nm.trim().charAt(0) || 'W').toUpperCase();
       h = '<div class="pf-id"><span class="pf-av" aria-hidden="true">' + esc(ini) + (u.photo ? '<img class="pf-photo" src="' + esc(u.photo) + '" alt="" referrerpolicy="no-referrer">' : '') + '<i class="pf-g">' + GLOGO + '</i></span>' +
@@ -2431,6 +2460,7 @@
         (st.error ? '<div class="lbl pf-err">⚠️ ' + esc(cloudErrText(st.error)) + '</div>' : '');
     }
     box.innerHTML = h;
+    if (window.WRMember) try { window.WRMember.bindIdentity(box); } catch (e) {}
     var img = box.querySelector('.pf-photo'); if (img) img.onerror = function () { img.remove(); };
     box.querySelectorAll('.cloud-in').forEach(function (b) { b.onclick = function () { W.signIn(b.dataset.p); }; });
     // 2) 我的統計
@@ -2464,6 +2494,11 @@
       $('cloudOut').onclick = function () { ask('登出後紀錄仍留在這台裝置。確定登出？', function () { W.signOut(); toast('已登出'); }, null, { yes: '登出' }); };
       $('pfDel').onclick = pfDelete;
     } else end.innerHTML = '';
+    // 6) v2.0.0：會員資料、好友、分享、管理員（member.js）＋隱私權政策
+    if (window.WRMember) try { window.WRMember.renderCards(); } catch (e) {}
+    var lg = $('pfLegal'); if (lg && !lg.firstChild) {
+      lg.innerHTML = '<button type="button" class="pf-row wr-priv-link"><span class="wide">隱私權政策</span><em>收集什麼、怎麼刪除</em>' + CHEV + '</button>';
+    }
   }
   function cloudErrText(e) {
     var m = { 'popup-blocked': '彈出視窗被擋住了，請允許後再試一次', 'network-request-failed': '網路連線失敗，請稍後再試', 'unauthorized-domain': '這個網址還沒有被授權登入（請回報）',
@@ -2539,4 +2574,66 @@
     Promise.all(jobs).catch(function () {}).then(function () { var u = location.href.split('#')[0].split('?')[0]; location.replace(u + '?r=' + Date.now()); });
   }
   if ($('forceUpdate')) $('forceUpdate').onclick = forceUpdate;
+
+  /* ---------- v2.0.0：A 圖示列的底座在中間「分析」後面往上鼓起一個圓弧（一整條連續的外框＋陰影） ----------
+     做法：底座本身的背景／框線／陰影改成透明，改畫一個 SVG 路徑：
+       .nv-bz-fill：同樣的背景（var(--nv-tx),var(--nv-base)＋毛玻璃），用 clip-path:path() 剪成鼓起的形狀
+       .nv-bz-line：同一條路徑的框線（顏色＝主題原本的框線色）
+       .nv-bz：drop-shadow 濾鏡＝主題原本的外陰影（沿著鼓起的形狀走）
+     主題、字級、視窗大小、功能切換樣式改變都會重算；Lite、B、C 樣式不畫（body 沒有 nv-bulge 就跟 v1.8 一樣） */
+  var NB = { sig: '', raf: 0 };
+  function splitShadows(v) { var out = [], d = 0, cur = ''; for (var i = 0; i < v.length; i++) { var ch = v[i]; if (ch === '(') d++; else if (ch === ')') d--; if (ch === ',' && !d) { out.push(cur.trim()); cur = ''; } else cur += ch; } if (cur.trim()) out.push(cur.trim()); return out; }
+  function shadowFilter(v) {
+    if (!v || v === 'none') return '';
+    return splitShadows(v).filter(function (x) { return !/\binset\b/.test(x); }).map(function (x) {
+      var col = (x.match(/(rgba?|hsla?)\([^)]*\)|#[0-9a-f]{3,8}\b/i) || ['rgba(0,0,0,.25)'])[0], n = x.replace(col, '').match(/-?[\d.]+px/g) || [];
+      return 'drop-shadow(' + (n[0] || '0px') + ' ' + (n[1] || '0px') + ' ' + (parseFloat(n[2] || '0') * 0.6).toFixed(1) + 'px ' + col + ')';
+    }).join(' ');
+  }
+  function bulgePath(W, H, R, cx, a, top) {
+    var h = 14, f = 20, x0 = cx - a - f, x1 = cx - a + 4, x2 = cx + a - 4, x3 = cx + a + f, mx = (x0 + x1) / 2, my = (x2 + x3) / 2, o = top;
+    R = Math.min(R, H / 2, W / 2);
+    var r = function (v) { return Math.round(v * 10) / 10; };
+    return 'M' + r(R) + ',' + o + ' L' + r(x0) + ',' + o + ' C' + r(mx) + ',' + o + ' ' + r(mx) + ',' + r(o - h) + ' ' + r(x1) + ',' + r(o - h) +
+      ' Q' + r(cx) + ',' + r(o - h - 5) + ' ' + r(x2) + ',' + r(o - h) + ' C' + r(my) + ',' + r(o - h) + ' ' + r(my) + ',' + o + ' ' + r(x3) + ',' + o +
+      ' L' + r(W - R) + ',' + o + ' A' + r(R) + ',' + r(R) + ' 0 0 1 ' + r(W) + ',' + r(o + R) + ' L' + r(W) + ',' + r(o + H - R) + ' A' + r(R) + ',' + r(R) + ' 0 0 1 ' + r(W - R) + ',' + r(o + H) +
+      ' L' + r(R) + ',' + r(o + H) + ' A' + r(R) + ',' + r(R) + ' 0 0 1 0,' + r(o + H - R) + ' L0,' + r(o + R) + ' A' + r(R) + ',' + r(R) + ' 0 0 1 ' + r(R) + ',' + o + ' Z';
+  }
+  function navBulge() {
+    NB.raf = 0;
+    var Bd = document.body, inn = document.querySelector('#wrNav .wr-nav-in'), main = inn && inn.querySelector('.nv-main');
+    var ok = inn && main && !Bd.classList.contains('lite') && Bd.classList.contains('nav-a') && window.CSS && CSS.supports && CSS.supports('clip-path', 'path("M0,0 L1,1 Z")');
+    if (!ok) { if (Bd.classList.contains('nv-bulge')) Bd.classList.remove('nv-bulge'); NB.sig = ''; return; }
+    var had = Bd.classList.contains('nv-bulge'); if (had) Bd.classList.remove('nv-bulge');
+    var cs = getComputedStyle(inn), bd = cs.borderTopColor, sh = cs.boxShadow, R = parseFloat(cs.borderTopLeftRadius) || 18, rr = inn.getBoundingClientRect();
+    Bd.classList.add('nv-bulge');
+    var mr = main.getBoundingClientRect(), W = rr.width, H = rr.height;
+    if (W < 40 || H < 20) { Bd.classList.remove('nv-bulge'); NB.sig = ''; return; }
+    var cx = mr.left + mr.width / 2 - rr.left, a = mr.width / 2 + 6, sig = [Math.round(W), Math.round(H), Math.round(cx), Math.round(a), R, bd, sh].join('|');
+    var bz = inn.querySelector('.nv-bz');
+    if (sig === NB.sig && bz) return;
+    NB.sig = sig;
+    if (!bz) {
+      bz = document.createElement('div'); bz.className = 'nv-bz'; bz.setAttribute('aria-hidden', 'true');
+      bz.innerHTML = '<div class="nv-bz-fill"></div><svg class="nv-bz-line" xmlns="' + NS + '"><path class="nv-bz-hl"/><path class="nv-bz-bd"/></svg>';
+      inn.insertBefore(bz, inn.firstChild);
+    }
+    var TOP = 24, d = bulgePath(W, H, R, cx, a, TOP);
+    bz.style.width = W + 'px'; bz.style.height = H + 'px'; bz.style.filter = shadowFilter(sh);
+    var fill = bz.firstChild, svg = bz.lastChild;
+    fill.style.height = (H + TOP) + 'px'; fill.style.top = -TOP + 'px'; fill.style.clipPath = fill.style.webkitClipPath = 'path("' + d + '")';
+    svg.setAttribute('width', W); svg.setAttribute('height', H + TOP); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (H + TOP)); svg.style.top = -TOP + 'px';
+    svg.querySelector('.nv-bz-bd').setAttribute('d', d); svg.querySelector('.nv-bz-bd').setAttribute('stroke', bd);
+    svg.querySelector('.nv-bz-hl').setAttribute('d', d);
+  }
+  function navBulgeSoon() { if (!NB.raf) NB.raf = requestAnimationFrame(navBulge); }
+  (function () {
+    var lastCls = '';
+    var strip = function (c) { return c.replace(/\b(nav-hidden|nv-bulge|mb-[\w-]+|fab-open|nav-reveal[\w-]*|dragging[\w-]*)\b/g, '').replace(/\s+/g, ' ').trim(); };
+    try { new MutationObserver(function () { var c = strip(document.body.className); if (c !== lastCls) { lastCls = c; NB.sig = ''; navBulgeSoon(); } }).observe(document.body, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] }); } catch (e) {}
+    try { var inn = document.querySelector('#wrNav .wr-nav-in'); if (inn && window.ResizeObserver) new ResizeObserver(navBulgeSoon).observe(inn); } catch (e) {}
+    window.addEventListener('resize', navBulgeSoon);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(navBulgeSoon);
+    navBulge(); setTimeout(navBulgeSoon, 400);
+  })();
 })();

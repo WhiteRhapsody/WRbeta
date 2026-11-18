@@ -6,7 +6,8 @@
  * v1.8.0：正式啟用（wrbeta-81118）。只在網址版（https 或 localhost）啟用；單檔版（file://）不能登入 Google，維持離線。
  *   寫入的欄位要跟 firestore.rules 一致：users/{uid} 只能有 email／name／provider／relay／updated／app；
  *   records 只能有 id／kind／targetId／created／updated／name／v／data／size（墓碑＝id／updated／deleted）。
- *   新增：pending()（這台裝置待上傳幾筆）、deleteAccount()（刪雲端紀錄＋個人資料文件＋Firebase 帳號）。 */
+ *   新增：pending()（這台裝置待上傳幾筆）、deleteAccount()（刪雲端紀錄＋個人資料文件＋Firebase 帳號）。
+ * v2.0.0：on(fn)（登入狀態變化通知其他模組）、fb()（給 member.js 用的 Firestore／Auth）；刪帳號前先呼叫 WRMember.purge() 清掉會員、好友、分享資料。 */
 (function (root) {
   'use strict';
   var SDK = '13.4.0', BASE = 'https://www.gstatic.com/firebasejs/' + SDK + '/';
@@ -101,7 +102,11 @@
   var hooks = null, M = null, app = null, auth = null, db = null, user = null, timer = null, busy = false, again = false, blocked = false;
   function ls(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
   function meta() { var m = ls(LS_META) || {}; return user && m.uid === user.uid ? m : { uid: user && user.uid }; }
-  function emit() { if (hooks && hooks.onState) try { hooks.onState(state); } catch (e) {} }
+  var subs = []; // v2.0.0：其他模組（member.js）也要知道登入狀態
+  function emit() { if (hooks && hooks.onState) try { hooks.onState(state); } catch (e) {} subs.forEach(function (f) { try { f(state); } catch (e) {} }); }
+  function on(f) { subs.push(f); try { f(state); } catch (e) {} }
+  /* v2.0.0：給 member.js 用的 Firebase 物件（只有登入後才有） */
+  function fb() { return M && db && user ? { F: M.F, U: M.U, db: db, auth: auth, user: user, uid: user.uid } : null; }
   function setErr(e) { state.error = e ? (e.code ? e.code.replace('auth/', '') : String(e.message || e)).slice(0, 80) : ''; }
   function load() {
     return Promise.all(['firebase-app', 'firebase-auth', 'firebase-firestore'].map(function (n) { return import(BASE + n + '.js'); }))
@@ -165,6 +170,9 @@
     state.deleting = true; setErr(null); emit();
     return reauth.then(function () {
       blocked = true; clearTimeout(timer); // 刪除途中與刪除後都不要再同步（不然會把本機紀錄又傳上去）
+      // v2.0.0：先刪會員資料（會員 ID 保留、公開頭像、好友、分享、兌換），再刪紀錄與帳號
+      return (root.WRMember && root.WRMember.purge ? root.WRMember.purge() : Promise.resolve());
+    }).then(function () {
       var col = M.F.collection(db, 'users', uid, 'records');
       return M.F.getDocs(col).then(function (snap) {
         var refs = []; snap.forEach(function (d) { refs.push(d.ref); });
@@ -223,5 +231,5 @@
   function markDirty() { if (user) schedule(4000); }
   function remove(id) { if (!cfg) return; var t = ls(LS_TOMB) || []; if (t.indexOf(id) < 0) t.push(id); ls(LS_TOMB, t); markDirty(); }
   root.WRCloud = { enabled: !!cfg, state: state, init: init, signIn: signIn, signOut: signOut, syncNow: syncNow, markDirty: markDirty, remove: remove,
-    pending: pending, deleteAccount: deleteAccount, get lastPush() { var m = meta(); return m.lastPush || null; }, _pure: pure };
+    pending: pending, deleteAccount: deleteAccount, on: on, fb: fb, get lastPush() { var m = meta(); return m.lastPush || null; }, _pure: pure };
 })(typeof window !== 'undefined' ? window : this);

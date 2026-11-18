@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v1.8.0">
+<link rel="manifest" href="manifest.webmanifest?v=v2.0.0">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.8.0"><link rel="stylesheet" href="themes.css?v=v1.8.0"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.0.0"><link rel="stylesheet" href="themes.css?v=v2.0.0"><!--/STYLE-->
 </head>
 <body>
 <header>
@@ -353,14 +353,20 @@
     <div class="lbl">主題只改變畫面外觀；照片檢視與自動偵測彈孔不受影響。只有賽博龐克、電子世界會改畫靶面（環徑不變）。</div></div>
   </div>
   </div>
-  <!-- v1.8.0「帳號」子標籤：沒登入＝說明＋用 Google 帳號登入；登入後＝個人資料、我的統計、同步狀態、選填資料、登出、刪除帳號 -->
+  <!-- v1.8.0「帳號」子標籤：沒登入＝說明＋用 Google 帳號登入；登入後＝個人資料、我的統計、同步狀態、選填資料、登出、刪除帳號
+     v2.0.0：會員資料（會員 ID／頭像）、好友、分享紀錄、管理員（只有管理員）、隱私權政策（member.js） -->
   <div class="st-pane" id="stPaneAcct" role="tabpanel" aria-labelledby="stTabAcct" hidden>
   <div class="lay-tophead"><button type="button" class="lay-btn" data-lay-page="about" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
   <div class="lay-col pf" data-lay="aboutAcct" data-lay-page="about" data-lay-cols="1">
   <div class="card pf-card cloud-card" id="cloudCard" data-mod="cloud" data-mod-name="帳號"><div id="cloudBody"></div></div>
+  <div class="card pf-card pf-rows" id="mbMember" data-mod="member" data-mod-name="會員資料" hidden></div>
+  <div class="card pf-card mb-card" id="mbFriends" data-mod="friends" data-mod-name="好友" hidden></div>
+  <div class="card pf-card mb-card" id="mbShares" data-mod="shares" data-mod-name="分享紀錄" hidden></div>
   <div class="card pf-card" id="pfStats" data-mod="stats" data-mod-name="我的統計"></div>
   <div class="card pf-card" id="pfSync" data-mod="sync" data-mod-name="同步狀態" hidden></div>
   <div class="card pf-card pf-rows" id="pfExtra" data-mod="extra" data-mod-name="選填資料"></div>
+  <div class="card pf-card mb-card" id="mbAdmin" data-mod="admin" data-mod-name="管理員" hidden></div>
+  <div class="card pf-card pf-rows" id="pfLegal" data-mod="legal" data-mod-name="隱私權政策"></div>
   <div id="pfEnd" data-mod="end" data-mod-name="登出與刪除帳號" hidden></div>
   </div>
   </div>
@@ -413,18 +419,19 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v1.8.0"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v1.8.0"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v1.8.0"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v1.8.0"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v1.8.0"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v1.8.0"></script><!--/CLOUD-->
-<!--GHOST--><script src="ghost.js?v=v1.8.0"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v1.8.0"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v1.8.0"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v1.8.0"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v1.8.0"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v1.8.0"></script><!--/DOCK-->
-<!--APP--><script src="app.js?v=v1.8.0"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v2.0.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v2.0.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v2.0.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v2.0.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v2.0.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v2.0.0"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v2.0.0"></script><!--/MEMBER-->
+<!--GHOST--><script src="ghost.js?v=v2.0.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v2.0.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v2.0.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v2.0.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v2.0.0"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v2.0.0"></script><!--/DOCK-->
+<!--APP--><script src="app.js?v=v2.0.0"></script><!--/APP-->
 </body>
 </html>
