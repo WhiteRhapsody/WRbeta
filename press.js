@@ -9,7 +9,7 @@
   var MIN_HOLD = 90;      // 很快的點擊也至少「壓住」這麼久，才看得到壓下去
   var POP_MS = 520;       // 回彈動畫長度（比 CSS 動畫稍長，結束後清掉 class）
   var MOVE_CANCEL = 12;   // 手指移動超過這個距離＝在捲動，放開按壓
-  var BTN_SEL = '#liteView button, #liteView .lite-srcbtn, #liteSteps button, .lt-sheet button';
+  var BTN_SEL = '#liteView button, #liteView .lite-srcbtn, #liteSteps button, .lt-sheet button, #ghostView button'; // v1.4.0：鬼影模式的按鈕也有
   var BLOCKS = [['big', 'Big'], ['cnt', 'Cnt'], ['est', 'Est'], ['sum', 'Sum']];
   var CELL = { big: '.lp-c-big', cnt: '.lp-c-cnt', est: '.lp-c-est', sum: '.lp-c-sum' };
 

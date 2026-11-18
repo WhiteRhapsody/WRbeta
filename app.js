@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.3.1';
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v1.4.0';
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = 'beta ' + APP_VERSION; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = 'beta ' + APP_VERSION; document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
@@ -48,7 +48,7 @@
   var cur = null;
   (function initCur() {
     var id = store.get(LS_CUR);
-    cur = sessions.filter(function (s) { return s.id === id && !isAna(s); })[0];
+    cur = sessions.filter(function (s) { return s.id === id && !isAna(s) && s.mode !== 'ghost'; })[0];
     if (!cur) { cur = newSession(); sessions.unshift(cur); }
   })();
   function persist(noTouch) {
@@ -560,7 +560,7 @@
       var px = v0.cx - v0.E / 2 + (pinch.mx - r.left) * v0.E / r.width, py = v0.cy - v0.E / 2 + (pinch.my - r.top) * v0.E / r.height;
       v.E = v0.E * pinch.d / d; S.clamp(); var E = v.E;
       v.cx = px + E / 2 - (mx - r.left) * E / r.width; v.cy = py + E / 2 - (my - r.top) * E / r.height;
-      S.clamp(); liteApplyView();
+      S.clamp(); (S.apply || liteApplyView)();
     }
     svg.addEventListener('pointerdown', function (ev) {
       if (!S.active()) return;
@@ -580,7 +580,7 @@
       var commit = !cancel && tapOk && ev.pointerId === tapId && !pinch, p = commit ? raw(ev, S.lift()) : null;
       delete ptrs[ev.pointerId];
       if (ev.pointerId === tapId) { tapOk = false; tapId = null; if (!commit) S.cancel(); }
-      if (count() < 2 && pinch) { pinch = null; renderLite(); }
+      if (count() < 2 && pinch) { pinch = null; (S.render || renderLite)(); }
       if (!count()) pinch = null;
       if (commit) S.up(p);
     }
@@ -592,7 +592,7 @@
       var px = v.cx - v.E / 2 + (ev.clientX - r.left) * v.E / r.width, py = v.cy - v.E / 2 + (ev.clientY - r.top) * v.E / r.height;
       v.E *= ev.deltaY > 0 ? 1.15 : 1 / 1.15; S.clamp();
       v.cx = px + v.E / 2 - (ev.clientX - r.left) * v.E / r.width; v.cy = py + v.E / 2 - (ev.clientY - r.top) * v.E / r.height;
-      S.clamp(); renderLite();
+      S.clamp(); (S.render || renderLite)();
     }, { passive: false });
   }
   function vib() { if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) {} }
@@ -779,6 +779,220 @@
     if (n) ask('這一組已自動存到「紀錄」。開始新的一組？', go); else go();
   };
 
+  // ---------- 鬼影模式（v1.4.0；Lite 從「更多」進入、Pro 是「鬼影」分頁；邏輯在 src/ghost.js） ----------
+  // 60 發＝6 輪 × 10 發，手動點靶面記錄；灰色孔＝上一次同一發、虛線圈＝下一發的鬼影。存成一般紀錄（kind:'forecast'、mode:'ghost'）。
+  var G = window.BMGhost, LS_GCUR = 'bm_ghost_cur_v1';
+  var ghSvg = $('ghSvg'), gcur = null, ghView = null, ghTid = null, ghPrev = null, ghOn = prefs.ghostOn !== false, ghOpen = !!prefs.ghostColl;
+  function ghT() { return T[gcur.targetId] || T.ap10; }
+  function ghEnsure() {
+    if (gcur && sessions.indexOf(gcur) < 0 && G.countShots(gcur)) gcur = null; // 被刪掉了
+    if (!gcur) {
+      var id = store.get(LS_GCUR);
+      gcur = sessions.filter(function (s) { return s.id === id && G.isGhost(s); })[0] || null;
+      if (gcur && gcur.ghost && gcur.ghost.done) gcur = null;
+    }
+    if (!gcur) { gcur = G.newSession(cur.targetId); gcur.ghost.src = prefs.ghostSrc === 'round' ? 'round' : 'prev'; }
+    if (!G.countShots(gcur) && gcur.targetId !== cur.targetId) { gcur.targetId = cur.targetId; ghView = null; }
+    return gcur;
+  }
+  function ghPersist() {
+    var i = sessions.indexOf(gcur);
+    if (i < 0) { i = sessions.findIndex(function (s) { return s.id === gcur.id; }); }
+    if (i < 0) sessions.unshift(gcur); else sessions[i] = gcur;
+    gcur.updated = new Date().toISOString();
+    saveSessions(sessions); store.set(LS_GCUR, gcur.id);
+  }
+  function ghRef() { return G.pickRef(sessions, gcur); }
+  function ghSrc() { return gcur.ghost && gcur.ghost.src === 'round' ? 'round' : 'prev'; }
+  function ghSlots() { return G.ghostSlots(gcur, ghRef(), ghSrc()); }
+  function ghResetView() { var c = ghT().cardSize; ghView = { cx: 0, cy: 0, E: c }; ghTid = gcur.targetId; }
+  function ghClamp() { var c = ghT().cardSize; zClamp(ghView, { x0: -c / 2, y0: -c / 2, w: c, h: c }, 10); }
+  function ghApplyView() {
+    var v = ghView; ghSvg.setAttribute('viewBox', (v.cx - v.E / 2) + ' ' + (v.cy - v.E / 2) + ' ' + v.E + ' ' + v.E); ghSvg.dataset.extent = v.E;
+    var z = ghT().cardSize / v.E, b = $('ghZoomBadge'); b.textContent = (Math.round(z * 10) / 10) + '×'; b.classList.toggle('show', z > 1.05); $('ghFit').disabled = z <= 1.05;
+  }
+  function ghDot(g, p, num, cls, r, txtCls) {
+    var E = +ghSvg.dataset.extent, gg = el('g', {}, g);
+    el('circle', { cx: p.x, cy: -p.y, r: r, 'class': cls, 'stroke-width': Math.max(0.12, E * 0.003) }, gg);
+    if (num != null) {
+      var fs = labelSize(ghSvg) * 0.9;
+      var tx = el('text', { x: p.x, y: -p.y, 'font-size': fs, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'class': txtCls || 'gh-num', 'stroke-width': fs * 0.18, 'paint-order': 'stroke', 'font-weight': 'bold', 'font-family': 'Arial,sans-serif' }, gg);
+      tx.textContent = num;
+    }
+    return gg;
+  }
+  function ghSign(v) { return (v > 0 ? '+' : v < 0 ? '−' : '±') + f2(Math.abs(v)); }
+  function ghDelta(v) { return v == null ? '' : '<span class="gh-d ' + (v > 0.005 ? 'up' : v < -0.005 ? 'dn' : 'eq') + '">' + (v > 0.005 ? '▲' : v < -0.005 ? '▼' : '') + ghSign(v) + '</span>'; }
+  function renderGhostTarget(gs, S) {
+    if (!ghView || ghTid !== gcur.targetId) ghResetView();
+    var t = ghT(), R = t.pellet / 2, k = G.curRound(gcur), n = S.next;
+    drawTarget(ghSvg, t, 1); ghClamp(); ghApplyView();
+    var g = ghSvg.querySelector('#marks'), lines = ghSvg.querySelector('#lines');
+    if (ghOn) {
+      if (prefs.ghostWhole && !document.body.classList.contains('lite')) {
+        for (var i = 0; i < G.PER; i++) { var w = gs[k * G.PER + i]; if (w && k * G.PER + i !== n) ghDot(lines, w, k * G.PER + i + 1, 'gh-whole', R, 'gh-num-w'); }
+      }
+      var nx = n != null ? G.ghostAt(gs, n + 1) : null;
+      if (nx && n + 1 < (k + 1) * G.PER) ghDot(lines, nx, null, 'gh-next', R);
+      var gh = G.ghostAt(gs, n);
+      if (gh) ghDot(lines, gh, n + 1, 'gh-ghost', R, 'gh-num-g');
+    }
+    G.roundShots(gcur, k).forEach(function (p, i) { ghDot(g, p, k * G.PER + i + 1, 'act-c', R, 'gh-num-me'); });
+    if (ghPrev) previewMark(ghSvg, ghPrev, 'act-c', t);
+  }
+  function renderGhostRail(S, gs) {
+    var lite = document.body.classList.contains('lite'), k = S.round, rr = S.rounds[k], src = ghSrc();
+    var pl = src === 'round' ? '上一輪' : '上次', h = '';
+    var pips = ''; for (var i = 0; i < G.ROUNDS; i++) pips += '<i class="' + (i < k || S.rounds[i].done && i !== k ? 'd' : i === k ? 'on' : '') + '"></i>';
+    var prevAll = src === 'round' ? (k > 0 ? S.rounds[k - 1].cur : null) : S.prevAll;
+    var tot = S.cur ? S.cur.total : 0, totD = S.cur ? f1(S.cur.totalDec) : '0.0';
+    var coll = '<button type="button" class="gh-coll' + (ghOpen ? ' open' : '') + '" id="ghColl" aria-expanded="' + ghOpen + '">' + (ghOpen ?
+      '總分 <b>' + tot + '</b>（' + totD + '）<br>發數 <b>' + S.shots + '</b>/60' + (S.prevAll && src === 'prev' ? '<br>上次總分 ' + S.prevAll.total + '（' + S.prevAll.n + ' 發）' : '') :
+      '總分・發數<br>（點開）') + '</button>';
+    if (lite) {
+      h += '<div class="gh-rb"><div class="k">輪次</div><div class="v gh-rv">' + (k + 1) + '<small>/6</small></div><div class="gh-pips">' + pips + '</div></div>';
+      h += '<div class="gh-rb"><div class="k">' + pl + '平均</div><div class="v gh-g">' + (prevAll ? f2(prevAll.avg) : '—') + '</div><div class="s">' + (src === 'round' ? '第 ' + k + ' 輪' : prevAll ? prevAll.n + ' 發' : '沒有紀錄') + '</div></div>';
+      h += '<div class="gh-rb"><div class="k">目前平均</div><div class="v">' + (S.cur ? f2(S.cur.avg) : '—') + '</div>' + (S.diff != null ? '<div class="s">' + ghDelta(S.diff) + '<br>vs ' + pl + '同期</div>' : '<div class="s">&nbsp;</div>') + '</div>';
+      h += '<div class="gh-rb gh-rnd"><div class="k">第 ' + (k + 1) + ' 輪</div><div class="gh-vs"><div><span>' + pl + '</span><b class="gh-g">' + (rr.prevSame ? f2(rr.prevSame.avg) : rr.prev ? f2(rr.prev.avg) : '—') + '</b></div><div><span>這次</span><b>' + (rr.cur ? f2(rr.cur.avg) : '—') + '</b></div></div>' + (rr.diff != null ? ghDelta(rr.diff) : '') + '</div>';
+      h += coll;
+    } else {
+      h += '<div class="gh-cards"><div class="gh-rb"><div class="k">目前輪次</div><div class="v gh-rv">' + (k + 1) + '<small>/6</small></div><div class="gh-pips">' + pips + '</div></div>' +
+        '<div class="gh-rb"><div class="k">' + pl + '總平均</div><div class="v gh-g">' + (prevAll ? f2(prevAll.avg) : '—') + '</div><div class="s">' + (src === 'round' ? '第 ' + k + ' 輪' : prevAll ? prevAll.n + ' 發' : '沒有紀錄') + '</div></div>' +
+        '<div class="gh-rb"><div class="k">目前累積平均</div><div class="v">' + (S.cur ? f2(S.cur.avg) : '—') + '</div><div class="s">' + (S.diff != null ? ghDelta(S.diff) + ' vs ' + pl + '同期 ' + f2(S.prevSame.avg) : '&nbsp;') + '</div></div></div>';
+      var tb = '<table class="gh-tb"><tr><th>輪次</th><th>' + pl + '平均</th><th>這次平均</th><th>差</th><th class="gh-barh">對比</th></tr>';
+      S.rounds.forEach(function (r) {
+        var pv = src === 'round' ? (r.k > 0 ? S.rounds[r.k - 1].cur : null) : r.prev, cv = r.cur;
+        var d = cv && r.prevSame ? cv.avg - r.prevSame.avg : null;
+        var bw = function (v) { return v ? Math.max(4, Math.min(100, (v.avg - 7) / 3.9 * 100)).toFixed(0) : 0; };
+        tb += '<tr class="' + (r.k === k ? 'on' : '') + '"><td>第 ' + (r.k + 1) + ' 輪 <small>' + (r.k * 10 + 1) + '–' + (r.k * 10 + 10) + '</small></td><td class="gh-g">' + (pv ? f2(pv.avg) : '—') + '</td><td>' + (cv ? f2(cv.avg) : '—') + '</td><td>' + (d != null ? ghDelta(d) : '') + '</td>' +
+          '<td class="gh-barc"><span class="gh-bar g" style="width:' + bw(pv) + '%"></span><span class="gh-bar m" style="width:' + bw(cv) + '%"></span></td></tr>';
+      });
+      h += tb + '</table>' + coll;
+    }
+    $('ghRail').innerHTML = h;
+    $('ghColl').onclick = function () { ghOpen = !ghOpen; prefs.ghostColl = ghOpen; savePrefs(); renderGhost(); };
+  }
+  function renderGhostStrip(S, gs) {
+    var t = ghT(), k = S.round, cells = G.strip(t, gcur, gs, k), src = ghSrc();
+    var h = '<div class="gh-sh"><span>第 ' + (k + 1) + ' 輪・' + (k * 10 + 1) + '–' + (k * 10 + 10) + ' 發</span><span>上排這次・下排' + (src === 'round' ? '上一輪' : '上次') + '</span></div><div class="gh-cells">';
+    cells.forEach(function (c) {
+      var me = c.me, col = me ? scoreColor(me.dec) : null, isCur = c.n === S.next;
+      h += '<div class="gh-cell' + (isCur ? ' cur' : '') + '"><div class="n">' + (c.n + 1) + '</div>' +
+        '<div class="me' + (me ? '' : isCur ? ' now' : ' empty') + '"' + (me ? ' style="background:' + col.bg + ';color:' + col.fg + '"' : '') + '>' + (me ? f1(me.dec) : isCur ? '●' : '') + '</div>' +
+        '<div class="gs">' + (c.gh ? f1(c.gh.dec) : '—') + '</div></div>';
+    });
+    $('ghStrip').innerHTML = h + '</div>';
+  }
+  function renderGhostBig(S, gs) {
+    var t = ghT(), n = S.next, box = $('ghBig'), src = ghSrc(), pl = src === 'round' ? '上一輪' : '上次';
+    var p = ghPrev, idx = n, lbl;
+    if (p) lbl = '第 ' + (n + 1) + ' 發・按住中';
+    else {
+      var me = G.slots(gcur), last = -1; for (var i = G.TOTAL - 1; i >= 0; i--) if (me[i]) { last = i; break; }
+      if (last >= 0) { p = me[last]; idx = last; lbl = '第 ' + (last + 1) + ' 發'; }
+    }
+    if (!p) {
+      box.className = 'gh-big empty';
+      box.innerHTML = '<div class="bv">—</div><div class="bk">' + (n != null ? '第 ' + (n + 1) + ' 發：按住靶面看預估分數，放開記錄' : '這一輪 10 發已滿') + '</div>';
+      return;
+    }
+    var s = C.scoreShot(t, p.x, p.y), col = scoreColor(s.dec), gh = G.ghostAt(gs, idx), cmp = '';
+    if (gh) {
+      var gsx = C.scoreShot(t, gh.x, gh.y), dd = s.dec - gsx.dec;
+      cmp = '<div class="cmp">' + pl + '第 ' + (idx + 1) + ' 發 <span class="gv">' + f1(gsx.dec) + '</span><br>差 ' + (dd >= 0 ? '+' : '−') + f1(Math.abs(dd)) + '・' + offsetText(p.x - gh.x, p.y - gh.y) + '</div>';
+    } else if (ghOn) cmp = '<div class="cmp">' + (S.hasGhost || src === 'round' ? pl + '沒有第 ' + (idx + 1) + ' 發' : '還沒有可對照的紀錄') + '</div>';
+    box.className = 'gh-big' + (ghPrev ? ' live' : '');
+    box.style.setProperty('--score', col.bg); box.style.setProperty('--score-hi', col.hi || col.bg); box.style.setProperty('--score-fg', col.fg); box.style.setProperty('--score-lbl', col.lbl);
+    box.innerHTML = '<div class="bv">' + f1(s.dec) + '</div><div class="bk">' + lbl + (s.inner ? '・內十' : '') + '<br><small>環數 ' + s.ring + '</small></div>' + cmp;
+  }
+  function renderGhost() {
+    if (!G || !$('ghostView')) return;
+    ghEnsure();
+    var gs = ghSlots(), t = ghT(), S = G.summary(t, gcur, gs), k = S.round, src = ghSrc(), ref = ghRef(), lite = document.body.classList.contains('lite');
+    var V = $('ghostView'); V.dataset.src = src; V.classList.toggle('gh-off', !ghOn);
+    renderGhostTarget(gs, S); renderGhostRail(S, gs); renderGhostStrip(S, gs); renderGhostBig(S, gs);
+    // 沒有可對照的紀錄：不畫鬼影，只提示（照常可以記錄）
+    var empty = $('ghEmpty'), em = '';
+    if (src === 'prev' && !ref) em = '<b>還沒有上一次的紀錄</b><span>這次照常記錄；存檔後，下一次就會出現灰色的「上次同一發」。</span>';
+    else if (src === 'round' && k === 0) em = '<b>第 1 輪沒有「上一輪」</b><span>完成第 1 輪後，第 2 輪開始會顯示上一輪同一發。</span>';
+    empty.innerHTML = em; empty.hidden = !em || !!ghPrev || (S.shots > 0 && src === 'prev');
+    var inR = G.roundShots(gcur, k).length, done = !!(gcur.ghost && gcur.ghost.done);
+    $('ghHint').innerHTML = done ? '✅ 60 發完成・已存到「紀錄」' : '第 <b>' + (k + 1) + '</b> 輪・' + (S.next != null ? '第 <b>' + (S.next + 1) + '</b> 發（總 ' + S.shots + '/60）・按住靶面、放開記錄' : '本輪 10 發已滿・按「完成第 ' + (k + 1) + ' 輪」');
+    $('ghFinishLbl').textContent = done ? '開始新的一組' : k >= G.ROUNDS - 1 ? '完成第 6 輪・存檔' : '完成第 ' + (k + 1) + ' 輪';
+    $('ghFinishSub').textContent = done ? '60 發' : inR + '/10';
+    $('ghProg').style.transform = 'scaleX(' + (done ? 1 : inR / G.PER).toFixed(2) + ')';
+    $('ghFinish').classList.toggle('soft', !done && !inR);
+    $('ghUndo').disabled = done || !inR;
+    var tg = $('ghToggle'); tg.setAttribute('aria-checked', ghOn ? 'true' : 'false'); tg.classList.toggle('on', ghOn);
+    document.querySelectorAll('#ghOpts .gh-seg button').forEach(function (b) { var on = b.dataset.src === src; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    var sel = $('ghRef'), cands = G.candidates(sessions, gcur), hs = '';
+    cands.forEach(function (s, i) { hs += '<option value="' + esc(s.id) + '">' + (G.isGhost(s) ? '👻 ' : isAna(s) ? '分析 ' : '預報 ') + esc(recTitle(s)) + '・' + G.countShots(s) + ' 發' + (i === 0 ? '（最新）' : '') + '</option>'; });
+    sel.innerHTML = hs || '<option value="">（沒有可對照的紀錄）</option>'; sel.disabled = !cands.length; if (ref) sel.value = ref.id;
+    $('ghRefRow').classList.toggle('dim', src !== 'prev');
+    $('ghWhole').checked = !!prefs.ghostWhole;
+    if (!lite && !$('ghOpts').dataset.touched) $('ghOpts').open = true;
+    if (document.activeElement !== $('ghName')) $('ghName').value = gcur.name || '';
+    var Code = window.BMCode, rec = LF.toAnalysisRecord(gcur), code = null;
+    try { code = rec && Code ? Code.encode(rec) : null; } catch (e) { code = null; }
+    $('ghCopyCode').disabled = !code;
+    $('ghCodeInfo').textContent = code ? '紀錄碼 ' + code.length + ' 字（' + rec.sheets.length + ' 輪的彈著，每輪＝一張靶紙）' : '';
+    ghLayout();
+  }
+  // Lite 直向：靶面＝寬度扣掉右側 84px 資訊欄，高度不超過可用空間
+  function ghLayout() {
+    var V = $('ghostView'); if (!V || !V.offsetParent) return;
+    var tg = $('ghTg');
+    if (!document.body.classList.contains('lite')) { tg.style.width = ''; tg.style.height = ''; return; }
+    var W = V.clientWidth, size = Math.floor(Math.max(180, Math.min(W - 84 - 8, window.innerHeight * 0.42)));
+    tg.style.width = size + 'px'; tg.style.height = size + 'px';
+  }
+  window.addEventListener('resize', function () { if (document.body.classList.contains('on-ghost')) ghLayout(); });
+  attachZoom(ghSvg, {
+    active: function () { return true; },
+    view: function () { return ghView; }, clamp: ghClamp, apply: ghApplyView, render: function () { renderGhost(); },
+    lift: function () { return liftPx(); },
+    down: function (r) { this.move(r); },
+    move: function (r) {
+      ghPrev = { x: r.x, y: -r.y }; previewMark(ghSvg, ghPrev, 'act-c', ghT());
+      var S = G.summary(ghT(), gcur, ghSlots()); renderGhostBig(S, ghSlots()); $('ghEmpty').hidden = true;
+    },
+    up: function (r) {
+      var m = { x: r.x, y: -r.y }, half = ghT().cardSize / 2 + 1; ghPrev = null;
+      if (Math.abs(m.x) > half || Math.abs(m.y) > half) { renderGhost(); return; }
+      if (gcur.ghost && gcur.ghost.done) { toast('60 發已完成。按「開始新的一組」'); renderGhost(); return; }
+      var q = G.addShot(gcur, m);
+      if (!q) { toast('第 ' + (G.curRound(gcur) + 1) + ' 輪 10 發已滿，按「完成第 ' + (G.curRound(gcur) + 1) + ' 輪」'); renderGhost(); return; }
+      ghPersist(); vib(); renderGhost();
+    },
+    cancel: function () { ghPrev = null; renderGhost(); }
+  });
+  $('ghFit').onclick = function () { ghResetView(); renderGhost(); };
+  $('ghUndo').onclick = function () { if (G.undo(gcur)) { ghPersist(); renderGhost(); } };
+  $('ghToggle').onclick = function () { ghOn = !ghOn; prefs.ghostOn = ghOn; savePrefs(); renderGhost(); toast(ghOn ? '鬼影：開' : '鬼影：關'); };
+  function ghNew() { var src = ghSrc(); gcur = G.newSession(gcur.targetId); gcur.ghost.src = src; ghView = null; ghPrev = null; store.set(LS_GCUR, gcur.id); renderGhost(); toast('新的一組：第 1 輪開始'); }
+  $('ghFinish').onclick = function () {
+    if (gcur.ghost && gcur.ghost.done) { ghNew(); return; }
+    var k = G.curRound(gcur), inR = G.roundShots(gcur, k).length;
+    function go() {
+      var r = G.finishRound(gcur); ghPersist(); renderRecords();
+      if (r.done) { renderGhost(); toast('60 發完成，已存到「紀錄」'); } else { renderGhost(); toast('第 ' + (r.round + 1) + ' 輪開始'); }
+      window.scrollTo(0, 0);
+    }
+    if (!inR) { toast('這一輪還沒有彈著，先在靶面上點'); return; }
+    if (inR < G.PER) ask('第 ' + (k + 1) + ' 輪只有 ' + inR + ' 發，確定完成這一輪？', go); else go();
+  };
+  document.querySelectorAll('#ghOpts .gh-seg button').forEach(function (b) { b.onclick = function () { gcur.ghost = gcur.ghost || {}; gcur.ghost.src = b.dataset.src; prefs.ghostSrc = b.dataset.src; savePrefs(); if (G.countShots(gcur)) ghPersist(); renderGhost(); }; });
+  $('ghRef').onchange = function () { gcur.ghost = gcur.ghost || {}; gcur.ghost.ref = this.value || null; if (G.countShots(gcur)) ghPersist(); renderGhost(); toast('鬼影改用這筆紀錄'); };
+  $('ghWhole').onchange = function () { prefs.ghostWhole = this.checked; savePrefs(); renderGhost(); };
+  $('ghOpts').addEventListener('toggle', function () { this.dataset.touched = '1'; });
+  $('ghName').onchange = function () { gcur.name = this.value.trim().slice(0, 60); if (G.countShots(gcur)) ghPersist(); toast('名稱已存'); };
+  $('ghCopyCode').onclick = function () {
+    var Code = window.BMCode, rec = LF.toAnalysisRecord(gcur), code = rec && Code && Code.encode(rec);
+    if (!code) { toast('還沒有可複製的彈著'); return; }
+    copyText(code, '已複製紀錄碼（' + code.length + ' 字）');
+  };
+  $('ghNew').onclick = function () { if (G.countShots(gcur) && !(gcur.ghost && gcur.ghost.done)) ask('這一組已自動存到「紀錄」。開始新的一組 60 發？', ghNew); else ghNew(); };
+
   // ---------- Pro / Lite 模式切換（記在 prefs，存不了就只在記憶體） ----------
   function setMode(m, quiet) {
     m = m === 'lite' ? 'lite' : 'pro';
@@ -786,6 +1000,7 @@
     document.querySelectorAll('#modeToggle button').forEach(function (b) { var on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     if (prefs.ui !== m) { prefs.ui = m; savePrefs(); }
     if (m === 'lite' && !document.body.classList.contains('on-predict') && document.querySelector('.tab.active#tab-compare')) showTab('predict'); // Lite 沒有對照分頁（併入第 2、3 步）
+    if (document.body.classList.contains('on-ghost')) renderGhost();
     if (!quiet) { renderPredict(); liteLayout(); toast(m === 'lite' ? '已切換到 Lite 介面' : '已切換到 Pro 介面'); }
   }
   document.querySelectorAll('#modeToggle button').forEach(function (b) { b.onclick = function () { setMode(b.dataset.mode); }; });
@@ -1453,24 +1668,28 @@
     if (!sessions.length) { box.innerHTML = '<div class="card">尚無紀錄</div>'; return; }
     box.innerHTML = '';
     sessions.forEach(function (s) {
-      var t = T[s.targetId] || T.ap10, ana = isAna(s), isCur = ana ? s.id === acur.id : s.id === cur.id;
+      var t = T[s.targetId] || T.ap10, ana = isAna(s), gho = G.isGhost(s), isCur = ana ? s.id === acur.id : gho ? !!(gcur && s.id === gcur.id) : s.id === cur.id;
       var div = document.createElement('div'); div.className = 'rec' + (isCur ? ' cur' : '') + (ana ? ' ana' : ''); div.dataset.id = s.id;
       var meta = '';
       if (ana) {
         var as = C.analyzeShots(t, anaShots(s));
         meta = (s.sheets || []).length + ' 張・' + as.n + ' 發' + (as.n ? '｜總分 ' + as.total + '（' + f1(as.totalDec) + '）｜平均 ' + f2(as.avgDec) + (as.n > 1 ? '｜群 ' + f1(as.groupSize) + 'mm' : '') : '');
+      } else if (gho) {
+        var gsS = C.computeStats(t, s.actuals), gr = G.curRound(s) + 1;
+        meta = '60 發訓練・' + (s.ghost && s.ghost.done ? '完成' : '第 ' + gr + ' 輪') + '｜' + gsS.n + ' 發' + (gsS.n ? '｜總分 ' + gsS.total + '（' + f1(gsS.totalDec) + '）｜平均 ' + f2(gsS.avgDec) : '');
       } else {
         var ps = C.computeStats(t, s.preds), xs = C.computeStats(t, s.actuals), cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal');
         meta = '預報 ' + ps.n + ' 發 ' + (ps.n ? ps.total + '（' + f1(ps.totalDec) + '）' : '') + '｜實際 ' + xs.n + ' 發 ' + (xs.n ? xs.total + '（' + f1(xs.totalDec) + '）' : '') + (cmp.m ? '｜平均預報誤差 ' + f2(cmp.meanErr) + 'mm' : '');
       }
       div.innerHTML = '<label class="rec-pick" title="勾選比較"><input type="checkbox" class="rec-chk"' + (recPick[s.id] ? ' checked' : '') + '></label>' +
-        '<div class="meta"><span class="badge ' + (ana ? 'b-ana' : 'b-fc') + '">' + (ana ? '分析' : '預報') + '</span> <b>' + esc(fmtTW(s.created)) + '</b>　' + t.name + (isCur ? '（目前）' : '') + '<br>' + meta + '</div>';
+        '<div class="meta"><span class="badge ' + (ana ? 'b-ana' : gho ? 'b-gh' : 'b-fc') + '">' + (ana ? '分析' : gho ? '👻 鬼影' : '預報') + '</span> <b>' + esc(fmtTW(s.created)) + '</b>　' + t.name + (isCur ? '（目前）' : '') + '<br>' + meta + '</div>';
       div.querySelector('.rec-chk').onchange = function () { if (this.checked) recPick[s.id] = 1; else delete recPick[s.id]; updateCmpBtn(); };
       var name = document.createElement('input'); name.className = 'rec-name'; name.placeholder = '自訂名稱'; name.value = s.name != null && s.name !== '' ? s.name : (s.note || ''); name.setAttribute('aria-label', '紀錄名稱');
       name.onchange = function () { s.name = name.value.trim(); if (!ana) s.note = s.note || ''; if (ana && s.id === acur.id) acur.name = s.name; saveSessions(sessions); toast('名稱已更新'); };
       var open = document.createElement('button'); open.textContent = '開啟';
       open.onclick = function () {
         if (ana) { acur = s; anaPhotos = {}; anaSel = 'all'; store.set(LS_ACUR, s.id); fillAnaCalRing(); renderAnalysis(); showTab('analysis'); }
+        else if (gho) { gcur = s; ghView = null; ghPrev = null; store.set(LS_GCUR, s.id); showTab('ghost'); window.scrollTo(0, 0); }
         else { cur = s; store.set(LS_CUR, s.id); $('targetSel').value = s.targetId; photo.reset(); renderAll(); showTab('predict'); }
       };
       var del = document.createElement('button'); del.textContent = '刪除'; del.className = 'warn';
@@ -1479,7 +1698,8 @@
           sessions = sessions.filter(function (x) { return x.id !== s.id; }); delete recPick[s.id];
           try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(s.id); } catch (e) {}
           if (ana && s.id === acur.id) { acur = newAnalysis(acur.targetId); anaPhotos = {}; anaSel = 'all'; }
-          if (!ana && s.id === cur.id) { cur = sessions.filter(function (x) { return !isAna(x); })[0] || newSession(); if (sessions.indexOf(cur) < 0) sessions.push(cur); }
+          if (gho && gcur && s.id === gcur.id) { gcur = null; ghView = null; }
+          if (!ana && !gho && s.id === cur.id) { cur = sessions.filter(function (x) { return !isAna(x) && !G.isGhost(x); })[0] || newSession(); if (sessions.indexOf(cur) < 0) sessions.push(cur); }
           persist(); renderAll();
         });
       };
@@ -1556,6 +1776,8 @@
       '<h3>怎麼用</h3><ol><li>上方選靶種。</li><li><b>預報</b>：每打一發，在靶面點你感覺的落點。按住可拖曳微調，放開才記錄。小靶可用 2×–8× 放大。</li>' +
       '<li><b>對照</b>：拉回靶紙後拍照，程式會<b>自動找黑區校正、自動找彈孔</b>。綠圈要對齊靶環；紫色虛線要穿過上下左右的環數數字，歪了按「轉正」。找錯的彈孔點一下刪除，漏掉的點空白處新增。自動失敗時可按「手動校正」（點靶心＋某環上右下左）。電子靶也可以改選「直接在靶面上點」。</li>' +
       '<li><b>分析</b>：不需要預報。一張打完拍一張（發數不限），程式自動校正、找彈孔並算出每張與合併數據：校正建議（群中心偏移 mm 與修正方向）、穩定度（標準差、去掉最差一發的平均）、離群發、趨勢圖、小數分分布。不確定的彈孔以橘色虛線＋「?」標示，點一下就能刪除，漏掉的點空白處新增（照片或下方靶面都可以點）。分析自動存到「紀錄」，可自訂名稱。可用「複製紀錄碼」把彈孔座標壓成一串只有本 App 讀得懂的字，貼到備忘錄或 LINE 備份，下次「貼上還原」就能畫回靶面（不含照片）。</li>' +
+      '<li><b>鬼影模式</b>（Pro 上方「鬼影」分頁；Lite 在「更多 → 👻 鬼影模式」）：60 發＝6 輪 × 10 發，按住靶面看預估分數、放開記錄。灰色孔＝上一次訓練的同一發，虛線圈＝下一發；右側比較上次與這次的平均。來源可改成「本次上一輪」，也可以挑別筆紀錄。存成一般紀錄，紀錄碼照常可用。</li>' +
+      '<li><b>按壓十字線</b>：手指按住任何按鈕、資訊方塊或清單時，按的位置會出現十字線（跟預報同款），放開就消失；不影響點擊與捲動。</li>' +
       '<li><b>紀錄比較</b>：在「紀錄」勾選 2 筆以上（分析或預報），按「比較」看平均、群大小、偏移、標準差、內十數與跨日期趨勢。</li>' +
       '<li>照片看不出射擊順序，所以預設用「最近配對」（總距離最短的一對一配對）；直接在靶面依序點時可改成「依射擊順序」。程式會算出每發預報差距、平均誤差與預報的系統性偏向。</li><li><b>紀錄</b>：每組自動存在這台裝置，可匯出備份。</li></ol>' +
       '<h3>靶面尺寸（外徑，mm）</h3><p>來源：ISSF Rule Book 2026 Edition 2025（Third Print 10/2026，2026-10-19 生效）。畫面是依這些尺寸以向量繪製。</p>' +
@@ -1585,9 +1807,13 @@
     if (name === 'records') renderRecords();
     if (name === 'analysis') renderAnalysis();
     document.body.classList.toggle('on-predict', name === 'predict');
+    document.body.classList.toggle('on-ghost', name === 'ghost');
+    if (name !== 'ghost') { try { ghPrev = null; } catch (e) {} }
+    if (name === 'ghost') renderGhost();
     document.querySelectorAll('#liteMoreSheet [data-act]').forEach(function (b) { b.classList.toggle('on', b.dataset.act === name); });
     if (document.body.classList.contains('lite')) renderLite();
     if (name === 'predict') liteLayout();
+    if (name === 'ghost') ghLayout();
   }
   document.querySelectorAll('.tabs button').forEach(function (b) { b.onclick = function () { showTab(b.dataset.tab); }; });
   function fillCalRing() {
@@ -1605,11 +1831,11 @@
       ask('目前這組已有紀錄。換靶種會開始新的一組，舊的保留在「紀錄」。繼續？', function () { cur = newSession(id); sessions.unshift(cur); go(); });
     } else { cur.targetId = id; go(); }
   };
-  function renderAll() { renderAnalysis(); tsel.value = cur.targetId; $('pairMode').value = cur.pairMode || (cur.actuals.some(function (a) { return a.src === 'auto'; }) ? 'optimal' : 'order'); fillCalRing(); renderPredict(); renderCompare(); renderRecords(); }
+  function renderAll() { renderAnalysis(); tsel.value = cur.targetId; $('pairMode').value = cur.pairMode || (cur.actuals.some(function (a) { return a.src === 'auto'; }) ? 'optimal' : 'order'); fillCalRing(); renderPredict(); renderCompare(); renderRecords(); if (document.body.classList.contains('on-ghost')) renderGhost(); }
   try { var nj = $('nojsNotice'); if (nj) nj.style.display = 'none'; } catch (e) {}
   if (!storageOK) { var sw = $('storageNotice'); if (sw) sw.style.display = ''; }
   setLiteTheme(liteTheme, true); setMode(prefs.ui, true); document.body.classList.add('on-predict'); renderAbout(); persist(true); renderAll(); liteLayout();
-  window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; }, get liteStep() { return liteStep(); }, setLiteStep: setLiteStep, get litePhoto() { return lp; }, get liteSel() { return liteSel; }, renderLite: function () { renderLite(); } };
+  window.BMApp = { version: APP_VERSION, get cur() { return cur; }, get acur() { return acur; }, get anaSel() { return anaSel; }, set anaSel(v) { anaSel = v; renderAnalysis(); }, renderAnalysis: function () { renderAnalysis(); }, get anaPhotos() { return anaPhotos; }, get anaBusy() { return anaBusy; }, get sessions() { return sessions; }, photo: photo, renderAll: renderAll, setMode: setMode, setLiteTheme: setLiteTheme, liteLayout: liteLayout, get mode() { return document.body.classList.contains('lite') ? 'lite' : 'pro'; }, get liteView() { return liteView; }, get liteStep() { return liteStep(); }, setLiteStep: setLiteStep, get litePhoto() { return lp; }, get liteSel() { return liteSel; }, renderLite: function () { renderLite(); }, get gcur() { return gcur; }, renderGhost: function () { renderGhost(); }, showTab: function (n) { showTab(n); }, get ghostPreview() { return ghPrev; } };
 
   // ---------- 雲端帳號（備註4，Firebase；沒有設定檔時只顯示「即將推出」） ----------
   (function () {

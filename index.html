@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v1.3.1">
+<link rel="manifest" href="manifest.webmanifest?v=v1.4.0">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.3.1"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v1.4.0"><!--/STYLE-->
 </head>
 <body>
 <header>
@@ -27,6 +27,7 @@
   <button data-tab="predict" class="active">預報</button>
   <button data-tab="compare">對照</button>
   <button data-tab="analysis">分析</button>
+  <button data-tab="ghost">鬼影</button>
   <button data-tab="records">紀錄</button>
   <button data-tab="about">說明</button>
 </nav>
@@ -233,6 +234,41 @@
   </div>
 </section>
 
+<section id="tab-ghost" class="tab">
+  <div id="ghostView" class="gh" data-src="prev">
+    <div id="ghHint" class="gh-hint">鬼影模式：60 發＝6 輪 × 10 發，按住靶面、放開記錄</div>
+    <div class="gh-grid">
+      <div class="gh-tgbox"><div class="gh-tg" id="ghTg"><svg id="ghSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="鬼影靶面（按住看落點，放開記錄；雙指縮放）"></svg>
+        <div id="ghZoomBadge" class="lite-zbadge"></div>
+        <div id="ghEmpty" class="gh-empty" hidden></div>
+      </div></div>
+      <div class="gh-side">
+        <div id="ghRail" class="gh-rail" role="group" aria-label="鬼影數據"></div>
+        <div class="gh-legend" aria-hidden="true"><span><i class="dot me"></i>這次</span><span><i class="dot gh"></i>上次同一發</span><span><i class="dot nx"></i>下一發</span><span><i class="dot xh"></i>按壓十字</span></div>
+        <div id="ghStrip" class="gh-strip" role="group" aria-label="本輪 10 發成績條"></div>
+        <div id="ghBig" class="gh-big" aria-live="polite"></div>
+        <div class="gh-acts">
+          <div class="gh-arow lite-bar">
+            <button type="button" id="ghUndo">↶ 復原</button>
+            <button type="button" id="ghToggle" class="gh-toggle" role="switch" aria-checked="true">鬼影 <span class="sw" aria-hidden="true"></span></button>
+            <button type="button" id="ghFit">全靶</button>
+          </div>
+          <button type="button" id="ghFinish" class="lite-verify glass gh-primary"><span class="vlbl"><span id="ghFinishLbl">完成第 1 輪</span> <small id="ghFinishSub">0/10</small></span><i class="gh-prog" id="ghProg"></i></button>
+        </div>
+        <details id="ghOpts" class="gh-opts">
+          <summary>鬼影設定・紀錄碼</summary>
+          <div class="gh-optrow"><span class="gh-ol">鬼影來源</span><div class="gh-seg" role="group" aria-label="鬼影來源"><button type="button" data-src="prev" aria-pressed="true">上一次訓練同一發</button><button type="button" data-src="round" aria-pressed="false">本次上一輪</button></div></div>
+          <div class="gh-optrow" id="ghRefRow"><span class="gh-ol">對照紀錄</span><select id="ghRef" aria-label="鬼影對照的紀錄"></select></div>
+          <label class="gh-optrow gh-chk pro-only"><input type="checkbox" id="ghWhole"> 整輪淡影（淡淡顯示上次這一輪全部 10 發）</label>
+          <div class="gh-optrow"><input id="ghName" class="gh-name" maxlength="60" placeholder="名稱（選填）" aria-label="鬼影紀錄名稱"><button type="button" id="ghCopyCode">📋 紀錄碼</button></div>
+          <div class="gh-optrow"><button type="button" id="ghNew">＋ 開始新的一組（60 發）</button></div>
+          <div id="ghCodeInfo" class="lbl"></div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="tab-records" class="tab">
   <div class="card">
     <div class="row"><button id="newSession2" class="primary">＋ 新的一組</button><button id="exportAll">匯出全部（JSON）</button>
@@ -276,6 +312,7 @@
     <div class="lt-more-list">
       <button type="button" data-act="theme"><b>🎨 外觀</b><small>四種主題</small></button>
       <button type="button" data-act="records"><b>🗂 紀錄</b><small>存檔、比較、匯出</small></button>
+      <button type="button" data-act="ghost"><b>👻 鬼影模式</b><small>60 發，和上一次同一發比</small></button>
       <button type="button" data-act="analysis"><b>📈 多張分析</b><small>不預報，連拍多張</small></button>
       <button type="button" data-act="about"><b>☁️ 說明・帳號</b><small>使用方法、雲端、更新</small></button>
       <button type="button" data-act="pro"><b>⚙️ 切到 Pro</b><small>完整功能</small></button>
@@ -284,13 +321,15 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--CORE--><script src="core.js?v=v1.3.1"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v1.3.1"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v1.3.1"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v1.3.1"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v1.3.1"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v1.3.1"></script><!--/CLOUD-->
-<!--PRESS--><script src="press.js?v=v1.3.1"></script><!--/PRESS-->
-<!--APP--><script src="app.js?v=v1.3.1"></script><!--/APP-->
+<!--CORE--><script src="core.js?v=v1.4.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v1.4.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v1.4.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v1.4.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v1.4.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v1.4.0"></script><!--/CLOUD-->
+<!--GHOST--><script src="ghost.js?v=v1.4.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v1.4.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v1.4.0"></script><!--/XHAIR-->
+<!--APP--><script src="app.js?v=v1.4.0"></script><!--/APP-->
 </body>
 </html>
