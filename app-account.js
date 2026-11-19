@@ -100,7 +100,7 @@
     var m = { 'popup-blocked': wrT('app.the_pop_up_was_blocked'), 'network-request-failed': wrT('app.network_error_please_try_again'), 'unauthorized-domain': wrT('app.this_url_isnt_authorized_for'),
       'operation-not-allowed': wrT('app.google_sign_in_isnt_enabled'), 'too-many-requests': wrT('app.too_many_attempts_please_try'), 'requires-recent-login': wrT('app.please_confirm_your_google_account'),
       'user-mismatch': wrT('app.please_choose_the_same_google'), 'permission-denied': wrT('app.the_cloud_denied_access_please'), 'unavailable': wrT('app.cant_reach_the_cloud_right'), 'internal-error': wrT('app.sign_in_error_please_try'),
-      'wr-suspended': wrT('cloud.suspended_cannot_delete') };
+      'wr-suspended': wrT('cloud.suspended_cannot_delete'), 'wr-suspended-sync': wrT('cloud.suspended_cannot_sync'), 'wr-purge-failed': wrT('cloud.couldnt_finish_clearing_membership') };
     var k = String(e || '').replace(/^firestore\//, '');
     return m[k] || String(e || '');
   }

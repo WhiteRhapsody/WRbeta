@@ -4,8 +4,8 @@
 (function (MP, root) {
   'use strict';
   // 其他模組（先載入）的共用名稱
-  var GROUPS = MP.GROUPS, midCheck = MP.midCheck, normCode = MP.normCode, codeHash = MP.codeHash, parsePerks = MP.parsePerks, parseMids = MP.parseMids,
-    D = MP.D, $ = MP.$, esc = MP.esc, toast = MP.toast, ask = MP.ask, S = MP.S, errText = MP.errText, show = MP.show;
+  var GROUPS = MP.GROUPS, midCheck = MP.midCheck, normCode = MP.normCode, codeLenOk = MP.codeLenOk, codeHash = MP.codeHash, parsePerks = MP.parsePerks, parseMids = MP.parseMids,
+    D = MP.D, $ = MP.$, esc = MP.esc, toast = MP.toast, ask = MP.ask, S = MP.S, errText = MP.errText, show = MP.show, uid = MP.uid;
   // 給其他模組用（函式）
   MP.loadAdmin = loadAdmin; MP.renderAdmin = renderAdmin;
 
@@ -54,13 +54,14 @@
     var list = (S.adm && S.adm.people) || [], held = {};
     ((S.adm && S.adm.held) || []).forEach(function (x) { held[x.id] = true; });
     var rows = list.map(function (p) {
-      var on = !!held[p.id];
-      return '<div class="mb-fr mb-person" data-uid="' + esc(p.id) + '" data-low="' + esc(p.midLower || '') + '" data-held="' + (on ? '1' : '0') + '"><span class="mb-sht"><b>' + esc(p.mid) + '</b><small>' + esc(p.id) + (on ? ' · ' + esc(wrT('member.suspended_badge')) : '') + '</small></span>'
-        + '<button type="button" data-act="hold">' + esc(wrT(on ? 'member.unsuspend' : 'member.suspend')) + '</button>'
+      var on = !!held[p.id], self = p.id === uid();
+      return '<div class="mb-fr mb-person" data-uid="' + esc(p.id) + '" data-low="' + esc(p.midLower || '') + '" data-held="' + (on ? '1' : '0') + '"><span class="mb-sht"><b>' + esc(p.mid) + '</b><small>' + esc(p.id) + (on ? ' · ' + esc(wrT('member.suspended_badge')) : '') + (self ? ' · ' + esc(wrT('member.admin_thats_you')) : '') + '</small></span>'
+        + (self ? '' : '<button type="button" data-act="hold">' + esc(wrT(on ? 'member.unsuspend' : 'member.suspend')) + '</button>')
         + '<input data-act="newid" maxlength="20" placeholder="' + esc(wrT('member.new_id')) + '" aria-label="' + esc(wrT('member.new_id')) + '">'
         + '<button type="button" data-act="id">' + esc(wrT('member.change_id')) + '</button>'
         + '<button type="button" data-act="shares">' + esc(wrT('member.revoke_shares')) + '</button>'
-        + '<button type="button" data-act="wipe">' + esc(wrT('member.wipe_data')) + '</button></div>';
+        + (self ? '' : '<button type="button" data-act="wipe">' + esc(wrT('member.wipe_data')) + '</button>')
+        + '</div>';
     }).join('');
     return '<details class="mb-adm" open><summary>' + esc(wrT('member.admin_people')) + '</summary><p class="mb-note">' + esc(wrT('member.admin_console_only')) + '</p>'
       + (rows || '<p>' + esc(wrT('member.admin_no_members')) + '</p>') + '</details>';
@@ -68,7 +69,8 @@
   function bindPerson(row) {
     var uid = row.dataset.uid, low = row.dataset.low, mid = (row.querySelector('b') || {}).textContent || '';
     function fail(e) { toast(wrT('member.not_completed', [msgOf(e)]), 3600); }
-    row.querySelector('[data-act=hold]').onclick = function () {
+    var holdBtn = row.querySelector('[data-act=hold]');
+    if (holdBtn) holdBtn.onclick = function () {
       var on = row.getAttribute('data-held') !== '1';
       ask(wrT(on ? 'member.suspend_confirm' : 'member.unsuspend_confirm', [mid]), function () {
         MP.BE.setSuspended(uid, on).then(function () { toast(wrT(on ? 'member.suspended_ok' : 'member.unsuspended_ok')); return loadAdmin(); }, fail);
@@ -84,7 +86,8 @@
         MP.BE.revokeOwnedShares(uid).then(function (n) { toast(wrT('member.shares_revoked', [n])); return loadAdmin(); }, fail);
       }, null, { yes: wrT('member.revoke_shares'), danger: true });
     };
-    row.querySelector('[data-act=wipe]').onclick = function () {
+    var wipeBtn = row.querySelector('[data-act=wipe]');
+    if (wipeBtn) wipeBtn.onclick = function () {
       ask(wrT('member.wipe_confirm', [mid]), function () {
         // v2.3.0：先停權再刪（不然對方手機還登入著，同步時會把本機紀錄又傳上來）；停權保留，之後可手動解除
         var gate = row.getAttribute('data-held') === '1' ? Promise.resolve() : MP.BE.setSuspended(uid, true);
@@ -97,7 +100,7 @@
   function msgOf(e) { return e && e.message && !e.code ? e.message : errText(e); }
   function adminCreate() {
     var raw = $('admCode').value, perks = parsePerks($('admPerks').value), aud = $('admAud').value, mids = parseMids($('admMids').value), groups = checked('admG');
-    if (normCode(raw).length < 3) { toast(wrT('member.the_code_needs_at_least')); return; }
+    if (!codeLenOk(raw)) { toast(wrT('member.the_code_needs_at_least')); return; }
     if (!perks.length) { toast(wrT('member.enter_at_least_one_perk')); return; }
     if (aud === 'users' && !mids.length) { toast(wrT('member.please_enter_a_member_id_2')); return; }
     if (aud === 'groups' && !groups.length) { toast(wrT('member.please_check_a_group')); return; }

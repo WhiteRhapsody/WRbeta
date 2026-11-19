@@ -132,8 +132,10 @@
     tx.textContent = num;
   }
   function svgPoint(svg, clientX, clientY) {
+    var ctm = svg && svg.getScreenCTM && svg.getScreenCTM();
+    if (!ctm) return null; // 尚未畫上螢幕時忽略，不要記一發幽靈彈著
     var pt = svg.createSVGPoint(); pt.x = clientX; pt.y = clientY;
-    var m = svg.getScreenCTM().inverse(); var q = pt.matrixTransform(m);
+    var q = pt.matrixTransform(ctm.inverse());
     return { x: q.x, y: -q.y };
   }
 
@@ -146,11 +148,12 @@
     }
     svg.addEventListener('pointerdown', function (ev) {
       if (!ev.isPrimary) return;
+      var p = pos(ev); if (!p) return;
       ev.preventDefault(); active = ev.pointerId; try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
-      onPreview(pos(ev));
+      onPreview(p);
     });
-    svg.addEventListener('pointermove', function (ev) { if (ev.pointerId === active) { ev.preventDefault(); onPreview(pos(ev)); } });
-    svg.addEventListener('pointerup', function (ev) { if (ev.pointerId === active) { active = null; onPreview(null); onCommit(pos(ev)); } });
+    svg.addEventListener('pointermove', function (ev) { if (ev.pointerId === active) { var p = pos(ev); if (!p) return; ev.preventDefault(); onPreview(p); } });
+    svg.addEventListener('pointerup', function (ev) { if (ev.pointerId === active) { var p = pos(ev); active = null; onPreview(null); if (p) onCommit(p); } });
     svg.addEventListener('pointercancel', function () { active = null; onPreview(null); });
   }
   function previewMark(svg, p, cls, t) {
@@ -194,7 +197,12 @@
   function attachZoom(svg, S) {
     var ptrs = {}, tapId = null, tapOk = false, pinch = null;
     function count() { return Object.keys(ptrs).length; }
-    function raw(ev, lift) { var pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY - (lift || 0); var q = pt.matrixTransform(svg.getScreenCTM().inverse()); return { x: q.x, y: q.y }; }
+    function raw(ev, lift) {
+      var ctm = svg && svg.getScreenCTM && svg.getScreenCTM();
+      if (!ctm) return null;
+      var pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY - (lift || 0); var q = pt.matrixTransform(ctm.inverse());
+      return { x: q.x, y: q.y };
+    }
     function pinchStart() {
       var ids = Object.keys(ptrs), a = ptrs[ids[0]], b = ptrs[ids[1]], v = S.view();
       pinch = { d: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, v: { cx: v.cx, cy: v.cy, E: v.E } };
@@ -213,17 +221,17 @@
       ev.preventDefault(); try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
       ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
       var n = count();
-      if (n === 1) { tapId = ev.pointerId; tapOk = true; S.down(raw(ev, S.lift())); }
+      if (n === 1) { var p0 = raw(ev, S.lift()); if (!p0) { delete ptrs[ev.pointerId]; return; } tapId = ev.pointerId; tapOk = true; S.down(p0); }
       else { if (tapOk) { tapOk = false; S.cancel(); } if (n === 2) pinchStart(); }
     });
     svg.addEventListener('pointermove', function (ev) {
       if (!ptrs[ev.pointerId]) return; ev.preventDefault();
       ptrs[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
-      if (pinch) pinchMove(); else if (tapOk && ev.pointerId === tapId) S.move(raw(ev, S.lift()));
+      if (pinch) pinchMove(); else if (tapOk && ev.pointerId === tapId) { var pm = raw(ev, S.lift()); if (pm) S.move(pm); }
     });
     function end(ev, cancel) {
       if (!ptrs[ev.pointerId]) return;
-      var commit = !cancel && tapOk && ev.pointerId === tapId && !pinch, p = commit ? raw(ev, S.lift()) : null;
+      var p = (!cancel && tapOk && ev.pointerId === tapId && !pinch) ? raw(ev, S.lift()) : null, commit = !!(p);
       delete ptrs[ev.pointerId];
       if (ev.pointerId === tapId) { tapOk = false; tapId = null; if (!commit) S.cancel(); }
       if (count() < 2 && pinch) { pinch = null; (S.render || App.renderLite)(); }

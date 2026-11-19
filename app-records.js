@@ -136,7 +136,8 @@
     if (!isAna(s) && s.preds && s.preds.length && s.actuals && s.actuals.length) { var cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal'); if (cmp.m) h += box(wrT('app.avg_call_error'), f2(cmp.meanErr), 'mm'); }
     return wrT('app.data', [h, isAna(s) ? wrT('app.analysis_targets', [(s.sheets || []).length]) : G.isGhost(s) ? wrT('app.ghost_training') : wrT('app.calls_blue_call_red_actual'), rs.src]);
   }
-  function recTitle(s) { return (s.name && s.name.trim()) || (isAna(s) ? wrT('app.analysis_2') : wrT('app.call_2')) + ' ' + fmtTW(s.created).replace(/^\d{4}\//, ''); }
+  function recKindLabel(s) { return isAna(s) ? wrT('app.analysis_2') : (G.isGhost(s) ? wrT('app.ghost') : wrT('app.call_2')); }
+  function recTitle(s) { return (s.name && s.name.trim()) || recKindLabel(s) + ' ' + fmtTW(s.created).replace(/^\d{4}\//, ''); }
   function renderRecords() {
     var box = $('recordList');
     Object.keys(recPick).forEach(function (id) { if (!App.sessions.some(function (x) { return x.id === id; })) delete recPick[id]; });
@@ -216,7 +217,7 @@
     var mixed = rows.some(function (r) { return r.t.id !== rows[0].t.id; });
     var best = function (vals, hiGood) { var v = vals.filter(function (x) { return x != null; }); if (v.length < 2) return null; return hiGood ? Math.max.apply(null, v) : Math.min.apply(null, v); };
     var M = [
-      [wrT('app.type_data'), function (r) { return wrT('app.x', [isAna(r.s) ? wrT('app.analysis_2') : wrT('app.call_2'), r.src]); }],
+      [wrT('app.type_data'), function (r) { return wrT('app.x', [recKindLabel(r.s), r.src]); }],
       [wrT('app.target_type'), function (r) { return r.t.short; }],
       [wrT('app.shots'), function (r) { return r.st.n; }],
       [wrT('app.avg_decimal'), function (r) { return r.st.n ? f2(r.st.avgDec) : '—'; }, function (r) { return r.st.n ? r.st.avgDec : null; }, true],
@@ -249,7 +250,7 @@
   }
   $('exportAll').onclick = function () {
     var blob = new Blob([JSON.stringify({ app: 'WRbeta', appVersion: App.APP_VERSION, version: SCHEMA_V, schema: wrT('app.sessions_kind_forecast_analysis_coordinates'), exported: new Date().toISOString(), sessions: App.sessions }, null, 1)], { type: 'application/json' });
-    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = wrT('app.wrbeta_records_json', [new Date().toISOString().slice(0, 10)]); a.click();
+    var a = document.createElement('a'), url = URL.createObjectURL(blob); a.href = url; a.download = wrT('app.wrbeta_records_json', [new Date().toISOString().slice(0, 10)]); a.click(); setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 1000);
   };
   $('importFile').onchange = function () {
     var f = this.files[0]; if (!f) return; var rd = new FileReader();

@@ -414,7 +414,7 @@ body.lite.lt-glass .lite-photo{border-radius:16px}
 .lite-srcbtn:active{transform:scale(.97)}
 .lite-s2.has-photo .lite-srcbtn{min-height:46px;font-size:15px}
 .lite-s2.has-photo .lite-srcbtn.lite-cam{background:linear-gradient(180deg,var(--gc-a),var(--gc-b));color:var(--gc-fg);border-color:var(--gc-bd);text-shadow:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 3px 10px var(--gc-sh)}
-.lite-tools{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:1px}
+.lite-tools{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;overflow-y:hidden;min-width:0;max-width:100%;touch-action:pan-x;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding:1px}
 .lite-tools::-webkit-scrollbar{display:none}
 .lite-tools button,.lite-tools select{flex:none;min-height:44px;padding:0 13px;border-radius:12px;font-size:14.5px;font-weight:700;background:linear-gradient(180deg,var(--gc-a),var(--gc-b));border:1px solid var(--gc-bd);color:var(--gc-fg);font-family:var(--lt-font)}
 .lite-tools select{padding:0 8px}

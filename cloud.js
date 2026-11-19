@@ -227,7 +227,13 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
         state.lastSync = new Date().toISOString();
         if (skipped) state.error = wrT('cloud.too_large_or_invalid_not', [skipped]);
       });
-    }).catch(function (e) { setErr(e); }).then(function () {
+    }).catch(function (e) {
+      var held = (root.WRMember && root.WRMember.isHeld) ? root.WRMember.isHeld() : Promise.resolve(false);
+      return held.then(function (on) {
+        if (on) setErr({ code: 'wr-suspended-sync', message: wrT('cloud.suspended_cannot_sync') });
+        else setErr(e);
+      }, function () { setErr(e); });
+    }).then(function () {
       busy = false; state.syncing = false; emit();
       if (again) { again = false; schedule(1500); }
     });

@@ -49,14 +49,18 @@
       });
     }).catch(function (e) { toast(wrT('member.invite_failed', [errText(e)]), 3600); });
   }
-  /* 刪好友：刪 friendships 文件，順便收回「我分享給他的」、把自己從「他分享給我的」移除 */
+  /* 刪好友：先收回雙方分享；收回失敗就停，不刪好友 */
   function removeFriend(pid, other) {
-    return MP.BE.deleteFriend(pid).then(function () {
-      var jobs = [];
-      S.mine.forEach(function (s) { if ((s.to || []).indexOf(other) >= 0) jobs.push(MP.BE.setShareTo(s.id, s.to.filter(function (u) { return u !== other; }))); });
-      S.toMe.forEach(function (s) { if (s.owner === other) jobs.push(MP.BE.leaveShare(s.id, (s.to || []).filter(function (u) { return u !== uid(); }))); });
-      return Promise.all(jobs.map(function (j) { return j.catch(function () {}); }));
+    var jobs = [];
+    S.mine.forEach(function (s) {
+      if ((s.to || []).indexOf(other) < 0) return;
+      var next = s.to.filter(function (u) { return u !== other; });
+      jobs.push(next.length ? MP.BE.setShareTo(s.id, next) : MP.BE.deleteShare(s.id));
     });
+    S.toMe.forEach(function (s) {
+      if (s.owner === other) jobs.push(MP.BE.leaveShare(s.id, (s.to || []).filter(function (u) { return u !== uid(); })));
+    });
+    return Promise.all(jobs).then(function () { return MP.BE.deleteFriend(pid); });
   }
 
   // 分享
@@ -78,7 +82,15 @@
     c.querySelectorAll('.mb-sh').forEach(function (b) { b.onclick = function () { openShared(b.dataset.sid); }; });
     c.querySelectorAll('.mb-mine').forEach(function (row) {
       var s = S.mine.filter(function (x) { return x.id === row.dataset.sid; })[0]; if (!s) return;
-      row.querySelectorAll('[data-u]').forEach(function (b) { b.onclick = function () { act(MP.BE.setShareTo(s.id, s.to.filter(function (u) { return u !== b.dataset.u; })), wrT('member.withdrawn')); }; });
+      row.querySelectorAll('[data-u]').forEach(function (b) {
+        b.onclick = function () {
+          var u = b.dataset.u;
+          ask(wrT('member.withdraw_share_from', [who(u)]), function () {
+            var next = (s.to || []).filter(function (x) { return x !== u; });
+            act(next.length ? MP.BE.setShareTo(s.id, next) : MP.BE.deleteShare(s.id), wrT('member.withdrawn'));
+          }, null, { yes: wrT('member.withdraw') });
+        };
+      });
       row.querySelector('[data-all]').onclick = function () { ask(wrT('member.withdraw_this_share_your_friend'), function () { act(MP.BE.deleteShare(s.id), wrT('member.all_withdrawn')); }, null, { yes: wrT('member.withdraw') }); };
     });
   }

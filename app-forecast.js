@@ -123,8 +123,9 @@
     function load(file) {
       if (!file) return;
       if (!App.pickIsImage(file)) { App.pickError(file); return; }
-      var url = URL.createObjectURL(file);
-      img.onerror = function () { App.pickError(file); };
+      if (state._url) try { URL.revokeObjectURL(state._url); } catch (e) {}
+      var url = URL.createObjectURL(file); state._url = url;
+      img.onerror = function () { try { URL.revokeObjectURL(url); } catch (e) {} if (state._url === url) state._url = null; App.pickError(file); };
       img.onload = function () { state.loaded = true; state.w = img.naturalWidth; state.h = img.naturalHeight; clearCal(); state.g = null; state.full = null; state._cal = null; state.zoomed = false; state.mode = 'auto';
         svg.setAttribute('viewBox', '0 0 ' + state.w + ' ' + state.h); setZoom(1); analyze(); };
       img.src = url;

@@ -11,7 +11,32 @@
   var B = document.body, data = load(), editing = null, opts = { toast: function () {}, ask: function (m, y) { if (window.confirm(m)) y(); } };
   var mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function reduced() { return !!(mq && mq.matches); }
-  function load() { try { var v = JSON.parse(localStorage.getItem(KEY) || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
+  function normLiteLegacyId(id) { return String(id || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '').replace(/[\s"<>&]/g, ''); }
+  function liteLegacyMap() {
+    var map = {}, keys = [['app.how_accurate_were_my_calls', 'accuracy'], ['app.how_accurate_were_my_calls_2', 'accuracy'], ['app.actual_score', 'score'], ['app.subtotal_per_round', 'rounds'], ['app.shot_by_shot', 'shots']];
+    var D = (typeof window !== 'undefined' && window.WR_I18N_DICT) || {};
+    Object.keys(D).forEach(function (lang) {
+      var d = D[lang] || {};
+      keys.forEach(function (p) {
+        var s = d[p[0]]; if (!s) return;
+        map[normLiteLegacyId(s)] = p[1];
+        map[normLiteLegacyId(s.replace(/（\{0\}）/g, '').replace(/\s*\(\{0\}\)/g, ''))] = p[1];
+      });
+    });
+    return map;
+  }
+  var LITE_LEGACY = liteLegacyMap();
+  function mapLiteId(id) { if (!id) return id; if (/^(accuracy|score|rounds|shots)$/.test(id)) return id; return LITE_LEGACY[normLiteLegacyId(id)] || id; }
+  function migrateLiteLayout(d) {
+    var c = d && d.lite; if (!c || typeof c !== 'object') return d;
+    if (Array.isArray(c.order)) c.order = c.order.map(mapLiteId);
+    ['hidden', 'size'].forEach(function (k) {
+      if (!c[k] || typeof c[k] !== 'object') return;
+      var n = {}; Object.keys(c[k]).forEach(function (id) { n[mapLiteId(id)] = c[k][id]; }); c[k] = n;
+    });
+    return d;
+  }
+  function load() { try { var v = JSON.parse(localStorage.getItem(KEY) || '{}'); return migrateLiteLayout(v && typeof v === 'object' ? v : {}); } catch (e) { return {}; } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
   function conf(key) { var c = data[key]; if (!c || typeof c !== 'object') c = data[key] = {}; if (!Array.isArray(c.order)) c.order = []; if (!c.hidden || typeof c.hidden !== 'object') c.hidden = {}; if (!c.size || typeof c.size !== 'object') c.size = {}; return c; }
   function containers(page) { return [].slice.call(document.querySelectorAll('[data-lay]' + (page ? '[data-lay-page="' + page + '"]' : ''))); }

@@ -25,7 +25,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   function loadAdmin() { return MP.loadAdmin.apply(this, arguments); }
   function renderAdmin() { return MP.renderAdmin.apply(this, arguments); }
   // 給其他模組用（函式）
-  MP.midCheck = midCheck; MP.normCode = normCode; MP.codeHash = codeHash; MP.pairId = pairId; MP.parsePerks = parsePerks; MP.parseMids = parseMids;
+  MP.midCheck = midCheck; MP.normCode = normCode; MP.codeLenOk = codeLenOk; MP.codeHash = codeHash; MP.pairId = pairId; MP.parsePerks = parsePerks; MP.parseMids = parseMids;
   MP.$ = $; MP.esc = esc; MP.app = app; MP.toast = toast; MP.ask = ask; MP.ls = ls; MP.uid = uid; MP.hasProfile = hasProfile; MP.errText = errText;
   MP.refreshSocial = refreshSocial; MP.who = who; MP.whoHTML = whoHTML; MP.show = show; MP.renderCards = renderCards; MP.modal = modal;
   // 給其他模組用（變數：一律讀寫同一份）
@@ -51,6 +51,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     s = String(s == null ? '' : s); try { s = s.normalize('NFKC'); } catch (e) {}
     return s.replace(/[\s\u3000]+/g, ' ').trim().toLowerCase();
   }
+  function codeLenOk(s) { return normCode(s).length >= 3; }
   function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
   function sha256(s) { // 回傳 Promise<hex>
     var c = (typeof crypto !== 'undefined' && crypto.subtle) ? crypto : (root.crypto && root.crypto.subtle ? root.crypto : null);
@@ -82,7 +83,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     var recent = (tries || []).filter(function (t) { return now - t < winMs; });
     return { ok: recent.length < max, recent: recent, waitMs: recent.length < max ? 0 : winMs - (now - recent[0]) };
   }
-  var pure = { MID_RE: MID_RE, AV_MAX: AV_MAX, SHARE_MAX: SHARE_MAX, GROUPS: GROUPS, midCheck: midCheck, normCode: normCode, sha256: sha256, codeHash: codeHash, pairId: pairId, parsePerks: parsePerks, parseMids: parseMids, avatarOk: avatarOk, friendView: friendView, perksOf: perksOf, rateOk: rateOk };
+  var pure = { MID_RE: MID_RE, AV_MAX: AV_MAX, SHARE_MAX: SHARE_MAX, GROUPS: GROUPS, midCheck: midCheck, normCode: normCode, codeLenOk: codeLenOk, sha256: sha256, codeHash: codeHash, pairId: pairId, parsePerks: parsePerks, parseMids: parseMids, avatarOk: avatarOk, friendView: friendView, perksOf: perksOf, rateOk: rateOk };
   if (typeof module !== 'undefined' && module.exports) { module.exports = pure; return; }
 
   // ---------- 瀏覽器端 ----------
@@ -174,7 +175,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       isHeld: function () { return P(function () { return one(d('suspended', C().uid)).then(function (x) { return !!x; }); }); },
       listProfiles: function () { return P(function () { return C().F.getDocs(C().F.collection(C().db, 'profiles')).then(rows); }); },
       listSuspended: function () { return P(function () { return C().F.getDocs(C().F.collection(C().db, 'suspended')).then(rows); }); },
-      setSuspended: function (uid, on) { return P(function () { return on ? C().F.setDoc(d('suspended', uid), { on: true, updated: ts(), by: C().uid }) : C().F.deleteDoc(d('suspended', uid)); }); },
+      setSuspended: function (uid, on) { return P(function () { if (uid === C().uid) return Promise.reject({ message: wrT('member.cant_suspend_or_wipe_yourself') }); return on ? C().F.setDoc(d('suspended', uid), { on: true, updated: ts(), by: C().uid }) : C().F.deleteDoc(d('suspended', uid)); }); },
       adminSetMid: function (uid, oldLower, mid) {
         return P(function () {
           var nl = mid.toLowerCase(), b = batch();
@@ -193,6 +194,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       },
       adminWipe: function (uid) {
         return P(function () {
+          if (uid === C().uid) return Promise.reject({ message: wrT('member.cant_suspend_or_wipe_yourself') });
           var c = C();
           function refsOf(snap) { var a = []; snap.forEach(function (s) { a.push(s.ref); }); return a; }
           return Promise.all([
@@ -406,8 +408,8 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     var chip = $('mhChip'), p = hasProfile() ? S.profile : null;
     if (!p) { if (chip) chip.remove(); title.hidden = false; B.classList.remove('has-member'); return; }
     if (!chip) { chip = D.createElement('button'); chip.type = 'button'; chip.id = 'mhChip'; chip.className = 'mh-chip'; chip.setAttribute('data-me', ''); title.parentNode.insertBefore(chip, title); }
-    var ver = String(app().version || '').replace(/^v(\d+)\.(\d+)\.0$/, 'v$1.$2');
-    chip.innerHTML = avHTML(p, 'mh-av', true) + '<span class="mh-t"><b><span class="mh-id">' + esc(p.mid) + '</span>' + ICON.hchev + '</b><small>WRbeta<i>beta ' + esc(ver) + '</i></small></span><span class="mb-badge" hidden></span>';
+    var label = app().label || ('beta ' + String(app().version || '').replace(/^v(\d+)\.(\d+)\.0$/, 'v$1.$2'));
+    chip.innerHTML = avHTML(p, 'mh-av', true) + '<span class="mh-t"><b><span class="mh-id">' + esc(p.mid) + '</span>' + ICON.hchev + '</b><small>WRbeta<i>' + esc(label) + '</i></small></span><span class="mb-badge" hidden></span>';
     chip.setAttribute('aria-label', wrT('member.member_double_tap_for_settings', [p.mid]));
     title.hidden = true; B.classList.add('has-member');
   }
@@ -583,6 +585,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     bg.querySelector('.no').onclick = function () { bg.remove(); };
     function go() {
       var raw = inp.value; if (!normCode(raw)) { say(wrT('member.enter_the_code_first'), 'info'); return; }
+      if (!codeLenOk(raw)) { say(wrT('member.the_code_needs_at_least'), 'info'); return; }
       var r = rateOk(ls(LS_TRIES) || [], Date.now(), RATE_MAX, RATE_WIN);
       if (!r.ok) { say(wrT('member.too_many_tries_take_a', [Math.ceil(r.waitMs / 60000)]), 'bad'); return; }
       r.recent.push(Date.now()); ls(LS_TRIES, r.recent);
@@ -601,6 +604,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   }
   /* 兌換：先看有沒有兌換過；再試「直接生效」，不行再試「申請中」；都不行＝密碼錯或不是給你的（規則不告訴你是哪一個） */
   function redeem(raw) {
+    if (!codeLenOk(raw)) return Promise.reject({ message: wrT('member.the_code_needs_at_least') });
     return codeHash(raw).then(function (h) {
       return BE.getRedemption(h).then(function (old) {
         if (old) return old.status === 'granted' ? BE.getPerks(h).catch(function () { return []; }).then(function (p) { return { status: 'granted', perks: p, again: true }; }) : { status: old.status, perks: [] };
@@ -634,16 +638,34 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   }
 
   // ---------- 刪除帳號時：清掉會員相關資料（cloud.js 的 deleteAccount 呼叫） ----------
+  function gone(e) {
+    var c = String((e && (e.code || e.message)) || e || '');
+    return /not-found|NOT_FOUND/i.test(c);
+  }
+  function keep(p) { return p.catch(function (e) { if (gone(e)) return; throw e; }); }
   function purge() {
     if (!signedIn()) return Promise.resolve();
-    var me = uid(), soft = function (p) { return p.catch(function () {}); };
-    return Promise.all([
-      soft(BE.myShares().then(function (a) { return Promise.all(a.map(function (s) { return soft(BE.deleteShare(s.id)); })); })),
-      soft(BE.sharesToMe().then(function (a) { return Promise.all(a.map(function (s) { return soft(BE.leaveShare(s.id, (s.to || []).filter(function (u) { return u !== me; }))); })); })),
-      soft(BE.friendships().then(function (a) { return Promise.all(a.map(function (f) { return soft(BE.deleteFriend(f.id)); })); })),
-      soft(BE.myRedemptions().then(function (a) { return Promise.all(a.filter(function (r) { return r.status === 'pending' || r.status === 'granted'; }).map(function (r) { return soft(BE.deleteRedemption(r.id)); })); })),
-      soft(BE.deleteMyRole())
-    ]).then(function () { return BE.getProfile(me); }).then(function (p) { return p ? BE.deleteProfile(p) : null; }).then(function () { ls(LS_AV, null); ls(LS_SEEN, null); S.profile = undefined; });
+    var me = uid();
+    var held = BE.isHeld ? BE.isHeld() : Promise.resolve(false);
+    return held.then(function (on) {
+      if (on) return Promise.reject({ code: 'wr-suspended', message: wrT('cloud.suspended_cannot_delete') });
+      return BE.myShares().then(function (a) {
+        return Promise.all((a || []).map(function (s) { return keep(BE.deleteShare(s.id)); }));
+      }).then(function () { return BE.sharesToMe(); }).then(function (a) {
+        return Promise.all((a || []).map(function (s) { return keep(BE.leaveShare(s.id, (s.to || []).filter(function (u) { return u !== me; }))); }));
+      }).then(function () { return BE.friendships(); }).then(function (a) {
+        return Promise.all((a || []).map(function (f) { return keep(BE.deleteFriend(f.id)); }));
+      }).then(function () { return BE.myRedemptions(); }).then(function (a) {
+        return Promise.all((a || []).filter(function (r) { return r.status === 'pending' || r.status === 'granted'; }).map(function (r) { return keep(BE.deleteRedemption(r.id)); }));
+      }).then(function () { return keep(BE.deleteMyRole()); }).then(function () {
+        return BE.getProfile(me);
+      }).then(function (p) { return p ? BE.deleteProfile(p) : null; }).then(function () {
+        ls(LS_AV, null); ls(LS_SEEN, null); S.profile = undefined;
+      }).catch(function (e) {
+        if (e && e.code === 'wr-suspended') throw e;
+        throw { code: 'wr-purge-failed', message: wrT('cloud.couldnt_finish_clearing_membership') };
+      });
+    });
   }
 
   // ---------- 啟動 ----------

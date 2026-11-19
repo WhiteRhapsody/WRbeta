@@ -354,28 +354,31 @@
     $('liteDetail').innerHTML = liteDetailHTML(t, res, lbl);
   }
   function liteDetailHTML(t, res, lbl) {
-    var st = res.st, cmp = res.cmp, h = '', card = function (title, body) { var id = title.replace(/（.*$/, '').replace(/[\s"<>&]/g, ''); return '<div class="lite-card" data-mod="' + id + '" data-mod-name="' + id.replace(/^\W+/, '') + '"><div class="lite-ct">' + title + '</div>' + body + '</div>'; };
+    var st = res.st, cmp = res.cmp, h = '', card = function (id, title, body) {
+      var name = String(title).replace(/^[\s\S]*?([\w\u4e00-\u9fff])/, '$1').replace(/（.*$/, '').replace(/\s*\(.*$/, '').trim();
+      return '<div class="lite-card" data-mod="' + id + '" data-mod-name="' + App.esc(name) + '"><div class="lite-ct">' + title + '</div>' + body + '</div>';
+    };
     if (!st.n) return '';
     var kv = function (k, v, s) { return '<div class="lite-kv"><span>' + k + '</span><b>' + v + '</b>' + (s ? '<small>' + s + '</small>' : '') + '</div>'; };
     if (res.hasForecast) {
       if (cmp.m) {
         var lv = LF.accuracyLevel(t, cmp);
-        h += card(wrT('app.how_accurate_were_my_calls', [lbl]), wrT('app.avg_off_by_ring_widths', [lv.level, lv.label, f1(lv.rings), kv(wrT('app.avg_call_error'), f2(cmp.meanErr) + ' mm', wrT('app.max_shot_mm', [cmp.maxErrShot, f1(cmp.maxErr)])), kv(wrT('app.systematic_bias'), cmp.biasDir === '置中' ? wrT('app.no_clear_bias_2') : wrT('app.calls_biased', [wrT.dir(cmp.biasDir)]), offsetText(cmp.biasX, cmp.biasY)), kv(wrT('app.ring_called_correctly'), Math.round(cmp.sameRingRate * 100) + '%', wrT('app.avg_decimal_difference', [f2(cmp.meanAbsDecDiff)])), cmp.unpairedPred || cmp.unpairedAct ? kv(wrT('app.not_matched'), (cmp.unpairedPred ? wrT('app.calls', [cmp.unpairedPred]) : '') + (cmp.unpairedAct ? wrT('app.holes', [cmp.unpairedAct]) : ''), wrT('app.number_of_calls_and_holes')) : '']));
-      } else h += card(wrT('app.how_accurate_were_my_calls_2'), wrT('app.no_calls_and_shot_holes'));
+        h += card('accuracy', wrT('app.how_accurate_were_my_calls', [lbl]), wrT('app.avg_off_by_ring_widths', [lv.level, lv.label, f1(lv.rings), kv(wrT('app.avg_call_error'), f2(cmp.meanErr) + ' mm', wrT('app.max_shot_mm', [cmp.maxErrShot, f1(cmp.maxErr)])), kv(wrT('app.systematic_bias'), cmp.biasDir === '置中' ? wrT('app.no_clear_bias_2') : wrT('app.calls_biased', [wrT.dir(cmp.biasDir)]), offsetText(cmp.biasX, cmp.biasY)), kv(wrT('app.ring_called_correctly'), Math.round(cmp.sameRingRate * 100) + '%', wrT('app.avg_decimal_difference', [f2(cmp.meanAbsDecDiff)])), cmp.unpairedPred || cmp.unpairedAct ? kv(wrT('app.not_matched'), (cmp.unpairedPred ? wrT('app.calls', [cmp.unpairedPred]) : '') + (cmp.unpairedAct ? wrT('app.holes', [cmp.unpairedAct]) : ''), wrT('app.number_of_calls_and_holes')) : '']));
+      } else h += card('accuracy', wrT('app.how_accurate_were_my_calls_2'), wrT('app.no_calls_and_shot_holes'));
     }
-    h += card(wrT('app.actual_score', [lbl]), kv(wrT('app.total'), st.total, wrT('app.decimal', [f1(st.totalDec)])) + kv(wrT('app.average_2'), f2(st.avgDec), wrT('app.integer', [f2(st.avg)])) + kv(wrT('app.60_shot_projection'), st.proj60, wrT('app.decimal', [f1(st.proj60Dec)])) +
+    h += card('score', wrT('app.actual_score', [lbl]), kv(wrT('app.total'), st.total, wrT('app.decimal', [f1(st.totalDec)])) + kv(wrT('app.average_2'), f2(st.avgDec), wrT('app.integer', [f2(st.avg)])) + kv(wrT('app.60_shot_projection'), st.proj60, wrT('app.decimal', [f1(st.proj60Dec)])) +
       kv(wrT('app.s', [t.innerTen.label]), st.inner) + (st.n > 1 ? kv(wrT('app.group_size'), f1(st.groupSize) + ' mm') : '') +
       (st.advice ? kv(wrT('app.group_center_2'), st.advice.centered ? wrT('core.centered') : wrT.dir(st.advice.offsetDir) + ' ' + f1(st.advice.dist) + 'mm', App.esc(st.advice.text)) : '') +
       (st.n > 1 ? kv(wrT('app.consistency_std_dev'), f2(st.sdDec)) : ''));
     if (res.perRound.length > 1) {
       var tb = wrT('app.round_calls_holes_total_decimal');
       res.perRound.forEach(function (r) { tb += '<tr><td>' + (r.k + 1) + '</td><td>' + r.preds + '</td><td>' + r.acts + '</td><td>' + r.st.total + '</td><td>' + f1(r.st.totalDec) + '</td></tr>'; });
-      h += card(wrT('app.subtotal_per_round'), tb + '</table>');
+      h += card('rounds', wrT('app.subtotal_per_round'), tb + '</table>');
     }
     if (cmp.m) {
       var pt = wrT('app.call_actual_diff');
       cmp.pairs.forEach(function (q) { pt += '<tr><td>' + q.i + '</td><td>' + f1(q.pred.dec) + '</td><td>' + f1(q.act.dec) + '</td><td>' + f1(q.err) + 'mm</td></tr>'; });
-      h += card(wrT('app.shot_by_shot'), pt + '</table>');
+      h += card('shots', wrT('app.shot_by_shot'), pt + '</table>');
     }
     return h;
   }
@@ -473,7 +476,7 @@
       litePV = null; liteSel = -1; liteUndo2 = null; liteVMode = 'photo';
       liteProcess();
     };
-    im.onerror = function () { App.pickError(file); };
+    im.onerror = function () { try { URL.revokeObjectURL(url); } catch (e) {} App.pickError(file); };
     im.src = url;
   }
   function liteProcess() {

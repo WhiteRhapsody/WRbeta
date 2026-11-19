@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v2.4.0-split">
-<link rel="icon" href="icon.svg?v=v2.4.0-split">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.4.0-split">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.4.0-split"><link rel="stylesheet" href="themes.css?v=v2.4.0-split"><!--/STYLE-->
+<link rel="manifest" href="manifest.webmanifest?v=v2.4.1">
+<link rel="icon" href="icon.svg?v=v2.4.1">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.4.1">
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.4.1"><link rel="stylesheet" href="themes.css?v=v2.4.1"><!--/STYLE-->
 </head>
 <body>
 <header>
@@ -79,7 +79,8 @@
     <div id="liteS2" class="lite-s2">
       <div class="lite-src">
         <label class="lite-srcbtn lite-cam"><span class="ic" aria-hidden="true">📷</span><span>拍照</span><input type="file" id="liteCam" accept="image/*" capture="environment" hidden></label>
-        <label class="lite-srcbtn"><span class="ic" aria-hidden="true">🖼</span><span>相簿</span><input type="file" id="litePick" accept="image/*" hidden></label>
+        <!-- 相簿 accept 含非圖片類型：Chrome Android 對純 image/* 會開 Photo Picker，可能看不到 LINE 存進相簿的圖；改走完整文件／圖庫選擇器。拍照與檔案鈕不改。 -->
+        <label class="lite-srcbtn"><span class="ic" aria-hidden="true">🖼</span><span>相簿</span><input type="file" id="litePick" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,application/octet-stream" hidden></label>
         <label class="lite-srcbtn" title="相簿找不到照片時用"><span class="ic" aria-hidden="true">📁</span><span>檔案</span><input type="file" id="liteFile" accept="*/*" hidden></label>
       </div>
       <div class="lite-tools" role="toolbar" aria-label="修正工具">
@@ -139,7 +140,7 @@
   <div id="photoPane" class="card">
     <div class="row">
       <label class="btn">📷 拍照<input type="file" id="photoCam" accept="image/*" capture="environment" hidden></label>
-      <label class="btn">🖼 從相簿選<input type="file" id="photoPick" accept="image/*" hidden></label>
+      <label class="btn">🖼 從相簿選<input type="file" id="photoPick" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,application/octet-stream" hidden></label>
       <label class="btn" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器">📁 從檔案選<input type="file" id="photoFile" accept="*/*" hidden></label>
       <span class="lbl">偵測靈敏度</span><select id="sensSel"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
     </div>
@@ -254,7 +255,7 @@
   </div>
   <div class="ana-dock" id="anaDock" data-edge="home">
     <button type="button" class="dk-home" id="dockHome" aria-label="拍照按鈕回到預設位置" title="回到預設位置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg></button>
-    <label class="wr-side dk-it" id="anaPickBtn"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4.5 3.5"/></svg><span><b>相簿</b><small>可多選</small></span><input type="file" id="anaPick" accept="image/*" multiple hidden></label>
+    <label class="wr-side dk-it" id="anaPickBtn"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4.5 3.5"/></svg><span><b>相簿</b><small>可多選</small></span><input type="file" id="anaPick" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,application/octet-stream" multiple hidden></label>
     <label class="wr-cam dk-it" id="anaCamBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.3l1.6-2.2h5.2l1.6 2.2h2.3a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/></svg><b>拍下一張</b><input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label>
     <span class="wr-sidewrap dk-it"><label class="wr-side" id="anaFileBtn" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span><b>檔案</b><small>可多選</small></span><input type="file" id="anaFile" accept="*/*" multiple hidden></label><button type="button" class="wr-qi" id="anaPickInfo" aria-label="相簿找不到照片怎麼辦" aria-expanded="false" aria-controls="anaPickHint">i</button></span>
     <div id="anaPickHint" class="wr-pop ana-pickhint" role="note" hidden>相簿裡找不到靶紙照片？按「檔案」，在選單裡選「相簿／圖庫」或到 <b>DCIM › Camera</b> 資料夾找。</div>
@@ -424,20 +425,32 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--I18N--><script src="i18n/zh-TW.js?v=v2.4.0-split"></script><script src="i18n/en.js?v=v2.4.0-split"></script><script src="i18n/i18n.js?v=v2.4.0-split"></script><!--/I18N-->
-<!--CORE--><script src="core.js?v=v2.4.0-split"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v2.4.0-split"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v2.4.0-split"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v2.4.0-split"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v2.4.0-split"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v2.4.0-split"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v2.4.0-split"></script><script src="member-friends.js?v=v2.4.0-split"></script><script src="member-admin.js?v=v2.4.0-split"></script><!--/MEMBER-->
-<!--GHOST--><script src="ghost.js?v=v2.4.0-split"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v2.4.0-split"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v2.4.0-split"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v2.4.0-split"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v2.4.0-split"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v2.4.0-split"></script><!--/DOCK-->
-<!--APP--><script src="app-base.js?v=v2.4.0-split"></script><script src="app-forecast.js?v=v2.4.0-split"></script><script src="app-lite.js?v=v2.4.0-split"></script><script src="app-ghost.js?v=v2.4.0-split"></script><script src="app-photo.js?v=v2.4.0-split"></script><script src="app-analysis.js?v=v2.4.0-split"></script><script src="app-records.js?v=v2.4.0-split"></script><script src="app-nav.js?v=v2.4.0-split"></script><script src="app.js?v=v2.4.0-split"></script><script src="app-account.js?v=v2.4.0-split"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v2.4.1"></script><script src="i18n/en.js?v=v2.4.1"></script><script src="i18n/i18n.js?v=v2.4.1"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v2.4.1"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v2.4.1"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v2.4.1"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v2.4.1"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v2.4.1"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v2.4.1"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v2.4.1"></script><script src="member-friends.js?v=v2.4.1"></script><script src="member-admin.js?v=v2.4.1"></script><!--/MEMBER-->
+<!--GHOST--><script src="ghost.js?v=v2.4.1"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v2.4.1"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v2.4.1"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v2.4.1"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v2.4.1"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v2.4.1"></script><!--/DOCK-->
+<!--APP--><script src="app-base.js?v=v2.4.1"></script><script src="app-forecast.js?v=v2.4.1"></script><script src="app-lite.js?v=v2.4.1"></script><script src="app-ghost.js?v=v2.4.1"></script><script src="app-photo.js?v=v2.4.1"></script><script src="app-analysis.js?v=v2.4.1"></script><script src="app-records.js?v=v2.4.1"></script><script src="app-nav.js?v=v2.4.1"></script><script src="app.js?v=v2.4.1"></script><script src="app-account.js?v=v2.4.1"></script><!--/APP-->
+<script>
+(function () {
+  var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['BMGhost','ghost.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];
+  var miss = [];
+  for (var i = 0; i < need.length; i++) if (!window[need[i][0]]) miss.push(need[i][1] + ' (' + need[i][0] + ')');
+  if (!miss.length) return;
+  var en = window.wrT && wrT.isEn && wrT.isEn();
+  var msg = (en ? 'Some program files did not load: ' : '有模組沒有載入：') + miss.join(', ') + (en ? '. Please reload, or remove the app from the home screen and add it again.' : '。請重新整理，或把 App 從主畫面拿掉再加回去。');
+  var n = document.getElementById('errNotice');
+  if (n) { n.style.display = ''; n.textContent = msg; }
+})();
+</script>
 </body>
 </html>

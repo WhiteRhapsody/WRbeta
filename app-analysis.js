@@ -16,7 +16,9 @@
   Object.defineProperty(App, 'LS_ACUR', { get: function () { return LS_ACUR; }, set: function (v) { LS_ACUR = v; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'acur', { get: function () { return acur; }, set: function (v) { acur = v; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'anaSel', { get: function () { return anaSel; }, set: function (v) { anaSel = v; }, enumerable: true, configurable: true });
-  Object.defineProperty(App, 'anaPhotos', { get: function () { return anaPhotos; }, set: function (v) { anaPhotos = v; }, enumerable: true, configurable: true });
+  function revokePhotoUrl(P) { if (P && P.url) try { URL.revokeObjectURL(P.url); } catch (e) {} }
+  function revokeAllPhotos() { Object.keys(anaPhotos).forEach(function (k) { revokePhotoUrl(anaPhotos[k]); }); }
+  Object.defineProperty(App, 'anaPhotos', { get: function () { return anaPhotos; }, set: function (v) { if (v !== anaPhotos) revokeAllPhotos(); anaPhotos = v || {}; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'anaBusy', { get: function () { return anaBusy; }, set: function (v) { anaBusy = v; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'anaPZ', { get: function () { return anaPZ; }, set: function (v) { anaPZ = v; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'anaView', { get: function () { return anaView; }, set: function (v) { anaView = v; }, enumerable: true, configurable: true });
@@ -106,7 +108,7 @@
       sh.photo.w = im.naturalWidth; sh.photo.h = im.naturalHeight;
       anaProcess(sh, done);
     };
-    im.onerror = function () { pickError(file); if (done) done(); };
+    im.onerror = function () { try { URL.revokeObjectURL(url); } catch (e) {} pickError(file); if (done) done(); };
     im.src = url;
   }
   function anaEnqueue(files) {
@@ -304,14 +306,14 @@
   $('anaDelSheet').onclick = function () {
     var sh = selSheet(); anaPop(null, false); if (!sh) return;
     ask(wrT('app.clear_this_target_target_shots', [sheetNo(sh), sh.shots.length]), function () {
-      acur.sheets = acur.sheets.filter(function (x) { return x !== sh; }); delete anaPhotos[sh.id]; anaSel = 'all'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.target_cleared'));
+      acur.sheets = acur.sheets.filter(function (x) { return x !== sh; }); revokePhotoUrl(anaPhotos[sh.id]); delete anaPhotos[sh.id]; anaSel = 'all'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.target_cleared'));
     });
   };
   // v1.6.0 清除所有紀錄：清掉這次分析的全部照片與每張紀錄（名稱、日期保留；沒有名稱就從「紀錄」移除這筆空分析）
   $('anaClearAll').onclick = function () {
     anaPop(null, false); if (!acur.sheets.length) return;
     ask(wrT('app.clear_everything_all_photos_and', [acur.sheets.length, anaShots(acur).length]), function () {
-      Object.keys(anaPhotos).forEach(function (k) { try { URL.revokeObjectURL(anaPhotos[k].url); } catch (e) {} });
+      revokeAllPhotos();
       acur.sheets = []; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.everything_in_this_analysis_cleared'));
     });
   };
@@ -322,7 +324,7 @@
     store.set(LS_ACUR, acur.id);
   }
   $('anaName').oninput = function () { acur.name = this.value; persistA(); };
-  function anaStartNew(tid, msg) { acur = newAnalysis(tid || acur.targetId); anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); renderAnalysis(); if (App.curTab === 'analysis') App.syncTargetSel(); toast(msg || wrT('app.new_analysis_started')); }
+  function anaStartNew(tid, msg) { revokeAllPhotos(); acur = newAnalysis(tid || acur.targetId); anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); renderAnalysis(); if (App.curTab === 'analysis') App.syncTargetSel(); toast(msg || wrT('app.new_analysis_started')); }
   $('anaNew').onclick = function () {
     if (acur.sheets.length) ask(wrT('app.the_current_analysis_is_saved'), function () { anaStartNew(); }); else anaStartNew();
   };
