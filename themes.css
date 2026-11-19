@@ -1382,6 +1382,9 @@ body.nv-bulge:not(.lite).nav-a .wr-nav button.nv-main{margin-top:-12px}
 .mb-sub{font-size:12.5px;font-weight:800;color:var(--w-tx2);margin:12px 0 2px;letter-spacing:.3px}
 .mb-new{color:#e53935}
 .mb-fr,.mb-code{display:flex;align-items:center;gap:8px;min-height:52px;border-bottom:1px solid var(--w-line)}
+.mb-person{flex-wrap:wrap;align-items:flex-start;padding:8px 0}
+.mb-person .mb-sht{flex:1 1 160px}
+.mb-person button,.mb-person input{min-height:36px}
 .mb-fr:last-child,.mb-code:last-child{border-bottom:0}
 .mb-who{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
 .mb-who b{font-size:15.5px;color:var(--w-tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

@@ -165,34 +165,38 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     if (!user || !auth) return Promise.reject({ code: 'not-signed-in', message: wrT('cloud.not_signed_in') });
     var u = user, uid = u.uid, prov = (u.providerData && u.providerData[0] && u.providerData[0].providerId) || 'google.com';
     var last = Date.parse(u.metadata && u.metadata.lastSignInTime) || 0;
-    var reauth = Date.now() - last > 4 * 60 * 1000
-      ? M.U.reauthenticateWithPopup(u, provider(prov === 'apple.com' ? 'apple' : 'google'))
-      : Promise.resolve();
-    state.deleting = true; setErr(null); emit();
-    return reauth.then(function () {
-      blocked = true; clearTimeout(timer); // 刪除途中與刪除後都不要再同步（不然會把本機紀錄又傳上去）
-      // v2.0.0：先刪會員資料（會員 ID 保留、公開頭像、好友、分享、兌換），再刪紀錄與帳號
-      return (root.WRMember && root.WRMember.purge ? root.WRMember.purge() : Promise.resolve());
-    }).then(function () {
-      var col = M.F.collection(db, 'users', uid, 'records');
-      return M.F.getDocs(col).then(function (snap) {
-        var refs = []; snap.forEach(function (d) { refs.push(d.ref); });
-        var chain = Promise.resolve();
-        for (var i = 0; i < refs.length; i += 400) (function (part) {
-          chain = chain.then(function () { var b = M.F.writeBatch(db); part.forEach(function (r) { b.delete(r); }); return b.commit(); });
-        })(refs.slice(i, i + 400));
-        return chain.then(function () { return refs.length; });
+    var gate = (root.WRMember && root.WRMember.isHeld) ? root.WRMember.isHeld() : Promise.resolve(false);
+    return gate.then(function (on) {
+      if (on) return Promise.reject({ code: 'wr-suspended', message: wrT('cloud.suspended_cannot_delete') });
+      var reauth = Date.now() - last > 4 * 60 * 1000
+        ? M.U.reauthenticateWithPopup(u, provider(prov === 'apple.com' ? 'apple' : 'google'))
+        : Promise.resolve();
+      state.deleting = true; setErr(null); emit();
+      return reauth.then(function () {
+        blocked = true; clearTimeout(timer); // 刪除途中與刪除後都不要再同步（不然會把本機紀錄又傳上去）
+        // v2.0.0：先刪會員資料（會員 ID 保留、公開頭像、好友、分享、兌換），再刪紀錄與帳號
+        return (root.WRMember && root.WRMember.purge ? root.WRMember.purge() : Promise.resolve());
+      }).then(function () {
+        var col = M.F.collection(db, 'users', uid, 'records');
+        return M.F.getDocs(col).then(function (snap) {
+          var refs = []; snap.forEach(function (d) { refs.push(d.ref); });
+          var chain = Promise.resolve();
+          for (var i = 0; i < refs.length; i += 400) (function (part) {
+            chain = chain.then(function () { var b = M.F.writeBatch(db); part.forEach(function (r) { b.delete(r); }); return b.commit(); });
+          })(refs.slice(i, i + 400));
+          return chain.then(function () { return refs.length; });
+        });
+      }).then(function (n) {
+        return M.F.deleteDoc(M.F.doc(db, 'users', uid)).then(function () { return M.U.deleteUser(u); }).then(function () {
+          try { localStorage.removeItem(LS_META); localStorage.removeItem(LS_TOMB); } catch (e) {}
+          state.deleting = false; state.lastSync = null; emit();
+          return { deletedRecords: n };
+        });
+      }).catch(function (e) {
+        state.deleting = false; blocked = false;
+        if (!/popup-closed|cancelled-popup/.test(e && e.code || '')) setErr(e);
+        emit(); throw e;
       });
-    }).then(function (n) {
-      return M.F.deleteDoc(M.F.doc(db, 'users', uid)).then(function () { return M.U.deleteUser(u); }).then(function () {
-        try { localStorage.removeItem(LS_META); localStorage.removeItem(LS_TOMB); } catch (e) {}
-        state.deleting = false; state.lastSync = null; emit();
-        return { deletedRecords: n };
-      });
-    }).catch(function (e) {
-      state.deleting = false; blocked = false;
-      if (!/popup-closed|cancelled-popup/.test(e && e.code || '')) setErr(e);
-      emit(); throw e;
     });
   }
   function syncNow() {

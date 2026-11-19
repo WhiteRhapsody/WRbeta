@@ -88,6 +88,20 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     function one(p) { return C().F.getDoc(p).then(function (s) { if (!s.exists()) return null; var x = s.data(); x.id = s.id; x.createdMs = ms(x.created); return x; }); }
     function ts() { return C().F.serverTimestamp(); }
     function batch() { var c = C(); return c.F.writeBatch(c.db); }
+    function chunkDelete(refs) {
+      var chain = Promise.resolve();
+      for (var i = 0; i < refs.length; i += 400) {
+        (function (part) {
+          chain = chain.then(function () {
+            if (!part.length) return;
+            var b = batch();
+            part.forEach(function (r) { b.delete(r); });
+            return b.commit();
+          });
+        })(refs.slice(i, i + 400));
+      }
+      return chain;
+    }
     function P(fn) { return new Promise(function (res) { res(fn()); }); } // 同步丟出的錯誤（沒登入）也變成 rejected
     return {
       getProfile: function (uid) { return P(function () { return one(d('profiles', uid)); }); },
@@ -130,7 +144,63 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       listRedemptions: function (status) { return P(function () { return q('redemptions', ['status', '==', status]).then(rows); }); },
       decide: function (rid, status) { return P(function () { return C().F.updateDoc(d('redemptions', rid), { status: status, updated: ts() }); }); },
       listRoles: function () { return P(function () { return C().F.getDocs(C().F.collection(C().db, 'roles')).then(rows); }); },
-      setRole: function (uid, groups, mid) { return P(function () { return groups.length ? C().F.setDoc(d('roles', uid), { groups: groups, mid: mid, updated: ts(), by: C().uid }) : C().F.deleteDoc(d('roles', uid)); }); }
+      setRole: function (uid, groups, mid) { return P(function () { return groups.length ? C().F.setDoc(d('roles', uid), { groups: groups, mid: mid, updated: ts(), by: C().uid }) : C().F.deleteDoc(d('roles', uid)); }); },
+      isHeld: function () { return P(function () { return one(d('suspended', C().uid)).then(function (x) { return !!x; }); }); },
+      listProfiles: function () { return P(function () { return C().F.getDocs(C().F.collection(C().db, 'profiles')).then(rows); }); },
+      listSuspended: function () { return P(function () { return C().F.getDocs(C().F.collection(C().db, 'suspended')).then(rows); }); },
+      setSuspended: function (uid, on) { return P(function () { return on ? C().F.setDoc(d('suspended', uid), { on: true, updated: ts(), by: C().uid }) : C().F.deleteDoc(d('suspended', uid)); }); },
+      adminSetMid: function (uid, oldLower, mid) {
+        return P(function () {
+          var nl = mid.toLowerCase(), b = batch();
+          b.update(d('profiles', uid), { mid: mid, midLower: nl, updated: ts() });
+          if (nl !== oldLower) { b.set(d('usernames', nl), { uid: uid }); b.delete(d('usernames', oldLower)); }
+          return b.commit();
+        });
+      },
+      revokeOwnedShares: function (uid) {
+        return P(function () {
+          return q('shares', ['owner', '==', uid]).then(function (snap) {
+            var refs = []; snap.forEach(function (s) { refs.push(s.ref); });
+            return chunkDelete(refs).then(function () { return refs.length; });
+          });
+        });
+      },
+      adminWipe: function (uid) {
+        return P(function () {
+          var c = C();
+          function refsOf(snap) { var a = []; snap.forEach(function (s) { a.push(s.ref); }); return a; }
+          return Promise.all([
+            q('shares', ['owner', '==', uid]).then(refsOf),
+            q('shares', ['to', 'array-contains', uid]).then(refsOf),
+            q('friendships', ['users', 'array-contains', uid]).then(refsOf),
+            q('redemptions', ['uid', '==', uid]).then(refsOf),
+            c.F.getDocs(c.F.collection(c.db, 'users', uid, 'records')).then(refsOf)
+          ]).then(function (parts) {
+            var incoming = parts[1];
+            var chain = chunkDelete(parts[0].concat(parts[2], parts[3], parts[4]));
+            incoming.forEach(function (ref) {
+              chain = chain.then(function () {
+                return c.F.getDoc(ref).then(function (s) {
+                  if (!s.exists()) return;
+                  var to = (s.data().to || []).filter(function (u) { return u !== uid; });
+                  return to.length ? c.F.updateDoc(ref, { to: to, updated: ts() }) : c.F.deleteDoc(ref);
+                });
+              });
+            });
+            chain = chain.then(function () { return c.F.deleteDoc(d('roles', uid)).catch(function () {}); });
+            chain = chain.then(function () { return c.F.deleteDoc(d('users', uid)).catch(function () {}); });
+            return chain.then(function () {
+              return one(d('profiles', uid)).then(function (p) {
+                if (!p) return;
+                var b = batch();
+                b.delete(d('profiles', uid));
+                if (p.midLower) b.delete(d('usernames', p.midLower));
+                return b.commit();
+              });
+            });
+          });
+        });
+      }
     };
   }
 
@@ -644,7 +714,9 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       BE.listCodes().then(function (a) { S.adm.codes = a.sort(function (x, y) { return y.createdMs - x.createdMs; }); }),
       BE.listRedemptions('pending').then(function (a) { S.adm.pending = a; }),
       BE.listRedemptions('granted').then(function (a) { S.adm.granted = a; }),
-      BE.listRoles().then(function (a) { S.adm.roles = a; })
+      BE.listRoles().then(function (a) { S.adm.roles = a; }),
+      BE.listProfiles().then(function (a) { S.adm.people = a.sort(function (x, y) { return String(x.mid).localeCompare(String(y.mid)); }); }),
+      BE.listSuspended().then(function (a) { S.adm.held = a; })
     ]).catch(function (e) { toast(wrT('member.couldnt_load_admin_data', [errText(e)]), 3600); }).then(function () { renderAdmin(true); });
   }
   function codeLabel(h) { var c = S.adm && S.adm.codes.filter(function (x) { return x.id === h; })[0]; return c ? (c.label || wrT('member.no_note')) : String(h).slice(0, 8) + '…'; }
@@ -653,7 +725,9 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     var c = show('mbAdmin', on); if (!c || !on) return;
     if (!S.adm) { c.innerHTML = wrT('member.admin_only_you_can_see'); $('mbAdmOpen').onclick = function () { S.adm = { codes: [], pending: [], granted: [], roles: [] }; loadAdmin(); }; return; }
     var A = S.adm, gchk = function (name) { return Object.keys(GROUPS).map(function (g) { return '<label class="mb-ck"><input type="checkbox" name="' + name + '" value="' + g + '">' + GROUPS[g] + '</label>'; }).join(''); };
-    var h = wrT('member.admin_only_you_can_see_2', [gchk('admG')]);
+    // v2.3.0：標題（🛠 管理員 · 只有你看得到 · 重新整理）放最上面，會員區塊接在標題下面
+    var h = wrT('member.admin_only_you_can_see_2', [gchk('admG')]), cut = h.indexOf('</div>') + 6;
+    h = h.slice(0, cut) + peopleHTML() + h.slice(cut);
     h += wrT('member.pending', [A.pending.length, A.pending.length ? A.pending.map(function (r) { return wrT('member.approve_reject', [esc(r.id), esc(r.mid), esc(codeLabel(r.code))]); }).join('') : wrT('member.no_pending_requests')]);
     h += wrT('member.cheat_codes', [A.codes.length, A.codes.length ? A.codes.map(function (x) { return wrT('member.delete', [esc(x.id), esc(x.label || wrT('member.no_note')), x.active ? '' : wrT('member.disabled'), esc((x.perks || []).join(', ')), esc(audText(x.audience)), x.needsApproval ? wrT('member.needs_approval') : '', x.active ? wrT('member.disable') : wrT('member.enable')]); }).join('') : wrT('member.no_cheat_codes_yet')]);
     h += wrT('member.active', [A.granted.length, A.granted.length ? A.granted.map(function (r) { return wrT('member.revoke', [esc(r.id), esc(r.mid), esc(codeLabel(r.code))]); }).join('') : wrT('member.nobody_has_redeemed_one_yet')]);
@@ -671,6 +745,49 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
         else ask(wrT('member.delete_cheat_code_people_who', [x.label || '']), function () { BE.deleteCode(h2).then(function () { toast(wrT('member.deleted')); loadAdmin(); }, function (e) { toast(wrT('member.not_completed', [errText(e)]), 3600); }); }, null, { yes: wrT('app.delete'), danger: true });
       };
     });
+    c.querySelectorAll('.mb-person').forEach(function (row) { bindPerson(row); });
+  }
+  function peopleHTML() {
+    var list = (S.adm && S.adm.people) || [], held = {};
+    ((S.adm && S.adm.held) || []).forEach(function (x) { held[x.id] = true; });
+    var rows = list.map(function (p) {
+      var on = !!held[p.id];
+      return '<div class="mb-fr mb-person" data-uid="' + esc(p.id) + '" data-low="' + esc(p.midLower || '') + '" data-held="' + (on ? '1' : '0') + '"><span class="mb-sht"><b>' + esc(p.mid) + '</b><small>' + esc(p.id) + (on ? ' · ' + esc(wrT('member.suspended_badge')) : '') + '</small></span>'
+        + '<button type="button" data-act="hold">' + esc(wrT(on ? 'member.unsuspend' : 'member.suspend')) + '</button>'
+        + '<input data-act="newid" maxlength="20" placeholder="' + esc(wrT('member.new_id')) + '" aria-label="' + esc(wrT('member.new_id')) + '">'
+        + '<button type="button" data-act="id">' + esc(wrT('member.change_id')) + '</button>'
+        + '<button type="button" data-act="shares">' + esc(wrT('member.revoke_shares')) + '</button>'
+        + '<button type="button" data-act="wipe">' + esc(wrT('member.wipe_data')) + '</button></div>';
+    }).join('');
+    return '<details class="mb-adm" open><summary>' + esc(wrT('member.admin_people')) + '</summary><p class="mb-note">' + esc(wrT('member.admin_console_only')) + '</p>'
+      + (rows || '<p>' + esc(wrT('member.admin_no_members')) + '</p>') + '</details>';
+  }
+  function bindPerson(row) {
+    var uid = row.dataset.uid, low = row.dataset.low, mid = (row.querySelector('b') || {}).textContent || '';
+    function fail(e) { toast(wrT('member.not_completed', [msgOf(e)]), 3600); }
+    row.querySelector('[data-act=hold]').onclick = function () {
+      var on = row.getAttribute('data-held') !== '1';
+      ask(wrT(on ? 'member.suspend_confirm' : 'member.unsuspend_confirm', [mid]), function () {
+        BE.setSuspended(uid, on).then(function () { toast(wrT(on ? 'member.suspended_ok' : 'member.unsuspended_ok')); return loadAdmin(); }, fail);
+      }, null, { yes: wrT(on ? 'member.suspend' : 'member.unsuspend'), danger: on });
+    };
+    row.querySelector('[data-act=id]').onclick = function () {
+      var v = row.querySelector('[data-act=newid]').value.trim();
+      if (!midCheck(v).ok) { toast(wrT('member.invalid_member_id_format')); return; }
+      BE.adminSetMid(uid, low, v).then(function () { toast(wrT('member.id_changed', [v])); return loadAdmin(); }, fail);
+    };
+    row.querySelector('[data-act=shares]').onclick = function () {
+      ask(wrT('member.revoke_confirm', [mid]), function () {
+        BE.revokeOwnedShares(uid).then(function (n) { toast(wrT('member.shares_revoked', [n])); return loadAdmin(); }, fail);
+      }, null, { yes: wrT('member.revoke_shares'), danger: true });
+    };
+    row.querySelector('[data-act=wipe]').onclick = function () {
+      ask(wrT('member.wipe_confirm', [mid]), function () {
+        // v2.3.0：先停權再刪（不然對方手機還登入著，同步時會把本機紀錄又傳上來）；停權保留，之後可手動解除
+        var gate = row.getAttribute('data-held') === '1' ? Promise.resolve() : BE.setSuspended(uid, true);
+        gate.then(function () { return BE.adminWipe(uid); }).then(function () { toast(wrT('member.wiped'), 3600); return loadAdmin(); }, function (e) { fail(e); loadAdmin(); });
+      }, null, { yes: wrT('app.delete'), danger: true });
+    };
   }
   function checked(name) { return [].slice.call(D.querySelectorAll('input[name="' + name + '"]:checked')).map(function (i) { return i.value; }); }
   function resolveMids(mids) { return Promise.all(mids.map(function (m) { return BE.nameOwner(m.toLowerCase()).then(function (u) { return { mid: m, uid: u }; }); })); }
@@ -737,7 +854,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     get state() { return S; }, get profile() { return S.profile; }, get perks() { return S.perks.slice(); }, get groups() { return S.groups.slice(); }, get admin() { return S.admin; },
     identityHTML: identityHTML, bindIdentity: bindIdentity, renderCards: renderCards, renderHeader: renderHeader, refresh: function () { return loadAll(false); }, refreshSocial: refreshSocial,
     shareRecord: shareRecord, sharesOf: sharesOf, canShare: function () { return hasProfile(); }, openPrivacy: openPrivacy, openCheat: openCheat, openSignup: openSignup,
-    showBubble: showBubble, hideBubble: hideBubble, goAcct: goAcct, purge: purge, redeem: redeem, counts: counts, addFriend: addFriend, _pure: pure,
+    showBubble: showBubble, hideBubble: hideBubble, goAcct: goAcct, purge: purge, redeem: redeem, counts: counts, addFriend: addFriend, isHeld: function () { return BE.isHeld(); }, _pure: pure,
     /* e2e：換成假後端並模擬登入（user＝{uid,name,email}；null＝登出）；pick＝回傳 Promise<File> 的函式（代替檔案選擇器） */
     _mock: function (be, user, pick) { mocked = true; BE = be; if (pick) pickHook = pick; var was = uid(); S.status = user ? 'signed-in' : 'signed-out'; S.user = user || null; if (user) { if (user.uid !== was) S.profs = {}; return loadAll(true); } reset(); return Promise.resolve(); }
   };

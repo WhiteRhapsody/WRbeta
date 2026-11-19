@@ -965,7 +965,27 @@
   "v.上升": "Rising",
   "v.下降": "Falling",
   "app.lang_hint": "Follows your phone language by default; switching reloads the screen (records are kept)",
-  "app.lang_switching": "Switching language…"
+  "app.lang_switching": "Switching language…",
+  "cloud.suspended_cannot_delete": "This account is suspended. You cannot delete the account or your own cloud data. Ask an admin to lift the suspension. The sign-in account is not deleted.",
+  "member.admin_people": "Members",
+  "member.admin_console_only": "Admins can only be added in the Firebase console, not in the app. A suspended member cannot write or delete their own data. Deleting data here does not delete their sign-in account.",
+  "member.admin_no_members": "No members yet.",
+  "member.suspended_badge": "Suspended",
+  "member.suspend": "Suspend",
+  "member.unsuspend": "Lift suspension",
+  "member.new_id": "New member ID",
+  "member.change_id": "Change ID",
+  "member.revoke_shares": "Revoke shares",
+  "member.wipe_data": "Delete data",
+  "member.wipe_confirm": "{0} will be suspended first (so their phone can't upload records again), then all their cloud data is deleted. Their sign-in account stays; the suspension stays until you lift it.",
+  "member.wiped": "Suspended and cloud data deleted. The sign-in account is still there.",
+  "member.suspended_ok": "Suspended",
+  "member.unsuspended_ok": "Suspension lifted",
+  "member.id_changed": "Changed to {0}",
+  "member.shares_revoked": "Revoked {0} shares",
+  "member.suspend_confirm": "Suspend {0}? They won't be able to write, or delete their own data or account. You can lift it any time.",
+  "member.unsuspend_confirm": "Lift the suspension for {0}? They can write normally again.",
+  "member.revoke_confirm": "Revoke every record {0} has shared? Recipients will lose access. This can't be undone."
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["en"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

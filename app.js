@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.2.0', APP_LABEL = 'beta v2.2'; // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.3.0', APP_LABEL = 'beta v2.3'; // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
   var C = window.BMCore, T = C.TARGETS, NS = 'http://www.w3.org/2000/svg';
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = APP_LABEL; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = wrT('app.x', [APP_LABEL, APP_VERSION]); document.title = APP_NAME; } catch (e) {}
   var LS_SESS = 'bm_sessions_v1', LS_CUR = 'bm_current_v1', LS_PREF = 'bm_prefs_v1';
@@ -2465,7 +2465,8 @@
   function cloudErrText(e) {
     var m = { 'popup-blocked': wrT('app.the_pop_up_was_blocked'), 'network-request-failed': wrT('app.network_error_please_try_again'), 'unauthorized-domain': wrT('app.this_url_isnt_authorized_for'),
       'operation-not-allowed': wrT('app.google_sign_in_isnt_enabled'), 'too-many-requests': wrT('app.too_many_attempts_please_try'), 'requires-recent-login': wrT('app.please_confirm_your_google_account'),
-      'user-mismatch': wrT('app.please_choose_the_same_google'), 'permission-denied': wrT('app.the_cloud_denied_access_please'), 'unavailable': wrT('app.cant_reach_the_cloud_right'), 'internal-error': wrT('app.sign_in_error_please_try') };
+      'user-mismatch': wrT('app.please_choose_the_same_google'), 'permission-denied': wrT('app.the_cloud_denied_access_please'), 'unavailable': wrT('app.cant_reach_the_cloud_right'), 'internal-error': wrT('app.sign_in_error_please_try'),
+      'wr-suspended': wrT('cloud.suspended_cannot_delete') };
     var k = String(e || '').replace(/^firestore\//, '');
     return m[k] || String(e || '');
   }

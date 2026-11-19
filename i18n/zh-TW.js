@@ -965,7 +965,27 @@
   "v.上升": "上升",
   "v.下降": "下降",
   "app.lang_hint": "預設跟著手機語言；切換後畫面會重新載入（紀錄不受影響）",
-  "app.lang_switching": "切換語言中…"
+  "app.lang_switching": "切換語言中…",
+  "cloud.suspended_cannot_delete": "這個帳號已停權，不能自己刪除帳號，也不能刪自己的雲端資料。請聯絡管理員解除停權。登入帳號不會被刪掉。",
+  "member.admin_people": "會員",
+  "member.admin_console_only": "管理員只能從 Firebase 主控台新增，App 裡不能加。停權後對方不能寫入，也不能自己刪資料。這裡的刪資料不會刪掉對方的登入帳號。",
+  "member.admin_no_members": "還沒有會員。",
+  "member.suspended_badge": "已停權",
+  "member.suspend": "停權",
+  "member.unsuspend": "解除停權",
+  "member.new_id": "新的會員 ID",
+  "member.change_id": "改 ID",
+  "member.revoke_shares": "撤銷分享",
+  "member.wipe_data": "刪資料",
+  "member.wipe_confirm": "會先停權 {0}（避免他的手機把紀錄再傳上來），再刪掉他的全部雲端資料。不會刪他的登入帳號；停權會保留，之後可以手動解除。",
+  "member.wiped": "已停權並刪除雲端資料。登入帳號還在。",
+  "member.suspended_ok": "已停權",
+  "member.unsuspended_ok": "已解除停權",
+  "member.id_changed": "已改成 {0}",
+  "member.shares_revoked": "已撤銷 {0} 筆分享",
+  "member.suspend_confirm": "停權 {0}？他之後不能寫入，也不能自己刪資料或刪帳號。可以隨時解除。",
+  "member.unsuspend_confirm": "解除 {0} 的停權？他會恢復正常寫入。",
+  "member.revoke_confirm": "撤銷 {0} 分享出去的全部紀錄？收到的人就看不到了，不能復原。"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["zh-TW"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);
