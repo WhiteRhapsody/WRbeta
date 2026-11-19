@@ -60,6 +60,32 @@
   // 選照片：「從檔案選」可以選到任何檔案，先確認是圖片；HEIC（三星「高效率相片」）Chrome 多半無法解碼，給清楚的說明
   function pickIsHeic(f) { return /heic|heif/i.test(f.type || '') || /\.(heic|heif)$/i.test(f.name || ''); }
 
+  // v2.4.2：Android Chrome 的「相簿／檔案」改用 showOpenFilePicker。Chromium 在 Android 上把它開成 OPEN_DOCUMENT，
+  // 直接跳系統檔案選擇器（不經過「選擇一項操作」選單，不加相機／攝影機，也不走 Photo Picker），LINE 存的圖看得到。
+  // 相簿＝只列圖片的檔案選擇器；檔案＝全部檔案。拍照鈕（capture）不經過這裡。沒有這個 API 時退回原本的 input。
+  (function () {
+    var IMG = { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'], 'image/webp': ['.webp'], 'image/gif': ['.gif'], 'image/heic': ['.heic'], 'image/heif': ['.heif'] };
+    var KIND = { litePick: 'img', photoPick: 'img', anaPick: 'img', liteFile: 'any', photoFile: 'any', anaFile: 'any' };
+    var android = /Android/i.test(navigator.userAgent || '');
+    function feed(inp, files) {
+      try { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); inp.files = dt.files; } catch (e) { return; }
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    document.addEventListener('click', function (e) {
+      var inp = e.target, kind = inp && inp.id && KIND[inp.id];
+      if (!kind || !android || inp.dataset.fsaSkip) return;
+      // 舊版 Chrome 沒有 showOpenFilePicker：檔案鈕改成只收 octet-stream，Chromium 就不會把相機塞進選單
+      if (typeof window.showOpenFilePicker !== 'function') { if (kind === 'any') inp.accept = 'application/octet-stream'; return; }
+      e.preventDefault();
+      var opt = { multiple: !!inp.multiple };
+      if (kind === 'img') opt.types = [{ description: 'Images', accept: IMG }];
+      window.showOpenFilePicker(opt).then(function (hs) { return Promise.all(hs.map(function (h) { return h.getFile(); })); }).then(function (fs) { if (fs.length) feed(inp, fs); }, function (err) {
+        if (err && err.name === 'AbortError') return; // 使用者按返回
+        inp.dataset.fsaSkip = '1'; try { inp.click(); } catch (x) {} delete inp.dataset.fsaSkip;
+      });
+    }, true);
+  })();
+
   // ---------- 說明 ----------
   function renderAbout() {
     var rows = function (t) { var h = ''; for (var n = 10; n >= 1; n--) h += '<tr><td>' + n + '</td><td>' + t.ringDiam[n] + '</td><td>' + f2(t.ringDiam[n] / 2 + t.pellet / 2) + '</td></tr>'; return h; };
