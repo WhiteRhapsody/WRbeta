@@ -351,7 +351,8 @@
     try { code = rec && Code ? Code.encode(rec) : null; } catch (e) { code = null; }
     $('liteCopyCode').disabled = !code;
     $('liteCodeInfo').textContent = code ? wrT('app.record_code_characters_actual_shots', [code.length, rec.sheets.length]) : '';
-    $('liteDetail').innerHTML = liteDetailHTML(t, res, lbl);
+    $('liteDetail').innerHTML = (res.hasForecast && cmp.m ? '<button type="button" class="wr-pill ana-cmpana" id="liteCmpAna">' + wrT('h.compare_analysis_btn') + '</button>' : '') + liteDetailHTML(t, res, lbl);
+    if ($('liteCmpAna')) $('liteCmpAna').onclick = function () { App.anaOpenCmp(App.cur, sel); }; // v2.5.0 預報對照分析（這一輪或全部）
   }
   function liteDetailHTML(t, res, lbl) {
     var st = res.st, cmp = res.cmp, h = '', card = function (id, title, body) {

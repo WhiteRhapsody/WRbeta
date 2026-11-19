@@ -13,10 +13,39 @@
 
   // ---------- v1.8.0「設定/說明 › 帳號」：雲端帳號（Firebase Google 登入）＋個人畫面 ----------
   // 沒登入：說明＋「用 Google 帳號登入」。登入後：頭像／名字／email、我的統計（這台裝置的真實紀錄）、同步狀態、選填資料、登出、刪除帳號與雲端資料。
-  // 選填資料（射手名稱／慣用槍枝／彈種）存在這台裝置（localStorage 'wr_profile_v1'）；Firestore 規則目前不收這些欄位，所以不上傳。
+  // 選填資料（射手名稱／慣用槍枝／彈種；v2.5.0 加生日（只有月-日）、性別、個人簽名）存在這台裝置（localStorage 'wr_profile_v1'）。
+  // v2.5.0：登入後同步到自己的 users/{uid}.pf（只有本人讀得到）；每個欄位可設「好友可看」，只有公開的欄位會放進 cards/{uid} 給好友看（member.js syncPf）。
+  // 格式：{ shooter, gun, ammo, birthday:'MM-DD', gender:'m'|'f'|'x', sig, pub:[公開的欄位], updated: ISO, _uid: 最後同步的帳號 }
   var LS_PROFILE = 'wr_profile_v1';
-  var PF_FIELDS = [['shooter', wrT('app.shooter_name'), wrT('app.e_g_white'), 30], ['gun', wrT('app.usual_gun'), wrT('app.e_g_steyr_evo_10'), 40], ['ammo', wrT('app.pellets'), wrT('app.e_g_h_n_finale'), 40]];
+  var PF_FIELDS = [['shooter', wrT('app.shooter_name'), wrT('app.e_g_white'), 30], ['gun', wrT('app.usual_gun'), wrT('app.e_g_steyr_evo_10'), 40], ['ammo', wrT('app.pellets'), wrT('app.e_g_h_n_finale'), 40],
+    ['birthday', wrT('app.birthday'), '', 5, 'bday'], ['gender', wrT('app.gender'), '', 1, 'gender'], ['sig', wrT('app.signature'), wrT('app.e_g_signature'), 60]];
+  var PF_KEYS = PF_FIELDS.map(function (f) { return f[0]; });
+  var BDAY_RE = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
+  function pfClean(v) { // 只留合法的欄位（跟 firestore.rules 的 validPf 一樣）
+    var o = {}; if (!v || typeof v !== 'object') return o;
+    PF_FIELDS.forEach(function (f) { var x = v[f[0]]; if (typeof x !== 'string' || !x) return; x = x.slice(0, f[3]);
+      if (f[0] === 'birthday' && !BDAY_RE.test(x)) return; if (f[0] === 'gender' && ['m', 'f', 'x'].indexOf(x) < 0) return; o[f[0]] = x; });
+    if (Array.isArray(v.pub)) { var pub = v.pub.filter(function (k, i) { return PF_KEYS.indexOf(k) >= 0 && v.pub.indexOf(k) === i; }); if (pub.length) o.pub = pub; }
+    if (typeof v.updated === 'string' && v.updated) o.updated = v.updated.slice(0, 40);
+    if (typeof v._uid === 'string') o._uid = v._uid;
+    return o;
+  }
   function pfLoad() { try { var v = JSON.parse(store.get(LS_PROFILE)); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
+  function pfSave(pf, quiet) { // quiet＝從雲端拿來的（不再上傳）
+    var o = pfClean(pf); if (!quiet) o.updated = new Date().toISOString();
+    var me = window.WRCloud && WRCloud.state && WRCloud.state.user && WRCloud.state.user.uid; if (me && !quiet) o._uid = me; else if (pf._uid) o._uid = pf._uid;
+    store.set(LS_PROFILE, JSON.stringify(o));
+    if (!quiet && window.WRMember && WRMember.syncPf) try { WRMember.syncPf(true); } catch (e) {}
+    return o;
+  }
+  function pfPublic(pf) { var c = {}; (pf.pub || []).forEach(function (k) { if (pf[k]) c[k] = pf[k]; }); return c; } // 給好友看的那幾格
+  function pfShow(key, v) { // 顯示用的文字
+    if (!v) return '';
+    if (key === 'birthday') { var m = v.split('-'); return wrT('app.bday_fmt', [+m[0], +m[1]]); }
+    if (key === 'gender') return { m: wrT('app.gender_m'), f: wrT('app.gender_f'), x: wrT('app.gender_x') }[v] || '';
+    return v;
+  }
+  App.pf = { FIELDS: PF_FIELDS, KEYS: PF_KEYS, load: function () { return pfClean(pfLoad()); }, save: pfSave, clean: pfClean, pub: pfPublic, show: pfShow, label: function (k) { var f = PF_FIELDS.filter(function (x) { return x[0] === k; })[0]; return f ? f[1] : k; } };
   var WEEK = [wrT('app.sun'), wrT('app.mon'), wrT('app.tue'), wrT('app.wed'), wrT('app.thu'), wrT('app.fri'), wrT('app.sat')];
   function fmtTWShort(iso) { // 11/18 週二 23:09（台北）
     var d = new Date(iso); if (!isFinite(d)) return '—';
@@ -78,11 +107,17 @@
       $('cloudSync').onclick = function () { W.syncNow(); };
     } else sy.innerHTML = '';
     // 4) 選填資料（這台裝置）
-    var pf = pfLoad();
+    var pf = pfClean(pfLoad()), pub = pf.pub || [];
     $('pfExtra').innerHTML = wrT('app.optional_info_optional_stored_only', [PF_FIELDS.map(function (f) {
-      var v = pf[f[0]] || ''; return '<button type="button" class="pf-row" data-f="' + f[0] + '"><span>' + f[1] + '</span><em class="' + (v ? 'set' : '') + '">' + esc(v || wrT('app.not_set')) + '</em>' + CHEV + '</button>';
-    }).join('')]);
+      var v = pfShow(f[0], pf[f[0]]), on = pub.indexOf(f[0]) >= 0;
+      return '<div class="pf-rw"><button type="button" class="pf-row" data-f="' + f[0] + '"><span>' + f[1] + '</span><em class="' + (v ? 'set' : '') + '">' + esc(v || wrT('app.not_set')) + '</em>' + CHEV + '</button>'
+        + '<button type="button" class="pf-pub' + (on ? ' on' : '') + '" data-pub="' + f[0] + '" aria-pressed="' + on + '" aria-label="' + esc(wrT('app.pf_pub_aria', [f[1]])) + '">' + (on ? wrT('app.pf_pub_on') : wrT('app.pf_pub_off')) + '</button></div>';
+    }).join('') + '<div class="lbl pf-pubnote">' + (signed ? wrT('app.pf_note_signed') : wrT('app.pf_note_local')) + '</div>']);
     $('pfExtra').querySelectorAll('.pf-row').forEach(function (b) { b.onclick = function () { pfEdit(b.dataset.f); }; });
+    $('pfExtra').querySelectorAll('.pf-pub').forEach(function (b) { b.onclick = function () {
+      var k = b.dataset.pub, p = pfClean(pfLoad()), list = (p.pub || []).filter(function (x) { return x !== k; }), on = !(b.getAttribute('aria-pressed') === 'true');
+      if (on) list.push(k); p.pub = list; pfSave(p); toast(on ? wrT('app.pf_pub_toast_on', [App.pf.label(k)]) : wrT('app.pf_pub_toast_off', [App.pf.label(k)])); renderAcct();
+    }; });
     // 5) 登出／刪除帳號（登入後）
     var end = $('pfEnd'); end.hidden = !signed;
     if (signed) {
@@ -104,14 +139,44 @@
     var k = String(e || '').replace(/^firestore\//, '');
     return m[k] || String(e || '');
   }
+  function pfChoose(f) { // 生日（月、日兩個選單）與性別（四個按鈕）
+    var pf = pfClean(pfLoad()), key = f[0], bg = document.createElement('div'); bg.className = 'modal-bg';
+    var h = '<div class="modal pf-modal" role="dialog" aria-modal="true"><p class="pf-mh"></p>';
+    if (key === 'birthday') {
+      var cur = (pf.birthday || '').split('-'), mo = '', da = '';
+      for (var m = 1; m <= 12; m++) mo += '<option value="' + (m < 10 ? '0' : '') + m + '"' + (+cur[0] === m ? ' selected' : '') + '>' + wrT('app.month_n', [m]) + '</option>';
+      for (var d = 1; d <= 31; d++) da += '<option value="' + (d < 10 ? '0' : '') + d + '"' + (+cur[1] === d ? ' selected' : '') + '>' + wrT('app.day_n', [d]) + '</option>';
+      h += '<div class="row pf-bday"><select class="pf-m" aria-label="' + esc(wrT('app.month')) + '"><option value="">—</option>' + mo + '</select><select class="pf-d" aria-label="' + esc(wrT('app.day')) + '"><option value="">—</option>' + da + '</select></div>'
+        + '<div class="lbl">' + wrT('app.bday_note') + '</div><div class="row"><button class="no">' + wrT('app.pf_cancel') + '</button><button class="clr">' + wrT('app.pf_clear') + '</button><button class="primary yes">' + wrT('app.pf_save') + '</button></div>';
+    } else {
+      h += '<div class="pf-choice">' + [['m', wrT('app.gender_m')], ['f', wrT('app.gender_f')], ['x', wrT('app.gender_x')]].map(function (g) { return '<button type="button" class="pf-ch' + (pf.gender === g[0] ? ' on' : '') + '" data-v="' + g[0] + '" aria-pressed="' + (pf.gender === g[0]) + '">' + g[1] + '</button>'; }).join('')
+        + '</div><div class="row"><button class="no">' + wrT('app.pf_cancel') + '</button><button class="clr">' + wrT('app.pf_clear') + '</button></div>';
+    }
+    bg.innerHTML = h + '</div>'; bg.querySelector('.pf-mh').textContent = f[1];
+    function done(v) {
+      if (v !== undefined) { var p = pfClean(pfLoad()); if (v) p[key] = v; else delete p[key]; pfSave(p); toast(f[1] + (v ? wrT('app.saved') : wrT('app.cleared'))); }
+      bg.remove(); renderAcct();
+    }
+    bg.querySelector('.no').onclick = function () { done(); };
+    bg.querySelector('.clr').onclick = function () { done(''); };
+    if (key === 'birthday') bg.querySelector('.yes').onclick = function () {
+      var m = bg.querySelector('.pf-m').value, d = bg.querySelector('.pf-d').value;
+      if (!m || !d) { done(''); return; }
+      var max = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][+m - 1]; if (+d > max) { toast(wrT('app.bday_bad')); return; }
+      done(m + '-' + d);
+    };
+    else bg.querySelectorAll('.pf-ch').forEach(function (b) { b.onclick = function () { done(b.dataset.v); }; });
+    document.body.appendChild(bg);
+  }
   function pfEdit(key) {
     var f = PF_FIELDS.filter(function (x) { return x[0] === key; })[0]; if (!f) return;
+    if (f[4]) { pfChoose(f); return; }
     var pf = pfLoad(), bg = document.createElement('div'); bg.className = 'modal-bg';
     bg.innerHTML = wrT('app.stored_only_on_this_device');
     bg.querySelector('.pf-mh').textContent = f[1];
     var inp = bg.querySelector('.pf-in'); inp.value = pf[key] || ''; inp.placeholder = f[2]; inp.maxLength = f[3]; inp.setAttribute('aria-label', f[1]);
     function done(save) {
-      if (save) { var v = inp.value.trim().slice(0, f[3]); if (v) pf[key] = v; else delete pf[key]; store.set(LS_PROFILE, JSON.stringify(pf)); toast(f[1] + (v ? wrT('app.saved') : wrT('app.cleared'))); }
+      if (save) { var v = inp.value.trim().slice(0, f[3]); pf = pfClean(pfLoad()); if (v) pf[key] = v; else delete pf[key]; pfSave(pf); toast(f[1] + (v ? wrT('app.saved') : wrT('app.cleared'))); }
       bg.remove(); renderAcct();
     }
     bg.querySelector('.no').onclick = function () { done(false); };

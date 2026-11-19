@@ -312,11 +312,101 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     return st;
   }
 
+
+  /* v2.5.0 新分析模塊（純計算，Node 可測）
+   * Teiler：彈孔中心到靶心的距離，以 1/100 mm 為單位（德國射擊界與電子靶常用；不是 ISSF 規則用語，ISSF 規則沒有這個值）。
+   *   這裡不做手槍換算係數，手槍與步槍都直接用 1/100 mm。 */
+  function teiler(t, shots) {
+    var list = shots.map(function (p) { return Math.round(Math.hypot(p.x, p.y) * 100); });
+    var n = list.length, out = { list: list, n: n, best: null, bestIdx: -1, avg: null };
+    if (!n) return out;
+    var bi = 0, sum = 0; list.forEach(function (v, i) { sum += v; if (v < list[bi]) bi = i; });
+    out.best = list[bi]; out.bestIdx = bi; out.avg = sum / n;
+    return out;
+  }
+  /* 方向：以 12 點鐘＝正上方，角度 0°＝右、逆時針為正（數學角）；clock＝1–12 點鐘；距離 < th 視為置中 */
+  function shotDir(p, th) {
+    var d = Math.hypot(p.x, p.y), ang = Math.atan2(p.y, p.x) * 180 / Math.PI;
+    var clock = Math.round(((90 - ang) % 360 + 360) % 360 / 30) % 12; if (clock === 0) clock = 12;
+    return { d: d, angle: ang, clock: clock, centered: d < (th || 0) };
+  }
+  /* 最小外接圓（包住所有彈孔中心的最小圓；Welzl 的逐點遞增法，n 很小） */
+  function circle2(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, r: Math.hypot(a.x - b.x, a.y - b.y) / 2 }; }
+  function circle3(a, b, c) {
+    var bx = b.x - a.x, by = b.y - a.y, cx = c.x - a.x, cy = c.y - a.y, d = 2 * (bx * cy - by * cx);
+    if (Math.abs(d) < 1e-12) { var m = [circle2(a, b), circle2(a, c), circle2(b, c)]; m.sort(function (p, q) { return q.r - p.r; }); return m[0]; }
+    var b2 = bx * bx + by * by, c2 = cx * cx + cy * cy, ux = (cy * b2 - by * c2) / d, uy = (bx * c2 - cx * b2) / d;
+    return { x: a.x + ux, y: a.y + uy, r: Math.hypot(ux, uy) };
+  }
+  function inC(c, p) { return Math.hypot(p.x - c.x, p.y - c.y) <= c.r + 1e-7; }
+  function minEnclosingCircle(pts) {
+    var n = pts.length; if (!n) return null;
+    var c = { x: pts[0].x, y: pts[0].y, r: 0 };
+    for (var i = 1; i < n; i++) if (!inC(c, pts[i])) {
+      c = { x: pts[i].x, y: pts[i].y, r: 0 };
+      for (var j = 0; j < i; j++) if (!inC(c, pts[j])) {
+        c = circle2(pts[i], pts[j]);
+        for (var k = 0; k < j; k++) if (!inC(c, pts[k])) c = circle3(pts[i], pts[j], pts[k]);
+      }
+    }
+    return c;
+  }
+  /* 散布圈：平均彈著點（MPI）、平均半徑（各發到 MPI 的平均距離）、最小外接圓、水平／垂直散布（最左到最右、最低到最高，中心到中心） */
+  function spread(shots) {
+    var n = shots.length; if (!n) return null;
+    var sx = 0, sy = 0; shots.forEach(function (p) { sx += p.x; sy += p.y; });
+    var mx = sx / n, my = sy / n, sr = 0, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    shots.forEach(function (p) { sr += Math.hypot(p.x - mx, p.y - my); minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+    return { n: n, mpi: { x: mx, y: my }, meanRadius: sr / n, mec: minEnclosingCircle(shots), width: maxX - minX, height: maxY - minY,
+      sdX: stdev(shots.map(function (p) { return p.x; })), sdY: stdev(shots.map(function (p) { return p.y; })) };
+  }
+  /* 潛在分數：把整組彈著（形狀不變）平移到靶面各位置，算小數總分。
+   *   群中心偏移失分＝最佳位置的總分 − 目前總分；群大小失分＝每發都 10.9 的總分 − 最佳位置的總分。
+   *   瞄具移動建議＝把群中心從現在的位置移到最佳位置（WRbeta 的練習參考，不是 ISSF 規則）。
+   *   grid：網格每邊幾格（奇數）；range：群中心可移動的半徑範圍（mm），預設涵蓋目前群中心與靶心附近。 */
+  function totalDecAt(t, shots, ox, oy) { var s = 0; for (var i = 0; i < shots.length; i++) s += Math.round(scoreShot(t, shots[i].x + ox, shots[i].y + oy).dec * 10); return s / 10; }
+  function potentialRange(t, mpi) { var w = ringWidth(t); return Math.max(1.5 * w, Math.hypot(mpi.x, mpi.y) * 1.25 + w * 0.5); }
+  function potentialScore(t, shots, opt) {
+    opt = opt || {}; var n = shots.length; if (!n) return null;
+    var sp = spread(shots), mpi = sp.mpi, actual = totalDecAt(t, shots, 0, 0);
+    var best = { x: mpi.x, y: mpi.y, score: actual };
+    // 粗找：群中心在靶心附近的網格；再在最佳點附近細找
+    function scan(cx, cy, half, steps) {
+      for (var i = 0; i <= steps; i++) for (var j = 0; j <= steps; j++) {
+        var gx = cx - half + 2 * half * i / steps, gy = cy - half + 2 * half * j / steps, sc = totalDecAt(t, shots, gx - mpi.x, gy - mpi.y);
+        if (sc > best.score + 1e-9 || (Math.abs(sc - best.score) < 1e-9 && Math.hypot(gx, gy) < Math.hypot(best.x, best.y) - 1e-9)) best = { x: gx, y: gy, score: sc };
+      }
+    }
+    var w = ringWidth(t);
+    scan(0, 0, w * 1.2, 24);
+    scan(best.x, best.y, w * 0.12, 12);
+    var max = Math.round(n * 109) / 10;
+    var out = { n: n, actual: actual, potential: best.score, max: max, best: { x: best.x, y: best.y }, mpi: mpi,
+      lossCenter: Math.max(0, Math.round((best.score - actual) * 10) / 10), lossSize: Math.max(0, Math.round((max - best.score) * 10) / 10),
+      move: { dx: best.x - mpi.x, dy: best.y - mpi.y, dist: Math.hypot(best.x - mpi.x, best.y - mpi.y), dir: directionText(best.x - mpi.x, best.y - mpi.y, ringWidth(t) * 0.1) } };
+    return out;
+  }
+  /* 熱圖網格：cells[j][i]＝群中心放在 (x_i, y_j) 時的小數總分（y_j 由上到下）。可以分段算（rows 參數），手機上不卡畫面 */
+  function potentialGrid(t, shots, size, range) {
+    var sp = spread(shots); if (!sp) return null;
+    var R = range || potentialRange(t, sp.mpi), xs = [], i;
+    for (i = 0; i < size; i++) xs.push(-R + 2 * R * i / (size - 1));
+    return { size: size, range: R, xs: xs, mpi: sp.mpi, row: function (j) { var y = R - 2 * R * j / (size - 1), out = []; for (var k = 0; k < size; k++) out.push(totalDecAt(t, shots, xs[k] - sp.mpi.x, y - sp.mpi.y)); return out; } };
+  }
+  /* 預報 vs 實際：兩個群中心與差距；每發誤差序列（依預報順序） */
+  function callCenters(pairs) {
+    var n = pairs.length; if (!n) return null;
+    var px = 0, py = 0, ax = 0, ay = 0; pairs.forEach(function (q) { px += q.pred.x; py += q.pred.y; ax += q.act.x; ay += q.act.y; });
+    var P = { x: px / n, y: py / n }, A = { x: ax / n, y: ay / n };
+    return { pred: P, act: A, dx: A.x - P.x, dy: A.y - P.y, dist: Math.hypot(A.x - P.x, A.y - P.y) };
+  }
+
   var api = {
     TARGETS: TARGETS, ringWidth: ringWidth, scoreShot: scoreShot, computeStats: computeStats,
     comparePredictions: comparePredictions, matchOptimal: matchOptimal, hungarian: hungarian, directionText: directionText,
     fitAffine: fitAffine, applyAffine: applyAffine, invertAffine: invertAffine, scaleT: scaleT, mapT: mapT, calibTargets: calibTargets, round: round,
-    median: median, stdev: stdev, findOutliers: findOutliers, OUTLIER_RULE: OUTLIER_RULE, decimalHistogram: decimalHistogram, adjustAdvice: adjustAdvice, adjustClicks: adjustClicks, CLICK_PROFILES: CLICK_PROFILES, trend: trend, analyzeShots: analyzeShots
+    median: median, stdev: stdev, findOutliers: findOutliers, OUTLIER_RULE: OUTLIER_RULE, decimalHistogram: decimalHistogram, adjustAdvice: adjustAdvice, adjustClicks: adjustClicks, CLICK_PROFILES: CLICK_PROFILES, trend: trend, analyzeShots: analyzeShots,
+    teiler: teiler, shotDir: shotDir, minEnclosingCircle: minEnclosingCircle, spread: spread, potentialScore: potentialScore, potentialGrid: potentialGrid, potentialRange: potentialRange, totalDecAt: totalDecAt, callCenters: callCenters
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.BMCore = api;
 })(typeof window !== 'undefined' ? window : this);

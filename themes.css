@@ -1418,8 +1418,8 @@ body.nv-bulge:not(.lite).nav-a .wr-nav button.nv-main{margin-top:-12px}
 .mb-pk.dis{opacity:.55}
 .mb-pk small{margin-left:auto;font-size:12px;color:#888}
 .mb-modal-bg{z-index:40}
-.mb-modal-bg .modal{max-width:360px;width:90%;box-sizing:border-box;color:#1d1d1b}
-.mb-modal-bg .mb-who b{color:#1d1d1b}
+.mb-modal-bg .modal{max-width:360px;width:90%;box-sizing:border-box;color:var(--w-popTx,#1d1d1b)}
+.mb-modal-bg .mb-who b{color:inherit}
 
 /* --- 唯讀檢視、隱私權政策（全頁） --- */
 .mb-view{position:fixed;inset:0;z-index:45;display:flex;flex-direction:column;background:var(--w-page,#f2ecdd),var(--w-page0,#f2ecdd);background-color:#f2ecdd;color:var(--w-tx,#1d1d1b)}
@@ -1558,3 +1558,133 @@ body.fx-anim .mb-cheat.shake{animation:mbShake .42s ease both}
 
 @media (prefers-reduced-motion:reduce){.mb-bub .mb-bub-in,.mb-cheat,.mb-drop-hot,.mb-bub.home{animation:none!important;transition:none!important}}
 #toast{z-index:70}
+
+/* ---------- v2.5.0 分析頁：添加彈孔／消滅單孔（左下玻璃圓鈕）---------- */
+.ana-lbtns{position:absolute;left:8px;bottom:8px;z-index:5;display:flex;flex-direction:column;gap:9px}
+#tab-analysis .ana-rb.ana-mode{width:auto;min-width:58px;height:58px;padding:0 6px}
+#tab-analysis .ana-rb.ana-mode.on{background:var(--w-acc);color:var(--w-accTx,#fff);border-color:transparent;box-shadow:0 0 0 3px var(--w-accSh),0 6px 14px rgba(0,0,0,.3)}
+#tab-analysis #anaModeDel.on{background:linear-gradient(180deg,#ff6b6b,#d92d2d);color:#fff}
+/* 沒選模式：單指在靶面上可以直接上下捲動畫面（雙指仍是縮放）；選了模式才攔下觸控 */
+#tab-analysis .ana-box svg.target{touch-action:pan-y}
+#tab-analysis .ana-box.mode-add svg.target,#tab-analysis .ana-box.mode-del svg.target{touch-action:none}
+#tab-analysis .ana-box.mode-add{outline:3px solid var(--w-accTxt,#ff6319);outline-offset:-3px}
+#tab-analysis .ana-box.mode-del{outline:3px solid #e5484d;outline-offset:-3px}
+.ana-modebar{position:absolute;left:78px;right:70px;bottom:10px;z-index:5;padding:6px 10px;border-radius:12px;font-size:11.5px;line-height:1.35;font-weight:700;
+  background:var(--w-box);border:1px solid var(--w-boxBd);color:var(--w-boxTx);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);pointer-events:none;text-align:center}
+.ana-modebar[hidden]{display:none}
+.ana-modebar.del b{color:#e5484d}
+.ana-modebar.add b{color:var(--w-accTxt,#ff6319)}
+
+/* ---------- v2.5.0 分析模塊：左上角圖示（≥44px 圓形點擊區，顏色跟著主題 currentColor）＋說明泡泡 ---------- */
+.mod-ic{display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;margin:-10px 2px -10px -9px;padding:0;border:0;background:none;box-shadow:none;cursor:pointer;
+  vertical-align:middle;flex:none;color:var(--w-accTxt,#e8590c);-webkit-tap-highlight-color:transparent;touch-action:manipulation;border-radius:50%}
+.mod-ic-b{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,currentColor 13%,transparent);border:1px solid color-mix(in srgb,currentColor 30%,transparent);transition:transform .15s}
+.mod-ic:active .mod-ic-b,.mod-ic[aria-expanded="true"] .mod-ic-b{transform:scale(.92);background:color-mix(in srgb,currentColor 24%,transparent)}
+.mod-ic:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
+.mod-svg{width:19px;height:19px;display:block}
+.mod-svg.sm{width:18px;height:18px;color:var(--w-accTxt,#e8590c);flex:none}
+.stat.has-ic>.k,.ana-card.has-ic>.ana-ct{display:flex;align-items:center;justify-content:flex-start;gap:2px;min-height:26px}
+.ana-card.has-ic>.ana-ct>:last-child:not(.mod-ic){margin-left:auto}
+.ana-card.has-ic summary{display:flex;align-items:center;gap:2px;min-height:26px}
+.lay-edit .mod-ic{visibility:hidden}
+.mod-pop{position:fixed;z-index:60;padding:10px 12px 12px;font-size:13.5px;line-height:1.55;max-height:60vh;overflow:auto}
+.mod-pop[hidden]{display:none}
+.mod-pop-h{display:flex;align-items:center;gap:8px;margin:-2px -6px 6px 0}
+.mod-pop-h b{flex:1;font-size:14.5px}
+.mod-pop-x{width:44px;height:44px;min-height:44px;padding:0;border:0;background:none;box-shadow:none;font-size:24px;line-height:1;color:inherit;cursor:pointer;margin:-8px -6px -8px 0}
+.mod-pop-tx{color:inherit;opacity:.92}
+/* 新模塊內容 */
+.mod-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px 10px;margin:6px 0 4px}
+.mod-kv>div{display:flex;flex-direction:column;min-width:0}
+.mod-kv small{font-size:11.5px;font-weight:700;color:var(--w-tx2)}
+.mod-kv b{font-family:var(--w-num);font-weight:900;font-size:20px;line-height:1.2;color:var(--w-tx);font-variant-numeric:tabular-nums}
+.mod-kv b.sm{font-size:14px}
+.mod-kv b i{font-style:normal;font-size:12px;font-weight:700;margin-left:2px;color:var(--w-tx2)}
+.mod-kv em{font-style:normal;font-size:11.5px;color:var(--w-tx2)}
+.mod-kv .loss b{color:#d9480f}
+.mod-move{margin:4px 0 6px;font-size:13px;line-height:1.5;color:var(--w-tx)}
+.mod-chips{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 2px}
+.mod-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 4px;border-radius:999px;background:var(--w-box,rgba(0,0,0,.04));border:1px solid var(--w-boxBd,rgba(0,0,0,.12));font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--w-tx)}
+.mod-chip i{font-style:normal;font-size:10.5px;font-weight:800;min-width:18px;text-align:center;padding:1px 4px;border-radius:999px;background:color-mix(in srgb,var(--w-tx) 10%,transparent);color:var(--w-tx2)}
+.mod-chip.best{border-color:#2b8a3e;box-shadow:inset 0 0 0 1px #2b8a3e}
+.mod-chip .dc{font-size:11px;color:var(--w-tx2)}
+.mod-arr{width:18px;height:18px;flex:none}
+.mod-arr .ar-ln{fill:none;stroke:var(--w-accTxt,#e8590c);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.mod-arr .ar-dot{fill:#2b8a3e}
+.mod-note{margin-top:6px;font-size:11.5px;line-height:1.45}
+.mod-fig{position:relative;margin:8px auto 2px;max-width:300px}
+.mod-mini{display:block;width:100%;aspect-ratio:1/1;border-radius:10px;overflow:hidden}
+.mm-paper{fill:#f4f1e8}.mm-black{fill:#1b1b1b}.mm-ring{fill:none;stroke:#222}.mm-ring-w{fill:none;stroke:#ddd}
+.mm-hole{fill:rgba(30,111,217,.55);stroke:#1e6fd9}
+.mm-act{fill:rgba(229,72,77,.5);stroke:#e5484d}
+.mm-pred{fill:#fff;stroke:#1e6fd9}
+.mm-arrow{stroke:#ffb020}.mm-arrowhead{fill:#ffb020}
+.mm-mec{fill:none;stroke:#ae3ec9}.mm-mr{fill:none;stroke:#2fd36b}.mm-mpi{stroke:#2fd36b}
+.mm-cpred{stroke:#4dabf7}.mm-cact{stroke:#ff6b6b}.mm-gap{stroke:#ffd43b}
+.mod-legend{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;margin-top:5px;font-size:11.5px;color:var(--w-tx2)}
+.mod-legend .lg{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-2px;margin-right:4px;border:2px solid}
+.lg.mr{border-color:#2fd36b;border-style:dashed}.lg.mec{border-color:#ae3ec9}.lg.mpi{border-color:#2fd36b;border-radius:2px}
+.lg.pred{border-color:#1e6fd9;background:#fff}.lg.act{border-color:#e5484d;background:rgba(229,72,77,.5)}
+.lg.cpred{border-color:#4dabf7;border-radius:2px}.lg.cact{border-color:#ff6b6b;border-radius:2px}
+.lg.now{border-color:#fff;background:#333;box-shadow:0 0 0 1px #333}.lg.best{border:0;width:auto;height:auto;border-radius:0}
+.mod-legend .ramp i{display:inline-block;width:46px;height:9px;border-radius:5px;margin-right:4px;vertical-align:0;background:linear-gradient(90deg,#1e286e,#1496aa,#f5d23c,#f5781e,#d71e28)}
+.mod-heat{display:block;width:100%;aspect-ratio:1/1;border-radius:10px;background:#1e286e}
+.mod-heat-wait{position:absolute;left:0;right:0;top:44%;text-align:center;font-size:12px;font-weight:700;color:#fff}
+.mod-fig.ready .mod-heat-wait{display:none}
+.dotp{border:1.6px solid #ae3ec9;box-sizing:border-box}
+/* v2.5.0 刪除目前分析（整筆從紀錄刪掉）：比「清空全部靶紙」更重，用深紅 */
+#tab-analysis .wr-pop .pi.wipe{background:linear-gradient(180deg,#a51d22,#7a1216);color:#fff;border-color:transparent}
+#tab-analysis .wr-pop .pi.wipe small{color:#fff;opacity:.9}
+#tab-analysis .wr-pop .pi:disabled{opacity:.45}
+/* v2.5.0 唯讀檢視（好友分享、預報對照分析） */
+.ana-robar{position:sticky;top:calc(env(safe-area-inset-top,0px) + 4px);z-index:30;display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:8px 10px;border-radius:14px;
+  background:var(--card,#fff);border:2px solid var(--accent,#ff6a2a);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.ana-robar[hidden]{display:none}
+.ana-ro-tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.ana-ro-tx b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ana-ro-tx small{font-size:12px;opacity:.75;line-height:1.35}
+.ana-ro-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.ana-ro-btns .wr-pill{min-height:44px;padding:0 14px}
+.ana-ro-btns .wr-pill.pri{background:var(--accent,#ff6a2a);color:#fff;border-color:transparent}
+body.ana-ro #anaNew,body.ana-ro .ana-pen,body.ana-ro #anaSaved,body.ana-ro .ana-dotsep,body.ana-ro #anaModeBtns,body.ana-ro #anaModeBar,body.ana-ro .ana-rbtns,
+body.ana-ro #anaViewSeg,body.ana-ro .ana-ctrl,body.ana-ro #anaDock,body.ana-ro .ana-code-card,body.ana-ro .ana-share-card,body.ana-ro #anaChips [data-id="add"],
+body.ana-ro #anaCalPop,body.ana-ro #anaClearPop{display:none!important}
+body.ana-ro #anaName{pointer-events:none}
+.ana-share-card{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ana-share-card[hidden]{display:none}
+.ana-share-card .wr-pill{min-height:44px;padding:0 16px;display:inline-flex;align-items:center;gap:6px}
+.ana-share-card .nv-ic{width:20px;height:20px}
+.ana-cmpana{min-height:44px;margin:8px 0 0;padding:0 16px;display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.ana-ro-btns [hidden]{display:none!important}
+/* v2.5.0 選填資料：每格右邊「好友可看／不公開」 */
+.pf-rw{display:flex;align-items:stretch;gap:6px}
+.pf-rw .pf-row{flex:1;min-width:0}
+.pf-pub{flex:none;min-width:76px;min-height:46px;padding:0 10px;border-radius:12px;font-size:13px;font-weight:700;border:1.5px solid currentColor;opacity:.75;background:transparent;color:inherit}
+.pf-pub.on{opacity:1;background:var(--accent,#ff6a2a);border-color:transparent;color:#fff}
+.pf-pubnote{margin:6px 2px 0;line-height:1.45}
+.pf-bday{gap:8px}.pf-bday select{flex:1;min-height:46px;font-size:16px}
+.pf-choice{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 10px}
+.pf-ch{min-height:48px;font-size:16px;font-weight:700;border-radius:12px}
+.pf-ch.on{background:var(--accent,#ff6a2a);color:#fff;border-color:transparent}
+/* v2.5.0 好友資料卡 */
+.mb-frbtn{display:flex;align-items:center;gap:6px;flex:1;min-width:0;min-height:44px;padding:0 4px;background:none;border:0;box-shadow:none;color:inherit;text-align:left;cursor:pointer}
+.mb-frbtn .pf-chev{width:18px;height:18px;opacity:.5;margin-left:auto}
+.mb-card-h{display:flex;align-items:center;gap:12px;margin:0 0 10px}
+.mb-card-h b{display:block;font-size:18px}.mb-card-h small{opacity:.7;font-size:12px}
+.mb-av.lg{width:56px;height:56px;border-radius:50%;background-size:cover;background-position:center;flex:none}
+.mb-card-b{display:flex;flex-direction:column;gap:2px;margin:0 0 12px}
+.mb-card-r{display:flex;justify-content:space-between;gap:12px;padding:10px 2px;border-bottom:1px solid rgba(128,128,128,.2)}
+.mb-card-r span{opacity:.7}.mb-card-r b{text-align:right;word-break:break-word}
+.mb-card .row button,.mb-recpick .row button{min-height:46px}
+.mb-recl{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto;margin:6px 0 10px}
+.mb-rec{display:flex;flex-direction:column;align-items:flex-start;min-height:52px;padding:8px 12px;border-radius:12px;text-align:left}
+.mb-rec small{opacity:.7;font-size:12px}
+/* v2.5.0 左上角「‹ 上一頁」（標題列是 sticky，所以一直在左上角） */
+.wr-back{flex:none;display:inline-flex;align-items:center;gap:2px;min-height:44px;min-width:44px;margin:-6px 0 -6px -6px;padding:0 10px 0 4px;border-radius:999px;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:inherit;font-size:14px;font-weight:800;box-shadow:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.wr-back[hidden]{display:none}
+.wr-back svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.wr-back:active{transform:scale(.96)}
+body.lite.lt-light .wr-back,body:not(.lite) .wr-back{background:rgba(127,127,127,.16);border-color:rgba(127,127,127,.35)}
+header .title{min-width:0}
+@media (max-width:440px){body.can-back header .title .beta{display:none}body.can-back header .title{font-size:16px}}

@@ -27,7 +27,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   // 給其他模組用（函式）
   MP.midCheck = midCheck; MP.normCode = normCode; MP.codeLenOk = codeLenOk; MP.codeHash = codeHash; MP.pairId = pairId; MP.parsePerks = parsePerks; MP.parseMids = parseMids;
   MP.$ = $; MP.esc = esc; MP.app = app; MP.toast = toast; MP.ask = ask; MP.ls = ls; MP.uid = uid; MP.hasProfile = hasProfile; MP.errText = errText;
-  MP.refreshSocial = refreshSocial; MP.who = who; MP.whoHTML = whoHTML; MP.show = show; MP.renderCards = renderCards; MP.modal = modal;
+  MP.refreshSocial = refreshSocial; MP.who = who; MP.whoHTML = whoHTML; MP.show = show; MP.renderCards = renderCards; MP.modal = modal; MP.profOf = profOf; MP.avHTML = avHTML;
   // 給其他模組用（變數：一律讀寫同一份）
   Object.defineProperty(MP, 'SHARE_MAX', { get: function () { return SHARE_MAX; }, set: function (v) { SHARE_MAX = v; }, enumerable: true, configurable: true });
   Object.defineProperty(MP, 'GROUPS', { get: function () { return GROUPS; }, set: function (v) { GROUPS = v; }, enumerable: true, configurable: true });
@@ -154,6 +154,11 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       setShareTo: function (sid, to) { return P(function () { return to.length ? C().F.updateDoc(d('shares', sid), { to: to, updated: ts() }) : C().F.deleteDoc(d('shares', sid)); }); },
       leaveShare: function (sid, to) { return P(function () { return C().F.updateDoc(d('shares', sid), { to: to, updated: ts() }); }); },
       deleteShare: function (sid) { return P(function () { return C().F.deleteDoc(d('shares', sid)); }); },
+      // v2.5.0 選填資料：私人的 users/{uid}.pf（整份換掉＝mergeFields）、給好友看的 cards/{uid}（只有公開欄位；沒有就刪掉）
+      getPrivPf: function () { return P(function () { return one(d('users', C().uid)).then(function (x) { return (x && x.pf) || null; }); }); },
+      setPrivPf: function (pf) { return P(function () { return C().F.setDoc(d('users', C().uid), { pf: pf }, { mergeFields: ['pf'] }); }); },
+      getCard: function (u) { return P(function () { return one(d('cards', u || C().uid)); }); },
+      setCard: function (c) { return P(function () { var r = d('cards', C().uid); return c && Object.keys(c).length ? C().F.setDoc(r, Object.assign({}, c, { updated: ts() })) : C().F.deleteDoc(r); }); },
       isAdmin: function () { return P(function () { return one(d('admins', C().uid)).then(function (x) { return !!x; }); }); },
       myRole: function () { return P(function () { return one(d('roles', C().uid)); }); },
       deleteMyRole: function () { return P(function () { return C().F.deleteDoc(d('roles', C().uid)); }); },
@@ -216,6 +221,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
               });
             });
             chain = chain.then(function () { return c.F.deleteDoc(d('roles', uid)).catch(function () {}); });
+            chain = chain.then(function () { return c.F.deleteDoc(d('cards', uid)).catch(function () {}); }); // v2.5.0 好友資料卡
             chain = chain.then(function () { return c.F.deleteDoc(d('users', uid)).catch(function () {}); });
             return chain.then(function () {
               return one(d('profiles', uid)).then(function (p) {
@@ -265,9 +271,36 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     return BE.getProfile(me).then(function (p) {
       if (uid() !== me) return;
       S.profile = p; S.loadErr = '';
-      if (p) { S.profs[me] = p; if (p.avatarOn && p.avatar) ls(LS_AV, { uid: me, av: p.avatar }); closeSignup(); return refreshSocial(); }
+      if (p) { S.profs[me] = p; if (p.avatarOn && p.avatar) ls(LS_AV, { uid: me, av: p.avatar }); closeSignup(); syncPf(false); return refreshSocial(); }
+      syncPf(false);
       if (first) openSignup();
     }, function (e) { S.loadErr = errText(e); }).then(emitChange);
+  }
+  /* v2.5.0 選填資料同步：本機 wr_profile_v1 ↔ users/{uid}.pf（私人）；公開的欄位 → cards/{uid}（好友看）
+   * push＝剛在這台改過（本機為準）；不是 push（登入時）＝較新的一邊為準。本機資料若是別的帳號留下的（_uid 不同），不上傳、以雲端為準。 */
+  var pfBusy = null, pfAgain = false;
+  function sameCard(a, b) { a = a || {}; b = b || {}; var ks = ['shooter', 'gun', 'ammo', 'birthday', 'gender', 'sig']; return ks.every(function (k) { return (a[k] || '') === (b[k] || ''); }); }
+  function syncPf(push) {
+    var A = app(), PF = A.pf || (root.WRApp && root.WRApp.pf);
+    if (!signedIn() || !BE.getPrivPf || !PF) return Promise.resolve();
+    if (pfBusy) { pfAgain = pfAgain || push; return pfBusy; }
+    var me = uid();
+    pfBusy = BE.getPrivPf().then(function (remote) {
+      if (uid() !== me) return;
+      var local = PF.load(), mine = !local._uid || local._uid === me, lu = local.updated || '', ru = (remote && remote.updated) || '';
+      var cur = local, up = false;
+      if (remote && (!mine || (!push && ru > lu))) { cur = PF.clean(remote); cur._uid = me; ls('wr_profile_v1', cur); } // 雲端較新（或本機是別人的）
+      else if (mine && (push || lu > ru || (!remote && Object.keys(PF.clean(local)).some(function (k) { return PF.KEYS.indexOf(k) >= 0; })))) up = true;
+      var body = PF.clean(cur); delete body._uid;
+      var jobs = [up ? BE.setPrivPf(body).then(function () { if (!local._uid) { var l = PF.load(); l._uid = me; ls('wr_profile_v1', l); } }) : null];
+      if (hasProfile() && BE.setCard) { // 好友資料卡：跟現在的公開欄位不一樣才寫
+        var want = PF.pub(cur);
+        jobs.push(BE.getCard(me).then(function (c) { if (!sameCard(c, want) || (!Object.keys(want).length && c)) return BE.setCard(want); }));
+      }
+      return Promise.all(jobs).then(function () { if (!up && cur !== local) { try { if (A.renderAcct) A.renderAcct(); } catch (e) {} } });
+    }).catch(function (e) { if (push) toast(wrT('member.pf_sync_failed', [errText(e)]), 3600); })
+      .then(function () { pfBusy = null; if (pfAgain) { var p = pfAgain; pfAgain = false; return syncPf(p); } });
+    return pfBusy;
   }
   function refreshSocial() {
     if (!hasProfile()) return Promise.resolve();
@@ -658,6 +691,8 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       }).then(function () { return BE.myRedemptions(); }).then(function (a) {
         return Promise.all((a || []).filter(function (r) { return r.status === 'pending' || r.status === 'granted'; }).map(function (r) { return keep(BE.deleteRedemption(r.id)); }));
       }).then(function () { return keep(BE.deleteMyRole()); }).then(function () {
+        return BE.setCard ? keep(BE.setCard(null)) : null; // v2.5.0 好友資料卡
+      }).then(function () {
         return BE.getProfile(me);
       }).then(function (p) { return p ? BE.deleteProfile(p) : null; }).then(function () {
         ls(LS_AV, null); ls(LS_SEEN, null); S.profile = undefined;
@@ -674,7 +709,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   root.WRMember = {
     get state() { return S; }, get profile() { return S.profile; }, get perks() { return S.perks.slice(); }, get groups() { return S.groups.slice(); }, get admin() { return S.admin; },
     identityHTML: identityHTML, bindIdentity: bindIdentity, renderCards: renderCards, renderHeader: renderHeader, refresh: function () { return loadAll(false); }, refreshSocial: refreshSocial,
-    shareRecord: shareRecord, sharesOf: sharesOf, canShare: function () { return hasProfile(); }, openPrivacy: openPrivacy, openCheat: openCheat, openSignup: openSignup,
+    shareRecord: shareRecord, sharesOf: sharesOf, canShare: function () { return hasProfile(); }, syncPf: syncPf, openPrivacy: openPrivacy, openCheat: openCheat, openSignup: openSignup,
     showBubble: showBubble, hideBubble: hideBubble, goAcct: goAcct, purge: purge, redeem: redeem, counts: counts, addFriend: addFriend, isHeld: function () { return BE.isHeld(); }, _pure: pure,
     /* e2e：換成假後端並模擬登入（user＝{uid,name,email}；null＝登出）；pick＝回傳 Promise<File> 的函式（代替檔案選擇器） */
     _mock: function (be, user, pick) { mocked = true; BE = be; if (pick) pickHook = pick; var was = uid(); S.status = user ? 'signed-in' : 'signed-out'; S.user = user || null; if (user) { if (user.uid !== was) S.profs = {}; return loadAll(true); } reset(); return Promise.resolve(); }

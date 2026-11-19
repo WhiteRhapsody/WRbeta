@@ -273,7 +273,8 @@
   function showTab(name) {
     var toCmp = name === 'compare'; if (toCmp) name = 'predict';
     if (!$('tab-' + name)) name = 'predict';
-    curTab = name;
+    var prevTab = curTab; curTab = name;
+    if (prevTab !== name && App.onTab) try { App.onTab(name, prevTab); } catch (e) {} // v2.5.0 上一頁（app-back.js）記住分頁
     document.querySelectorAll('#wrNav button[data-tab]').forEach(function (b) { var on = b.dataset.tab === name; b.classList.toggle('active', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     document.querySelectorAll('.tab').forEach(function (s) { s.classList.toggle('active', s.id === 'tab-' + name); });
     if (name === 'records') App.renderRecords();

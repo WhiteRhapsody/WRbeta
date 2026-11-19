@@ -18,7 +18,8 @@
     var h = wrT('member.friends_invite', [f.friends.length, n ? wrT('member.new_invites', [n]) : '']);
     if (f.incoming.length) h += wrT('member.invites_received', [f.incoming.map(function (x) { return wrT('member.accept_decline', [esc(x.id), esc(x.uid), whoHTML(x.uid)]); }).join('')]);
     if (f.outgoing.length) h += wrT('member.sent_waiting_for_them_to', [f.outgoing.map(function (x) { return wrT('member.cancel', [esc(x.id), esc(x.uid), whoHTML(x.uid)]); }).join('')]);
-    h += wrT('member.friend_list', [f.friends.length ? f.friends.map(function (x) { return wrT('member.remove', [esc(x.id), esc(x.uid), whoHTML(x.uid), esc(who(x.uid))]); }).join('') : wrT('member.no_friends_yet_enter_someones')]);
+    // v2.5.0：點好友（名字）＝看他的資料卡（公開欄位）＋分享紀錄給他
+    h += wrT('member.friend_list', [f.friends.length ? f.friends.map(function (x) { return wrT('member.remove', [esc(x.id), esc(x.uid), '<button type="button" class="mb-frbtn" data-a="card" aria-label="' + esc(wrT('member.open_card', [who(x.uid)])) + '">' + whoHTML(x.uid) + ICON.chev + '</button>', esc(who(x.uid))]); }).join('') : wrT('member.no_friends_yet_enter_someones')]);
     c.innerHTML = h;
     var inp = $('mbFriendIn');
     $('mbFriendGo').onclick = function () { addFriend(inp.value.trim()); };
@@ -30,6 +31,7 @@
         if (a === 'acc') act(MP.BE.acceptFriend(pid), wrT('member.youre_now_friends'));
         else if (a === 'dec') act(MP.BE.deleteFriend(pid), wrT('member.invite_declined'));
         else if (a === 'can') act(MP.BE.deleteFriend(pid), wrT('member.invite_cancelled'));
+        else if (a === 'card') openCard(row.dataset.uid);
         else if (a === 'rm') ask(wrT('member.remove_friend_records_you_shared', [who(row.dataset.uid)]), function () { act(removeFriend(pid, row.dataset.uid), wrT('member.friend_removed')); }, null, { yes: wrT('app.delete'), danger: true });
       };
     });
@@ -100,14 +102,58 @@
     var s = S.toMe.filter(function (x) { return x.id === sid; })[0]; if (!s) return;
     var seen = ls(LS_SEEN) || {}; seen[sid] = 1; ls(LS_SEEN, seen); renderBadges();
     var Code = root.BMCode, rec = null; try { rec = Code && Code.decode(s.code).records[0]; } catch (e) {}
+    // v2.5.0：打開完整的分析頁（所有模塊）唯讀檢視；可「另存成我的紀錄」（複製一份，對方的紀錄不會被改）
+    var A0 = app();
+    if (rec && A0 && A0.anaOpenRO) {
+      D.querySelectorAll('.mb-view').forEach(function (v) { closeView(v); });
+      var owner = s.ownerMid || who(s.owner);
+      return A0.anaOpenRO(rec, { kind: 'friend', title: (s.name && s.name.trim()) || kindName(s), sub: wrT('app.ro_friend_sub', [owner, fmtDate(s.recCreated)]),
+        onSave: function (r, done) {
+          var A = app(), had = A.sessions.some(function (x) { return x.copiedFrom === sid; });
+          if (!had) A.anaSaveCopy(r, { copiedFrom: sid, name: wrT('app.ro_copy_name', [owner, (r.name && r.name.trim()) || kindName(s)]).slice(0, 120) });
+          toast(wrT('app.ro_copy_saved'), 3200); done();
+        },
+        onClose: function () { renderCards(); } });
+    }
     var bg = D.createElement('div'); bg.className = 'mb-view mb-shared'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-label', wrT('member.shared_record'));
     bg.innerHTML = wrT('member.back_read_only_shared_by', [whoHTML(s.owner), esc(s.name || kindName(s)), kindName(s), esc(fmtDate(s.recCreated)), rec ? '<div class="svgwrap mb-view-tg"><svg class="target mb-ro-svg" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="mb-view-meta"></div>' : wrT('member.this_record_code_cant_be')]);
     D.body.appendChild(bg); B.classList.add('mb-view-open');
     if (rec) { try { var A = app(); A.drawRecord(bg.querySelector('svg'), rec); bg.querySelector('.mb-view-meta').innerHTML = A.recMetaHTML(rec); } catch (e) { bg.querySelector('.mb-view-meta').textContent = wrT('member.couldnt_draw', [e.message]); } }
     bg.querySelector('.x').onclick = function () { closeView(bg); renderCards(); };
   }
-  /* 紀錄頁「分享給好友」：選好友（最多 5 位） */
-  function shareRecord(s) {
+  /* v2.5.0 好友資料卡：他標「好友可看」的欄位（cards/{uid}；規則只讓好友讀）＋分享紀錄給他 */
+  function openCard(u) {
+    var p = MP.profOf ? MP.profOf(u) : null, A = app(), PF = (root.WRApp && root.WRApp.pf) || null;
+    var bg = modal('<div class="modal pf-modal mb-card" role="dialog" aria-modal="true" aria-label="' + esc(wrT('member.friend_card')) + '"><div class="mb-card-h">' + (MP.avHTML ? MP.avHTML(p, 'mb-av lg') : '') + '<div><b>' + esc(who(u)) + '</b><small>' + wrT('member.friend_card') + '</small></div></div>'
+      + '<div class="mb-card-b" aria-live="polite"><div class="lbl">' + wrT('member.loading') + '</div></div>'
+      + '<div class="row"><button type="button" class="no">' + wrT('h.close') + '</button><button type="button" class="primary sh">' + wrT('member.share_a_record_to') + '</button></div></div>');
+    bg.classList.add('mb-card-bg');
+    var body = bg.querySelector('.mb-card-b');
+    function show(c) {
+      var rows = PF ? PF.KEYS.filter(function (k) { return c && typeof c[k] === 'string' && c[k]; }).map(function (k) { return '<div class="mb-card-r"><span>' + esc(PF.label(k)) + '</span><b>' + esc(PF.show(k, c[k])) + '</b></div>'; }) : [];
+      body.innerHTML = rows.length ? rows.join('') : '<div class="lbl">' + wrT('member.card_empty') + '</div>';
+    }
+    (MP.BE.getCard ? MP.BE.getCard(u) : Promise.resolve(null)).then(show, function (e) { body.innerHTML = '<div class="lbl">' + esc(wrT('member.not_completed', [errText(e)])) + '</div>'; });
+    bg.querySelector('.no').onclick = function () { bg.remove(); };
+    bg.querySelector('.sh').onclick = function () { bg.remove(); pickRecordFor(u); };
+    bg.addEventListener('click', function (e) { if (e.target === bg) bg.remove(); });
+    return bg;
+  }
+  /* 從好友資料卡分享：先選一筆紀錄，再到選好友（已勾這位） */
+  function pickRecordFor(u) {
+    var A = app(), list = (A.sessions || []).filter(function (s) { return s.kind === 'analysis' ? (s.sheets || []).some(function (x) { return x.shots && x.shots.length; }) : ((s.actuals || []).length || (s.preds || []).length); })
+      .slice().sort(function (a, b) { return String(b.created).localeCompare(String(a.created)); }).slice(0, 40);
+    if (!list.length) { toast(wrT('member.no_records_to_share')); return; }
+    var bg = modal('<div class="modal pf-modal mb-recpick" role="dialog" aria-modal="true" aria-label="' + esc(wrT('member.share_a_record_to')) + '"><p class="pf-mh">' + esc(wrT('member.pick_record_for', [who(u)])) + '</p><div class="mb-recl">'
+      + list.map(function (s, i) { var n = s.kind === 'analysis' ? (s.sheets || []).reduce(function (a, x) { return a + x.shots.length; }, 0) : (s.actuals || []).length;
+        return '<button type="button" class="mb-rec" data-i="' + i + '"><b>' + esc((s.name && s.name.trim()) || (A.recTitle ? A.recTitle(s) : kindName(s))) + '</b><small>' + esc(kindName(s)) + '・' + esc(fmtDate(s.created)) + '・' + esc(wrT('member.n_shots', [n])) + '</small></button>'; }).join('')
+      + '</div><div class="row"><button type="button" class="no">' + wrT('h.close') + '</button></div></div>');
+    bg.querySelector('.no').onclick = function () { bg.remove(); };
+    bg.querySelectorAll('.mb-rec').forEach(function (b) { b.onclick = function () { bg.remove(); shareRecord(list[+b.dataset.i], u); }; });
+  }
+  MP.openCard = openCard;
+  /* 紀錄頁「分享給好友」：選好友（最多 5 位）；pre＝先勾好的好友（從好友資料卡來的） */
+  function shareRecord(s, pre) {
     if (!hasProfile()) { toast(wrT('member.sign_in_and_create_a')); return; }
     var fr = friendsList(); if (!fr.length) { toast(wrT('member.no_friends_yet_add_friends'), 3200); return; }
     var Code = root.BMCode, code = null; try { code = Code.encode(s); } catch (e) {}
@@ -117,6 +163,7 @@
     var bg = modal(wrT('member.share_with_friends_read_only', [SHARE_MAX, fr.map(function (u) { return '<label class="mb-pk' + (already[u] ? ' dis' : '') + '"><input type="checkbox" value="' + esc(u) + '"' + (already[u] ? ' disabled' : '') + '>' + whoHTML(u) + (already[u] ? wrT('member.shared') : '') + '</label>'; }).join('')]));
     var yes = bg.querySelector('.yes'), boxes = [].slice.call(bg.querySelectorAll('input[type=checkbox]'));
     function sel() { return boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; }); }
+    if (pre) boxes.forEach(function (b) { if (b.value === pre && !b.disabled) { b.checked = true; yes.disabled = false; yes.textContent = wrT('member.share_with', [1]); } });
     boxes.forEach(function (b) { b.onchange = function () { if (sel().length > SHARE_MAX) { b.checked = false; toast(wrT('member.up_to_at_a_time', [SHARE_MAX])); } var n = sel().length; yes.disabled = !n; yes.textContent = n ? wrT('member.share_with', [n]) : wrT('member.share'); }; });
     bg.querySelector('.no').onclick = function () { bg.remove(); };
     yes.onclick = function () {

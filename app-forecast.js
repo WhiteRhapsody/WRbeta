@@ -231,7 +231,9 @@
       h += stat(wrT('app.systematic_call_bias'), cmp.biasDir === '置中' ? wrT('app.no_clear_bias_2') : wrT('app.calls_3', [wrT.dir(cmp.biasDir)]), wrT('app.your_calls_relative_to_actual', [offsetText(cmp.biasX, cmp.biasY)]), false, 'bias');
       h += stat(wrT('app.ring_called_correctly_2'), Math.round(cmp.sameRingRate * 100) + '%', wrT('app.avg_decimal_difference', [f2(cmp.meanAbsDecDiff)]), false, 'ringRate');
     }
+    if (cmp.m) h += '<button type="button" class="wr-pill ana-cmpana" id="cmpAnaBtn">' + wrT('h.compare_analysis_btn') + '</button>';
     $('cmpSummary').innerHTML = h;
+    if ($('cmpAnaBtn')) $('cmpAnaBtn').onclick = function () { App.anaOpenCmp(App.cur); }; // v2.5.0 預報對照分析（唯讀，完整模塊）
     var st = C.computeStats(t, App.cur.actuals);
     renderStats($('actStats'), t, st);
     var tb = '';

@@ -5,13 +5,51 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v2.4.2">
-<link rel="icon" href="icon.svg?v=v2.4.2">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.4.2">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.4.2"><link rel="stylesheet" href="themes.css?v=v2.4.2"><!--/STYLE-->
+<link rel="manifest" href="manifest.webmanifest?v=v2.5.0">
+<link rel="icon" href="icon.svg?v=v2.5.0">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.5.0">
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.5.0"><link rel="stylesheet" href="themes.css?v=v2.5.0"><!--/STYLE-->
 </head>
 <body>
+<!-- v2.5.0 分析模塊圖示（White 2026-11-20「超讚」；24×24 單線條，顏色跟著 currentColor，所有主題通用） -->
+<svg id="wrModIcons" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true" focusable="false">
+<symbol id="ic-n" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle fill="currentColor" stroke="none" cx="8" cy="8.5" r="2.15"/><circle fill="currentColor" stroke="none" cx="16.2" cy="7.8" r="2.15"/><circle fill="currentColor" stroke="none" cx="11.5" cy="16" r="2.15"/></g></symbol>
+<symbol id="ic-total" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10.2" r="6.4"/><circle cx="12" cy="10.2" r="3.1"/><path d="M6 19.2h12"/></g></symbol>
+<symbol id="ic-avg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17.5V11"/><path d="M10 17.5V6.5"/><path d="M15 17.5V9"/><path d="M20 17.5V13"/><path d="M4 12.2h16" stroke-dasharray="2 2"/></g></symbol>
+<symbol id="ic-p60" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle fill="currentColor" stroke="none" cx="5.2" cy="16.5" r="1.45"/><circle fill="currentColor" stroke="none" cx="9.2" cy="13.2" r="1.45"/><circle fill="currentColor" stroke="none" cx="13" cy="14" r="1.45"/><path d="M13.8 13.2c2.2-2.6 4-5 6.2-7.4"/><path d="M16.6 5.6h3.6v3.4"/></g></symbol>
+<symbol id="ic-inner" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="5"/><circle fill="currentColor" stroke="none" cx="12" cy="12" r="2.15"/></g></symbol>
+<symbol id="ic-offset" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4v17.2M3.4 12h17.2"/><circle cx="12" cy="12" r="2.1"/><circle fill="currentColor" stroke="none" cx="17.1" cy="7.2" r="1.7"/><path d="M13.6 10.6l2.6-2.6"/></g></symbol>
+<symbol id="ic-group" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle fill="currentColor" stroke="none" cx="5.6" cy="16.2" r="1.85"/><circle fill="currentColor" stroke="none" cx="18.4" cy="7.4" r="1.85"/><path d="M7.4 15l9-6.4"/><path d="M8.5 13.2l-1.8 2.6 2.6.2"/><path d="M15.5 10.6l1.8-2.6-2.6-.15"/></g></symbol>
+<symbol id="ic-rings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.3"/><circle cx="12" cy="12" r="5.1"/><circle cx="12" cy="12" r="2"/><circle fill="currentColor" stroke="none" cx="12" cy="3.7" r="1.35"/><circle fill="currentColor" stroke="none" cx="16.6" cy="9.4" r="1.35"/><circle fill="currentColor" stroke="none" cx="8.2" cy="15.4" r="1.35"/></g></symbol>
+<symbol id="ic-series" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17.8V11M7.2 17.8V8"/><path d="M11.2 17.8V10M13.9 17.8V6.2"/><path d="M17.9 17.8V12M20.6 17.8V9.2"/><path d="M3.6 19.2h6.2M10.3 19.2h6.2M17 19.2h4.4" stroke-width="1.4"/></g></symbol>
+<symbol id="ic-adv" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="13" r="6.6"/><path d="M11 7.6V5.2M11 18.4v2.2M4.4 13H2.2M17.6 13h2"/><path d="M11 10.6v4.8M8.6 13h4.8"/><path d="M14.2 6.2l5-3.2v3.8"/></g></symbol>
+<symbol id="ic-stab" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18.2C5 18.2 6.2 7.2 12 7.2S19 18.2 21 18.2"/><path d="M3.2 19.4h17.6"/><path d="M8.3 16.6v2.2M15.7 16.6v2.2"/></g></symbol>
+<symbol id="ic-out" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.2" cy="13" r="6.6" stroke-dasharray="2.4 2"/><circle fill="currentColor" stroke="none" cx="8.6" cy="12.2" r="1.45"/><circle fill="currentColor" stroke="none" cx="12.2" cy="14.4" r="1.45"/><circle fill="currentColor" stroke="none" cx="19.2" cy="6.4" r="1.7"/></g></symbol>
+<symbol id="ic-trend" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 16.8l5.2-4.2 3.6 2.2 7.4-8.2"/><circle fill="currentColor" stroke="none" cx="3.5" cy="16.8" r="1.4"/><circle fill="currentColor" stroke="none" cx="8.7" cy="12.6" r="1.4"/><circle fill="currentColor" stroke="none" cx="12.3" cy="14.8" r="1.4"/><circle fill="currentColor" stroke="none" cx="19.7" cy="6.6" r="1.4"/></g></symbol>
+<symbol id="ic-hist" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 19.2h17.4"/><rect x="4" y="13.2" width="2.6" height="6" rx="0.6"/><rect x="8" y="9.4" width="2.6" height="9.8" rx="0.6"/><rect x="12" y="5.2" width="2.6" height="14" rx="0.6"/><rect x="16" y="8.2" width="2.6" height="11" rx="0.6"/></g></symbol>
+<symbol id="ic-sheets" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="8.4" width="9.2" height="9.2" rx="1.4"/><rect x="11.2" y="5.2" width="9.2" height="9.2" rx="1.4"/><circle cx="15.8" cy="9.8" r="2.1"/><path d="M5.8 12.2h4.6M5.8 14.8h3.2"/></g></symbol>
+<symbol id="ic-list" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle fill="currentColor" stroke="none" cx="5.2" cy="6.2" r="1.4"/><circle fill="currentColor" stroke="none" cx="5.2" cy="12" r="1.4"/><circle fill="currentColor" stroke="none" cx="5.2" cy="17.8" r="1.4"/><path d="M8.6 6.2h10.6M8.6 12h10.6M8.6 17.8h8"/></g></symbol>
+<symbol id="ic-heat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="1.6"/>
+<rect x="4.3" y="4.3" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".10"/>
+<rect x="9.7" y="4.3" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".28"/>
+<rect x="15.1" y="4.3" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".16"/>
+<rect x="4.3" y="9.7" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".36"/>
+<rect x="9.7" y="9.7" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".62"/>
+<rect x="15.1" y="9.7" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".88"/>
+<rect x="4.3" y="15.1" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".14"/>
+<rect x="9.7" y="15.1" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".40"/>
+<rect x="15.1" y="15.1" width="4.6" height="4.6" rx="0.6" fill="currentColor" stroke="none" opacity=".24"/>
+</g></symbol>
+<symbol id="ic-teiler" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="13" r="7.4"/><circle fill="currentColor" stroke="none" cx="11" cy="13" r="1.15"/><path d="M11 13l6.4-7.2"/><path d="M13 10.75l.7-.8M14.3 9.28l.7-.8M15.6 7.82l.7-.8"/><circle fill="currentColor" stroke="none" cx="18" cy="5.2" r="1.55"/></g></symbol>
+<symbol id="ic-dir" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle fill="currentColor" stroke="none" cx="12" cy="13" r="1.5"/><path d="M12 13l6.2-6.6"/><path d="M15.3 6.1h3.2v3.1"/><path d="M12 13l-6.4-2.2"/><path d="M6.8 8.9l-1.6 1.8 2.4.5"/><path d="M12 13l1.6 6.4"/><path d="M11.2 17.8l2.4 1.7-2.7.8"/></g></symbol>
+<symbol id="ic-spread" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11.2" cy="12.2" r="4.6"/><circle cx="11.2" cy="12.2" r="7.8" stroke-dasharray="2.4 2"/><circle fill="currentColor" stroke="none" cx="9.6" cy="11.2" r="1.2"/><circle fill="currentColor" stroke="none" cx="13.2" cy="13.4" r="1.2"/><circle fill="currentColor" stroke="none" cx="10.4" cy="14.2" r="1.2"/><path d="M3.2 20.2h8.4M21 4.8v8.4"/></g></symbol>
+<symbol id="ic-callact" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.6" cy="14.6" r="2.5"/><path d="M8.4 13.2l8-6.4"/><path d="M13.4 6.5h3.4v3.2"/><circle fill="currentColor" stroke="none" cx="18.4" cy="6.2" r="2.15"/></g></symbol>
+<symbol id="ic-centers" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 3.8v10.4M3 9h10.4" stroke-dasharray="2 1.7"/><circle cx="8.2" cy="9" r="1.5"/><path d="M15.6 9.4v11.2M10 15h11.2"/><circle fill="currentColor" stroke="none" cx="15.6" cy="15" r="1.55"/></g></symbol>
+<symbol id="ic-calltrend" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 19.5h17"/><path d="M5 8.5l4.2 3 4-1.8 5.8 5.6"/><circle cx="5" cy="8.5" r="1.9"/><circle fill="currentColor" stroke="none" cx="19" cy="15.3" r="1.6"/><path d="M15.8 15.6h3.4v-3.3"/></g></symbol>
+</svg>
+
 <header>
+  <button type="button" id="wrBack" class="wr-back" aria-label="上一頁" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>上一頁</span></button>
   <div class="title">WRbeta <span class="beta" id="appVer">beta v1.3.0</span></div>
   <div class="hright">
     <div id="modeToggle" class="modetg" role="group" aria-label="介面模式"><button type="button" data-mode="pro" class="on" aria-pressed="true">Pro</button><button type="button" data-mode="lite" aria-pressed="false">Lite</button></div>
@@ -181,6 +219,11 @@
 </section>
 
 <section id="tab-analysis" class="tab">
+  <!-- v2.5.0 唯讀檢視（好友分享給我的紀錄／預報對照分析）：完整分析模塊、不能修改、不會動到原本的紀錄 -->
+  <div id="anaRoBar" class="ana-robar" role="region" aria-label="唯讀檢視" hidden>
+    <div class="ana-ro-tx"><b id="anaRoTitle"></b><small id="anaRoSub"></small></div>
+    <div class="ana-ro-btns"><button type="button" id="anaRoSave" class="wr-pill" hidden>另存成我的紀錄</button><button type="button" id="anaRoClose" class="wr-pill pri">關閉</button></div>
+  </div>
   <!-- v1.6.0 分析頁改版（docs/analysis_mock_*.png）：靶面當主角、左上資訊框、右下玻璃圓鈕、照片晶片、拇指列（相簿｜拍下一張｜檔案） -->
   <div class="ana-top">
     <div class="ana-id">
@@ -190,7 +233,7 @@
     <button id="anaNew" type="button" class="wr-pill"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>新分析</button>
   </div>
   <div class="pf-wrap ana-stage" id="anaWrap">
-    <div class="svgwrap pf-box ana-box" id="anaBox"><svg id="anaSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="分析靶面（點空白新增、點彈孔刪除；雙指縮放）"></svg>
+    <div class="svgwrap pf-box ana-box" id="anaBox"><svg id="anaSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="分析靶面（先選「添加彈孔」或「消滅單孔」再點靶面；雙指縮放）"></svg>
       <div id="anaPhotoCard" class="ana-photo" hidden><div id="anaPhotoBox" class="ana-photobox"><div id="anaPhotoInner" class="photoinner"><img id="anaImg" alt="" draggable="false"><svg id="anaPhotoSvg" xmlns="http://www.w3.org/2000/svg"></svg></div></div></div>
       <div id="anaBusy" class="lite-busy ana-busy" hidden><i></i>分析照片中…</div>
     </div>
@@ -200,13 +243,20 @@
     <div class="ana-tgl" role="group" aria-label="靶面標示">
       <button type="button" id="anaTgCenter" class="wr-tg on" role="switch" aria-checked="true"><i class="dotg" aria-hidden="true"></i>群中心</button>
       <button type="button" id="anaTgOut" class="wr-tg on" role="switch" aria-checked="true"><i class="dotr" aria-hidden="true"></i>離群</button>
-      <input type="checkbox" id="anaShowCenter" checked hidden><input type="checkbox" id="anaShowOut" checked hidden>
+      <button type="button" id="anaTgSpread" class="wr-tg" role="switch" aria-checked="false"><i class="dotp" aria-hidden="true"></i>散布圈</button>
+      <input type="checkbox" id="anaShowCenter" checked hidden><input type="checkbox" id="anaShowOut" checked hidden><input type="checkbox" id="anaShowSpread" hidden>
     </div>
     <div class="ana-rbtns" role="toolbar" aria-label="分析操作">
       <button type="button" id="anaCalBtn" class="pf-btn ana-rb" aria-haspopup="true" aria-expanded="false" aria-controls="anaCalPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><b>校正</b></button>
       <button type="button" id="anaUndo" class="pf-btn ana-rb" aria-label="復原"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><b>復原</b></button>
       <button type="button" id="anaClearBtn" class="pf-btn ana-rb danger" aria-haspopup="true" aria-expanded="false" aria-controls="anaClearPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></svg><b>清除</b></button>
     </div>
+    <!-- v2.5.0【White 指定】添加彈孔／消滅單孔：沒選模式時點靶面不做任何事（方便捲動畫面）；再按一次亮著的按鈕＝結束模式 -->
+    <div class="ana-lbtns" id="anaModeBtns" role="group" aria-label="修正彈孔">
+      <button type="button" id="anaModeAdd" class="pf-btn ana-rb ana-mode" aria-pressed="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 8.5v7M8.5 12h7"/></svg><b>添加彈孔</b></button>
+      <button type="button" id="anaModeDel" class="pf-btn ana-rb ana-mode" aria-pressed="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M8.5 12h7"/></svg><b>消滅單孔</b></button>
+    </div>
+    <div id="anaModeBar" class="ana-modebar" role="status" aria-live="polite" hidden></div>
     <div id="anaCalPop" class="wr-pop ana-pop" role="menu" aria-label="校正" hidden>
       <div class="ph">校正這張照片</div>
       <button type="button" id="anaAutoCal" role="menuitem" class="pi"><b>自動校正</b><small>重新找靶面與環</small></button>
@@ -218,7 +268,8 @@
     <div id="anaClearPop" class="wr-pop ana-pop" role="menu" aria-label="清除哪些" hidden>
       <div class="ph">清除哪些？</div>
       <button type="button" id="anaDelSheet" role="menuitem" class="pi del"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 10l6 6M15 10l-6 6"/></svg><span><b>清除這張紀錄</b><small id="anaDelSub">先在下方選一張</small></span></button>
-      <button type="button" id="anaClearAll" role="menuitem" class="pi all"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="13" height="15" rx="2"/><path d="M4 6.5v13a2 2 0 0 0 2 2h10"/><path d="M11 7l5 5M16 7l-5 5"/></svg><span><b>清除所有紀錄</b><small id="anaAllSub">這次分析的全部照片</small></span></button>
+      <button type="button" id="anaClearAll" role="menuitem" class="pi all"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="13" height="15" rx="2"/><path d="M4 6.5v13a2 2 0 0 0 2 2h10"/><path d="M11 7l5 5M16 7l-5 5"/></svg><span><b>清空全部靶紙</b><small id="anaAllSub">這次分析的全部照片</small></span></button>
+      <button type="button" id="anaDelAna" role="menuitem" class="pi wipe"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/><path d="M10 11l4 5M14 11l-4 5"/></svg><span><b>刪除目前分析</b><small id="anaDelAnaSub">連名稱、日期整筆從紀錄刪掉</small></span></button>
       <div class="pf">⚠ 按下後會再跳確認視窗</div>
     </div>
   </div>
@@ -236,9 +287,10 @@
   <div id="anaMods" class="stats lay-grid" data-lay="analysis" data-lay-page="analysis">
     <div id="anaStats" class="lay-contents"></div>
     <div id="anaExtra" class="lay-contents"></div>
-    <div class="ana-card lay-full" data-mod="sheets" data-mod-name="每張小計"><div class="ana-ct">🗂 每張小計</div><div id="anaSheetTable"></div></div>
+    <div class="ana-card lay-full" data-mod="sheets" data-mod-name="每張小計"><div class="ana-ct">每張小計</div><div id="anaSheetTable"></div></div>
     <div class="ana-card lay-full" data-mod="list" data-mod-name="逐發列表"><details class="ana-listd"><summary>逐發列表</summary><div id="anaList"></div></details></div>
   </div>
+  <div class="card ana-share-card" id="anaShareCard" hidden><button type="button" id="anaShareFriends" class="wr-pill"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.5 14.3c2.6-.3 4.4 1.2 5 4.2"/></svg>分享給好友</button><small id="anaShareInfo" class="lbl"></small></div>
   <div class="card ana-code-card">
     <div class="ana-code-h">紀錄碼（可複製貼上備份，只有本 App 讀得懂）</div>
     <div class="ana-actions ana-actions2 ana-code-actions">
@@ -425,21 +477,22 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--I18N--><script src="i18n/zh-TW.js?v=v2.4.2"></script><script src="i18n/en.js?v=v2.4.2"></script><script src="i18n/i18n.js?v=v2.4.2"></script><!--/I18N-->
-<!--CORE--><script src="core.js?v=v2.4.2"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v2.4.2"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v2.4.2"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v2.4.2"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v2.4.2"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v2.4.2"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v2.4.2"></script><script src="member-friends.js?v=v2.4.2"></script><script src="member-admin.js?v=v2.4.2"></script><!--/MEMBER-->
-<!--GHOST--><script src="ghost.js?v=v2.4.2"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v2.4.2"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v2.4.2"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v2.4.2"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v2.4.2"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v2.4.2"></script><!--/DOCK-->
-<!--APP--><script src="app-base.js?v=v2.4.2"></script><script src="app-forecast.js?v=v2.4.2"></script><script src="app-lite.js?v=v2.4.2"></script><script src="app-ghost.js?v=v2.4.2"></script><script src="app-photo.js?v=v2.4.2"></script><script src="app-analysis.js?v=v2.4.2"></script><script src="app-records.js?v=v2.4.2"></script><script src="app-nav.js?v=v2.4.2"></script><script src="app.js?v=v2.4.2"></script><script src="app-account.js?v=v2.4.2"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v2.5.0"></script><script src="i18n/en.js?v=v2.5.0"></script><script src="i18n/i18n.js?v=v2.5.0"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v2.5.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v2.5.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v2.5.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v2.5.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v2.5.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v2.5.0"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v2.5.0"></script><script src="member-friends.js?v=v2.5.0"></script><script src="member-admin.js?v=v2.5.0"></script><!--/MEMBER-->
+<!--GHOST--><script src="ghost.js?v=v2.5.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v2.5.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v2.5.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v2.5.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v2.5.0"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v2.5.0"></script><!--/DOCK-->
+<!--APP--><script src="app-base.js?v=v2.5.0"></script><script src="app-forecast.js?v=v2.5.0"></script><script src="app-lite.js?v=v2.5.0"></script><script src="app-ghost.js?v=v2.5.0"></script><script src="app-photo.js?v=v2.5.0"></script><script src="app-mods.js?v=v2.5.0"></script>
+<script src="app-analysis.js?v=v2.5.0"></script><script src="app-records.js?v=v2.5.0"></script><script src="app-nav.js?v=v2.5.0"></script><script src="app.js?v=v2.5.0"></script><script src="app-account.js?v=v2.5.0"></script><script src="app-back.js?v=v2.5.0"></script><!--/APP-->
 <script>
 (function () {
   var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['BMGhost','ghost.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];

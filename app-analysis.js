@@ -14,7 +14,8 @@
   App.trTag = trTag; App.esc = esc; App.lineChart = lineChart; App.renderAnalysis = renderAnalysis;
   // 給其他模組用（變數：一律讀寫同一份）
   Object.defineProperty(App, 'LS_ACUR', { get: function () { return LS_ACUR; }, set: function (v) { LS_ACUR = v; }, enumerable: true, configurable: true });
-  Object.defineProperty(App, 'acur', { get: function () { return acur; }, set: function (v) { acur = v; }, enumerable: true, configurable: true });
+  Object.defineProperty(App, 'acur', { get: function () { return acur; }, set: function (v) { if (v === acur) return; if (ro) anaCloseRO(true); acur = v; }, enumerable: true, configurable: true });
+  Object.defineProperty(App, 'anaRO', { get: function () { return ro; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'anaSel', { get: function () { return anaSel; }, set: function (v) { anaSel = v; }, enumerable: true, configurable: true });
   function revokePhotoUrl(P) { if (P && P.url) try { URL.revokeObjectURL(P.url); } catch (e) {} }
   function revokeAllPhotos() { Object.keys(anaPhotos).forEach(function (k) { revokePhotoUrl(anaPhotos[k]); }); }
@@ -29,6 +30,7 @@
   var SHEET_COLORS = ['#1e6fd9', '#e8590c', '#2b8a3e', '#ae3ec9', '#c2255c', '#0c8599', '#5c940d', '#795548'];
   var acur = (function () { var id = store.get(LS_ACUR); return App.sessions.filter(function (s) { return s.id === id && isAna(s); })[0] || newAnalysis(); })();
   var anaSel = 'all', anaPhotos = {}, anaQueue = [], anaBusy = false;
+  var ro = null, roSaved = null; // v2.5.0 唯讀檢視（見 anaOpenRO）
   var anaSvg = $('anaSvg');
   function atgt() { return T[acur.targetId] || T.ap10; }
   function requestPersist() {
@@ -37,6 +39,7 @@
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   }
   function persistA() {
+    if (ro) return false; // 唯讀檢視：絕不寫入（不會動到好友或原本的紀錄）
     if (!acur.sheets.length && !acur.name) return false;
     acur.updated = new Date().toISOString();
     var i = App.sessions.findIndex(function (s) { return s.id === acur.id; });
@@ -112,6 +115,7 @@
     im.src = url;
   }
   function anaEnqueue(files) {
+    if (ro) { toast(wrT('app.ro_close_first')); return; }
     for (var i = 0; i < files.length; i++) { if (pickIsImage(files[i])) anaQueue.push(files[i]); else pickError(files[i]); }
     if (!anaBusy) anaNext();
   }
@@ -155,13 +159,35 @@
     var mw = P.mismatch && T[P.mismatch] ? wrT('app.this_looks_like_a_target_3', [T[P.mismatch].name, atgt().name]) : '';
     h.innerHTML = wrT('app.target_shot_holes_detected_tap', [mw, sheetNo(sh), sh.shots.length, un ? wrT('app.of_which_uncertain_orange_dashed', [un]) : '', f2(P.T.rms || 0), P.rotDeg ? wrT('app.rotated_2', [P.rotDeg]) : '']);
   }
-  function anaToggleHole(sh, m) { // 一指點選：點到既有彈孔＝刪除，空白處＝新增
-    var t = atgt(), bi = -1, bd = Infinity;
-    sh.shots.forEach(function (a, i) { var d = Math.hypot(a.x - m.x, a.y - m.y); if (d < bd) { bd = d; bi = i; } });
-    if (bi >= 0 && bd <= t.pellet / 2 * 1.1) { var rm = sh.shots.splice(bi, 1)[0]; sh._undo = { op: 'del', q: rm, i: bi }; toast(wrT('app.shot_hole_deleted')); }
-    else { var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual' }; sh.shots.push(q); sh._undo = { op: 'add', q: q }; toast(wrT('app.shot_hole_added')); }
+  /* v2.5.0【White 指定】修正彈孔改成兩個模式鈕（取代舊的「點空白新增、點彈孔刪除」）：
+   *   沒選模式＝點靶面不做任何事（單指可以直接捲動畫面）；添加＝每點一下加一發（疊在既有彈孔上也照加）；
+   *   消滅＝每點一下刪掉最近的一發（重疊時一次只刪一發；離太遠不刪）。再按一次亮著的按鈕＝結束。 */
+  var anaMode = null;
+  function anaSetMode(m, quiet) {
+    if (App.anaRO) m = null;
+    var was = anaMode; anaMode = m === anaMode ? null : m;
+    [['anaModeAdd', 'add'], ['anaModeDel', 'del']].forEach(function (x) { var b = $(x[0]), on = anaMode === x[1]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    var box = $('anaBox'); box.classList.toggle('mode-add', anaMode === 'add'); box.classList.toggle('mode-del', anaMode === 'del'); $('anaWrap').classList.toggle('ana-moding', !!anaMode);
+    var bar = $('anaModeBar'); bar.hidden = !anaMode; bar.className = 'ana-modebar' + (anaMode ? ' ' + anaMode : ''); bar.innerHTML = anaMode === 'add' ? wrT('app.mode_add_bar') : anaMode === 'del' ? wrT('app.mode_del_bar') : '';
+    if (!anaMode) { anaPrev = null; anaPrevClear(); }
+    if (!quiet && was !== anaMode) toast(anaMode === 'add' ? wrT('app.mode_add_on') : anaMode === 'del' ? wrT('app.mode_del_on') : wrT('app.mode_off'));
+  }
+  App.anaSetMode = anaSetMode;
+  Object.defineProperty(App, 'anaMode', { get: function () { return anaMode; }, enumerable: true, configurable: true });
+  function anaTapHole(sh, m, tol) { // 依目前模式加一發或刪最近的一發；tol＝刪除時可接受的距離（mm）
+    var t = atgt();
+    if (anaMode === 'add') { var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual' }; sh.shots.push(q); sh._undo = { op: 'add', q: q }; toast(wrT('app.shot_hole_added')); }
+    else if (anaMode === 'del') {
+      var bi = -1, bd = Infinity;
+      sh.shots.forEach(function (a, i) { var d = Math.hypot(a.x - m.x, a.y - m.y); if (d < bd - 1e-9) { bd = d; bi = i; } });
+      if (bi < 0 || bd > Math.max(t.pellet / 2 * 1.1, tol || 0)) { toast(wrT('app.no_hole_here')); return; }
+      var rm = sh.shots.splice(bi, 1)[0]; sh._undo = { op: 'del', q: rm, i: bi }; toast(wrT('app.shot_hole_deleted'));
+    } else return;
     persistA(); renderAnalysis();
   }
+  $('anaModeAdd').onclick = function () { anaSetMode('add'); };
+  $('anaModeDel').onclick = function () { anaSetMode('del'); };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && anaMode && App.curTab === 'analysis') anaSetMode(null); });
   // v1.6.0：照片檢視改成雙指縮放／單指平移（CSS transform；點選照片仍用 img 的實際位置換算，不受縮放影響）
   var anaPZ = { s: 1, x: 0, y: 0, bw: 0, bh: 0, sid: null, moved: 0 };
   function anaPZLayout(reset) { // 依照片比例把 inner 放進方形舞台
@@ -227,7 +253,9 @@
       renderAnalysis(); return;
     }
     if (!P.T) return;
-    anaToggleHole(sh, C.applyAffine(P.T, px, py));
+    if (!anaMode) return; // v2.5.0：沒選模式＝不做任何事
+    var p1 = C.applyAffine(P.T, px, py), p2 = C.applyAffine(P.T, px + 22 / r.width * P.w, py); // 22 個螢幕像素換成 mm，給手指一點容許範圍
+    anaTapHole(sh, p1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
   });
   // --- 檢視切換：靶面｜照片（照片只在選了單張、且這次有拍照時可用；合併時停用） ---
   var anaView = 'target';
@@ -250,6 +278,8 @@
   function anaPopSync() {
     var sh = selSheet(), P = sh && anaPhotos[sh.id], tot = anaShots(acur).length;
     $('anaDelSheet').disabled = !sh; $('anaClearAll').disabled = !acur.sheets.length;
+    $('anaDelAna').disabled = !!App.anaRO || (!anaInRecords() && !acur.sheets.length && !acur.name);
+    $('anaDelAnaSub').textContent = anaInRecords() || acur.sheets.length || acur.name ? wrT('h.delete_whole_record_incl_name') : wrT('app.not_saved_yet');
     $('anaDelSub').textContent = sh ? wrT('app.target_shots', [sheetNo(sh), sh.shots.length]) : wrT('app.pick_one_below_first');
     $('anaAllSub').textContent = acur.sheets.length ? wrT('app.this_analysis_targets_shots', [acur.sheets.length, tot]) : wrT('app.no_records_yet');
     ['anaAutoCal', 'anaManual'].forEach(function (k) { $(k).disabled = !P || P.busy; });
@@ -260,6 +290,7 @@
   $('anaClearBtn').onclick = function (e) { e.stopPropagation(); anaPop('anaClearPop', anaPopOpen !== 'anaClearPop'); };
   document.addEventListener('pointerdown', function (e) { if (anaPopOpen && !e.target.closest('.ana-pop,#anaCalBtn,#anaClearBtn')) anaPop(null, false); if (!$('anaPickHint').hidden && !e.target.closest('#anaPickHint,#anaPickInfo')) anaPickHint(false); }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (anaPopOpen) anaPop(null, false); anaPickHint(false); } });
+  App.anaPopClose = function () { anaPop(null, false); anaPickHint(false); }; // v2.5.0 返回鍵
   function anaPickHint(on) { $('anaPickHint').hidden = !on; $('anaPickInfo').setAttribute('aria-expanded', on ? 'true' : 'false'); }
   $('anaPickInfo').onclick = function (e) { e.stopPropagation(); anaPickHint($('anaPickHint').hidden); };
   $('anaAutoCal').onclick = function () { var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P) { P.mode = 'auto'; P.calPts = []; $('anaCalRingRow').style.display = 'none'; anaProcess(sh); } };
@@ -286,18 +317,20 @@
     view: function () { AV.ensure(); return AV.v; }, clamp: AV.clamp, apply: function () { AV.apply(); anaFitLabel(); }, render: function () { renderAnalysis(); },
     lift: function () { return liftPx(); },
     down: function (r) { this.move(r); },
-    move: function (r) { if (!selSheet()) return; anaPrev = { x: r.x, y: -r.y }; previewMark(anaSvg, anaPrev, 'act-c', atgt()); },
+    move: function (r) { if (anaMode !== 'add' || !selSheet()) return; anaPrev = { x: r.x, y: -r.y }; previewMark(anaSvg, anaPrev, 'act-c', atgt()); },
     up: function (r) {
       anaPrev = null; anaPrevClear();
+      if (!anaMode) return; // v2.5.0：沒選模式＝點靶面不做任何事
       var sh = selSheet(); if (!sh) { toast(acur.sheets.length ? wrT('app.pick_a_target_below_first') : wrT('app.tap_next_photo_first_or')); return; }
       var p = { x: r.x, y: -r.y }, half = atgt().cardSize / 2 + 1; if (Math.abs(p.x) > half || Math.abs(p.y) > half) return;
-      anaToggleHole(sh, p);
+      var E = (AV.v && AV.v.E) || atgt().cardSize, w = anaSvg.clientWidth || 300;
+      anaTapHole(sh, p, 22 * E / w);
     },
     cancel: function () { anaPrev = null; anaPrevClear(); }
   });
   $('anaFit').onclick = function () { if (anaView === 'photo' && selSheet() && anaPhotos[selSheet().id]) { anaPZ.s = 1; anaPZApply(); } else { AV.reset(); renderAnalysis(); } };
   function anaTg(btn, cb) { btn.onclick = function () { cb.checked = !cb.checked; btn.classList.toggle('on', cb.checked); btn.setAttribute('aria-checked', cb.checked ? 'true' : 'false'); renderAnalysis(); }; }
-  anaTg($('anaTgCenter'), $('anaShowCenter')); anaTg($('anaTgOut'), $('anaShowOut'));
+  anaTg($('anaTgCenter'), $('anaShowCenter')); anaTg($('anaTgOut'), $('anaShowOut')); anaTg($('anaTgSpread'), $('anaShowSpread')); // v2.5.0 散布圈（預設關）
   $('anaUndo').onclick = function () {
     var sh = selSheet(); if (!sh || !sh._undo) { toast(sh ? wrT('app.nothing_to_undo_for_this') : wrT('app.pick_one_below_first_to')); return; }
     var u = sh._undo; if (u.op === 'add') { var i = sh.shots.indexOf(u.q); if (i >= 0) sh.shots.splice(i, 1); } else sh.shots.splice(Math.min(u.i, sh.shots.length), 0, u.q);
@@ -317,23 +350,137 @@
       acur.sheets = []; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.everything_in_this_analysis_cleared'));
     });
   };
+  // v2.5.0 刪除目前分析：整筆（名稱、日期、全部靶紙）從紀錄刪掉，雲端也刪；之後開一個新的空分析
+  function anaInRecords() { return App.sessions.some(function (x) { return x.id === acur.id; }); }
+  $('anaDelAna').onclick = function () {
+    anaPop(null, false); if (App.anaRO || (!anaInRecords() && !acur.sheets.length && !acur.name)) return;
+    var nm = (acur.name && acur.name.trim()) || App.recTitle(acur);
+    ask(wrT('app.delete_current_analysis_q', [nm, acur.sheets.length, anaShots(acur).length]), function () {
+      var id = acur.id;
+      App.sessions = App.sessions.filter(function (x) { return x.id !== id; }); saveSessions(App.sessions);
+      try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(id); } catch (e) {}
+      anaStartNew(acur.targetId, wrT('app.analysis_deleted'));
+      try { App.renderRecords(); } catch (e) {}
+    }, null, { yes: wrT('app.delete_permanently_short'), danger: true });
+  };
   function anaSaveOrDrop() { // 還有資料（或有名稱）就存；變成空的未命名分析就從紀錄移除
     if (persistA()) return;
     var n = App.sessions.length; App.sessions = App.sessions.filter(function (x) { return x.id !== acur.id; });
     if (App.sessions.length !== n) saveSessions(App.sessions);
     store.set(LS_ACUR, acur.id);
   }
-  $('anaName').oninput = function () { acur.name = this.value; persistA(); };
-  function anaStartNew(tid, msg) { revokeAllPhotos(); acur = newAnalysis(tid || acur.targetId); anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); renderAnalysis(); if (App.curTab === 'analysis') App.syncTargetSel(); toast(msg || wrT('app.new_analysis_started')); }
+  $('anaName').oninput = function () { if (ro) return; acur.name = this.value; persistA(); $('anaClearBtn').disabled = !acur.sheets.length && !anaInRecords() && !acur.name; };
+  function anaStartNew(tid, msg) { anaSetMode(null, true); revokeAllPhotos(); acur = newAnalysis(tid || acur.targetId); anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); renderAnalysis(); if (App.curTab === 'analysis') App.syncTargetSel(); toast(msg || wrT('app.new_analysis_started')); }
   $('anaNew').onclick = function () {
     if (acur.sheets.length) ask(wrT('app.the_current_analysis_is_saved'), function () { anaStartNew(); }); else anaStartNew();
   };
   // 換靶種：v1.6.0 起分析頁沒有自己的選單，改用右上角共用的靶種選單（見 tsel.onchange；在分析分頁時改的是分析的靶種）
   function anaChangeTarget(id, revert) {
     if (id === acur.targetId) return;
+    if (ro) { toast(wrT('app.ro_close_first')); if (revert) revert(); App.syncTargetSel(); return; }
     if (acur.sheets.length) ask(wrT('app.switching_to_starts_a_new', [T[id].name]), function () { anaStartNew(id, wrT('app.switched_to_new_analysis_started', [T[id].name])); }, revert);
     else { acur.targetId = id; AV.reset(); fillAnaCalRing(); renderAnalysis(); }
   }
+  // ---------- v2.5.0 唯讀檢視：好友分享給我的紀錄、預報對照分析 ----------
+  // 用完整的分析頁（所有模塊）看「別人的／預報的」資料；暫時換掉 acur，關閉時換回自己的分析。
+  // 這段期間 persistA 不寫入、不能改彈孔、不能換靶種；原本的紀錄（好友的或預報的）完全不動。
+  function roPairMode(s) { return s.pairMode || ((s.actuals || []).some(function (a) { return a.src === 'auto'; }) ? 'optimal' : 'order'); }
+  function hasRounds(s) { return (s.preds || []).concat(s.actuals || []).some(function (p) { return p && p.r > 0; }); }
+  /* 預報紀錄 → 給分析頁看的資料：實際彈孔（有分輪就每輪一張）＋預報↔實際配對 */
+  function forecastView(s, sel) {
+    var t = T[s.targetId] || T.ap10, LF = window.BMLite, sheets = [], pairs = [], multi = false;
+    if (LF && (sel != null || hasRounds(s))) {
+      var res = LF.result(t, s, sel == null ? 'all' : sel); multi = res.rounds.length > 1;
+      res.rounds.forEach(function (k) {
+        var a = LF.pointsOf(s.actuals, k);
+        if (a.length) sheets.push({ id: 'r' + k, created: s.created, shots: a.map(function (p) { return { x: p.x, y: p.y, src: p.src || 'auto' }; }), calib: null, photo: null });
+      });
+      var nIn = {}; // 標籤＝「第幾輪-這輪第幾發預報」
+      pairs = res.cmp.pairs.slice().sort(function (a, b) { return (a.r - b.r) || (a.i - b.i); }).map(function (q) { nIn[q.r] = (nIn[q.r] || 0) + 1; return Object.assign({}, q, { lab: multi ? (q.r + 1) + '-' + nIn[q.r] : String(nIn[q.r]) }); });
+    } else {
+      var acts = (s.actuals || []).map(function (p) { return { x: p.x, y: p.y, src: p.src || 'auto' }; });
+      if (acts.length) sheets.push({ id: 'r0', created: s.created, shots: acts, calib: null, photo: null });
+      pairs = C.comparePredictions(t, s.preds || [], s.actuals || [], roPairMode(s)).pairs.map(function (q) { return Object.assign({}, q, { lab: String(q.i) }); });
+    }
+    pairs.sort(function (a, b) { return ((a.r || 0) - (b.r || 0)) || (a.i - b.i); });
+    return { view: { v: 2, kind: 'analysis', id: 'ro_' + s.id, created: s.created, tz: 'Asia/Taipei', name: s.name || '', note: '', targetId: s.targetId, sheets: sheets }, pairs: pairs };
+  }
+  /* o = { kind: 'friend' | 'cmp', title, sub, sel(預報的輪次), saveable, onSave, onClose } */
+  function anaOpenRO(rec, o) {
+    o = o || {}; if (!rec) return false;
+    var v;
+    if (isAna(rec)) v = { view: JSON.parse(JSON.stringify(rec)), pairs: null };
+    else v = forecastView(JSON.parse(JSON.stringify(rec)), o.sel);
+    v.view.id = 'ro_' + String(rec.id || 'x'); if (!T[v.view.targetId]) v.view.targetId = 'ap10';
+    if (ro) anaCloseRO(true);
+    anaSetMode(null, true); anaPop(null, false); anaPrevClear();
+    roSaved = { acur: acur, anaPhotos: anaPhotos, anaSel: anaSel, anaView: anaView, tab: App.curTab, y: window.scrollY };
+    ro = { kind: o.kind || 'friend', rec: rec, title: o.title || v.view.name || '', sub: o.sub || '', pairs: v.pairs, onSave: o.onSave || null, onClose: o.onClose || null, saved: false };
+    acur = v.view; acur.name = ro.title; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset();
+    document.body.classList.add('ana-ro'); $('anaName').readOnly = true;
+    anaRoBar();
+    if (App.curTab !== 'analysis') App.showTab('analysis'); else { fillAnaCalRing(); renderAnalysis(); App.syncTargetSel(); }
+    fillAnaCalRing(); window.scrollTo(0, 0);
+    if (App.back) App.back.push('anaro', function () { anaCloseRO(); });
+    return true;
+  }
+  function anaRoBar() {
+    $('anaRoBar').hidden = !ro; if (!ro) return;
+    $('anaRoTitle').textContent = ro.title || (ro.kind === 'cmp' ? wrT('app.ro_title_cmp') : wrT('member.shared_record'));
+    $('anaRoSub').textContent = ro.sub;
+    $('anaRoSave').hidden = !ro.onSave; $('anaRoSave').disabled = ro.saved;
+    $('anaRoSave').textContent = ro.saved ? wrT('app.ro_saved') : wrT('h.save_as_my_record');
+    $('anaRoClose').textContent = ro.kind === 'cmp' ? wrT('app.ro_back_to_cmp') : wrT('h.close');
+  }
+  function anaCloseRO(silent) {
+    if (!ro) return;
+    var cb = ro.onClose, back = roSaved || {};
+    ro = null; roSaved = null; anaSetMode(null, true); anaPrevClear();
+    acur = back.acur || acur; anaPhotos = back.anaPhotos || {}; anaSel = back.anaSel || 'all'; anaView = back.anaView || 'target'; AV.reset();
+    document.body.classList.remove('ana-ro'); $('anaName').readOnly = false; anaRoBar(); fillAnaCalRing();
+    if (App.back) App.back.drop('anaro');
+    if (silent) return;
+    if (back.tab && back.tab !== App.curTab) App.showTab(back.tab); else { renderAnalysis(); App.syncTargetSel(); }
+    try { window.scrollTo(0, back.y || 0); } catch (e) {}
+    if (cb) cb(back);
+  }
+  $('anaRoClose').onclick = function () { anaCloseRO(); };
+  $('anaRoSave').onclick = function () {
+    if (!ro || !ro.onSave || ro.saved) return;
+    var r = ro; ro.onSave(r.rec, function () { r.saved = true; anaRoBar(); });
+  };
+  /* 另存成我的紀錄：整筆深拷貝、換新的 id（之後改這份不會影響對方；對方的紀錄本來就改不到） */
+  function saveCopy(rec, extra) {
+    var c = JSON.parse(JSON.stringify(rec)), now = new Date();
+    c.id = (isAna(c) ? 'a' : 's') + now.getTime() + Math.floor(Math.random() * 1000);
+    c.updated = now.toISOString(); delete c.round;
+    Object.keys(extra || {}).forEach(function (k) { c[k] = extra[k]; });
+    App.sessions.unshift(c); saveSessions(App.sessions);
+    try { App.renderRecords(); } catch (e) {}
+    return c;
+  }
+  // v2.5.0 分析頁「分享給好友」：選好友（同紀錄頁）；要先登入、建立會員
+  function anaShareSync() {
+    var M = window.WRMember, on = !ro && !!(M && M.canShare && M.canShare());
+    $('anaShareCard').hidden = !on; if (!on) return;
+    var n = 0; try { M.sharesOf(acur.id).forEach(function (x) { n += (x.to || []).length; }); } catch (e) {}
+    $('anaShareFriends').disabled = !anaShots(acur).length;
+    $('anaShareInfo').textContent = n ? wrT('app.shared_with', [n]) : '';
+  }
+  $('anaShareFriends').onclick = function () {
+    var M = window.WRMember; if (ro || !M || !anaShots(acur).length) return;
+    persistA(); M.shareRecord(acur);
+  };
+  App.anaShareSync = anaShareSync;
+  App.anaOpenRO = anaOpenRO; App.anaCloseRO = anaCloseRO; App.anaSaveCopy = saveCopy;
+  /* 預報對照分析（Pro 對照區、Lite 第 3 步的按鈕）：s＝目前預報、sel＝Lite 的輪次（Pro 不給＝整組，跟對照區一樣的配對方式） */
+  App.anaOpenCmp = function (s, sel) {
+    var t = T[s.targetId] || T.ap10, v = forecastView(s, sel);
+    if (!v.pairs.length) { toast(wrT('app.ro_cmp_need_pairs')); return false; }
+    var lbl = sel == null || sel === 'all' ? '' : wrT('app.round', [sel + 1]) + wrT('core.x_3');
+    return anaOpenRO(s, { kind: 'cmp', sel: sel, title: (s.name && s.name.trim()) || wrT('app.ro_title_cmp'),
+      sub: lbl + wrT('app.ro_cmp_sub', [v.pairs.length, anaShots(v.view).length, t.name]) });
+  };
   // --- 小圖表（SVG） ---
   function trTag(tr, upGood, extra) { // 趨勢標籤：好轉綠、變差紅、持平灰
     var cls = tr.dir === '持平' || tr.dir === '資料不足' ? 'tr-flat' : ((tr.dir === '上升') === upGood ? 'tr-good' : 'tr-bad');
@@ -378,13 +525,22 @@
     return out;
   }
   function anaExtraHTML(t, st, set, single) {
-    var h = '', card = function (title, body, cls, id) { return '<div class="ana-card ' + (cls || '') + '" data-mod="' + id + '" data-mod-name="' + esc(title.replace(/^\S+\s/, '')) + '"><div class="ana-ct">' + title + '</div>' + body + '</div>'; };
-    if (!st.n) return '';
+    var M = App.mods, h = '', card = function (title, body, cls, id) { return '<div class="ana-card ' + (cls || '') + '" data-mod="' + id + '" data-mod-name="' + esc(M.plain(title)) + '"><div class="ana-ct">' + M.plain(title) + '</div>' + body + '</div>'; };
+    // v2.5.0 預報對照分析（唯讀檢視）：預報專屬模塊放最前面
+    var cmp = App.anaRO && App.anaRO.pairs;
+    if (cmp && cmp.length) h += M.callactCard(t, cmp) + M.centersCard(t, cmp) + M.calltrendCard(cmp);
+    if (!st.n) return h;
+    var shots = set.map(function (x) { return x.q; });
     // 3 校正建議
     var a = st.advice;
     h += card(wrT('app.sight_correction'), wrT('app.group_center_mean_point_of', [a.centered ? wrT('core.centered') : wrT.dir(a.offsetDir) + ' ' + f1(a.dist) + 'mm', esc(a.text), a.excluded ? wrT('app.after_excluding_outliers_the', [a.excluded]) : '', f2(a.threshold)]), 'adv', 'adv');
+    // v2.5.0 潛在分數熱圖（數字先出，熱圖之後補上）
+    h += M.heatCard(t, shots);
     // 6 穩定度
     h += card(wrT('app.consistency'), wrT('app.std_dev_decimal_integer_avg', [f2(st.sdDec), f2(st.sdRing), f2(st.avgDecExWorst), f2(st.avgExWorst), st.worstIdx >= 0 ? wrT('app.worst', [set[st.worstIdx].sheet && !single ? wrT('app.target', [set[st.worstIdx].sheet]) : '', set[st.worstIdx].i, f1(st.shots[st.worstIdx].dec)]) : '']), '', 'stab');
+    // v2.5.0 散布圈、Teiler、每發方向箭頭
+    var one = single || acur.sheets.length <= 1; // 只有一張：發號不用加「第幾張-」
+    h += M.spreadCard(t, shots) + M.teilerCard(t, shots, set, one) + M.dirCard(t, st, set, one);
     // 7 離群發
     var o = st.outliers;
     var ol = o.idx.map(function (i) { return wrT('app.mm_from_group_center', [single ? '' : wrT('app.target_2', [set[i].sheet]), set[i].i, st.shots[i].ring, f1(st.shots[i].dec), f1(o.radii[i])]); }).join('');
@@ -474,8 +630,13 @@
       el('line', { x1: a.dx - cs, y1: -a.dy, x2: a.dx + cs, y2: -a.dy, stroke: '#00c853', 'stroke-width': sw * 1.6 }, lines);
       el('line', { x1: a.dx, y1: -a.dy - cs, x2: a.dx, y2: -a.dy + cs, stroke: '#00c853', 'stroke-width': sw * 1.6 }, lines);
     }
+    if ($('anaShowSpread').checked && st.n >= 2) { // v2.5.0 散布圈：平均半徑圈（虛線，綠）＋最小外接圓（紫）
+      var sp = C.spread(shots), sw2 = Math.max(0.15, E * 0.005);
+      el('circle', { cx: sp.mpi.x, cy: -sp.mpi.y, r: sp.meanRadius, fill: 'none', stroke: '#2fd36b', 'stroke-width': sw2, 'stroke-dasharray': (E * 0.012) + ' ' + (E * 0.007), 'class': 'ana-spr' }, lines);
+      el('circle', { cx: sp.mec.x, cy: -sp.mec.y, r: sp.mec.r, fill: 'none', stroke: '#ae3ec9', 'stroke-width': sw2, 'class': 'ana-spr' }, lines);
+    }
     anaInfo(t, sh, st); anaFitLabel();
-    $('anaUndo').disabled = !(sh && sh._undo); $('anaClearBtn').disabled = !acur.sheets.length; $('anaCalBtn').disabled = !acur.sheets.length;
+    $('anaUndo').disabled = !(sh && sh._undo); $('anaClearBtn').disabled = !acur.sheets.length && !anaInRecords() && !acur.name; $('anaCalBtn').disabled = !acur.sheets.length;
     if (anaPopOpen) anaPopSync();
     anaSensSync();
     $('anaReadout').classList.toggle('sr', !!acur.sheets.length);
@@ -500,6 +661,7 @@
     $('anaSheetTable').querySelectorAll('tr[data-id]').forEach(function (r) { r.onclick = function () { anaSel = r.dataset.id; renderAnalysis(); }; });
     $('anaList').innerHTML = shotTable(st.shots);
     App.updateAnaCodeInfo();
+    anaShareSync(); App.mods.after($('anaMods')); // v2.5.0：每個模塊左上角的圖示＋熱圖
   }
   fillAnaCalRing();
 })(window.WRApp = window.WRApp || {});

@@ -4,7 +4,7 @@
  * Firestore 結構：users/{uid}（個人資料）、users/{uid}/records/{紀錄id}（每筆紀錄一份文件，data＝紀錄 JSON 字串）。
  * 衝突處理：以紀錄的 updated（ISO 時間）較新者為準；刪除用「墓碑」（deleted:true）讓其他裝置也刪掉。
  * v1.8.0：正式啟用（wrbeta-81118）。只在網址版（https 或 localhost）啟用；單檔版（file://）不能登入 Google，維持離線。
- *   寫入的欄位要跟 firestore.rules 一致：users/{uid} 只能有 email／name／provider／relay／updated／app；
+ *   寫入的欄位要跟 firestore.rules 一致：users/{uid} 只能有 email／name／provider／relay／updated／app（v2.5.0 另有 pf＝選填資料，由 member.js syncPf 用 mergeFields 寫）；
  *   records 只能有 id／kind／targetId／created／updated／name／v／data／size（墓碑＝id／updated／deleted）。
  *   新增：pending()（這台裝置待上傳幾筆）、deleteAccount()（刪雲端紀錄＋個人資料文件＋Firebase 帳號）。
  * v2.0.0：on(fn)（登入狀態變化通知其他模組）、fb()（給 member.js 用的 Firestore／Auth）；刪帳號前先呼叫 WRMember.purge() 清掉會員、好友、分享資料。 */
