@@ -116,6 +116,7 @@
   }
   function anaEnqueue(files) {
     if (ro) { toast(wrT('app.ro_close_first')); return; }
+    if (lockedBlock()) return;
     for (var i = 0; i < files.length; i++) { if (pickIsImage(files[i])) anaQueue.push(files[i]); else pickError(files[i]); }
     if (!anaBusy) anaNext();
   }
@@ -165,6 +166,7 @@
   var anaMode = null;
   function anaSetMode(m, quiet) {
     if (App.anaRO) m = null;
+    if (m && m !== anaMode && isLocked()) { lockToast(); return; }
     var was = anaMode; anaMode = m === anaMode ? null : m;
     [['anaModeAdd', 'add'], ['anaModeDel', 'del']].forEach(function (x) { var b = $(x[0]), on = anaMode === x[1]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     var box = $('anaBox'); box.classList.toggle('mode-add', anaMode === 'add'); box.classList.toggle('mode-del', anaMode === 'del'); $('anaWrap').classList.toggle('ana-moding', !!anaMode);
@@ -175,6 +177,7 @@
   App.anaSetMode = anaSetMode;
   Object.defineProperty(App, 'anaMode', { get: function () { return anaMode; }, enumerable: true, configurable: true });
   function anaTapHole(sh, m, tol) { // 依目前模式加一發或刪最近的一發；tol＝刪除時可接受的距離（mm）
+    if (lockedBlock()) return;
     var t = atgt();
     if (anaMode === 'add') { var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual' }; sh.shots.push(q); sh._undo = { op: 'add', q: q }; toast(wrT('app.shot_hole_added')); }
     else if (anaMode === 'del') {
@@ -244,7 +247,8 @@
   })();
   $('anaImg').addEventListener('click', function (ev) {
     var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (!P || P.busy) return;
-    if (Date.now() - anaPZ.moved < 350) return; // 剛縮放／平移完的那一下不算點選
+    if (Date.now() - anaPZ.moved < 350) return;
+    if ((anaMode || (P.mode === 'manual' && P.calPts.length < 5)) && lockedBlock()) return; // 剛縮放／平移完的那一下不算點選
     var r = this.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * P.w, py = (ev.clientY - r.top) / r.height * P.h;
     if (P.mode === 'manual' && P.calPts.length < 5) {
       var tt = C.calibTargets(atgt(), anaCalRing())[P.calPts.length];
@@ -286,22 +290,24 @@
     ['anaRedetect', 'anaRotL', 'anaRotR'].forEach(function (k) { $(k).disabled = !P || !P.T || P.busy; });
     $('anaCalNote').textContent = !sh ? wrT('app.pick_a_photo_below_first') : !P ? wrT('app.this_targets_photo_wasnt_kept_2') : P.T ? wrT('app.green_circles_should_match_the_2') : wrT('app.auto_calibration_failed_tap_manual_4');
   }
-  $('anaCalBtn').onclick = function (e) { e.stopPropagation(); anaPop('anaCalPop', anaPopOpen !== 'anaCalPop'); };
-  $('anaClearBtn').onclick = function (e) { e.stopPropagation(); anaPop('anaClearPop', anaPopOpen !== 'anaClearPop'); };
+  $('anaCalBtn').onclick = function (e) { e.stopPropagation(); if (lockedBlock()) return; anaPop('anaCalPop', anaPopOpen !== 'anaCalPop'); };
+  $('anaClearBtn').onclick = function (e) { e.stopPropagation(); if (lockedBlock()) return; anaPop('anaClearPop', anaPopOpen !== 'anaClearPop'); };
   document.addEventListener('pointerdown', function (e) { if (anaPopOpen && !e.target.closest('.ana-pop,#anaCalBtn,#anaClearBtn')) anaPop(null, false); if (!$('anaPickHint').hidden && !e.target.closest('#anaPickHint,#anaPickInfo')) anaPickHint(false); }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (anaPopOpen) anaPop(null, false); anaPickHint(false); } });
   App.anaPopClose = function () { anaPop(null, false); anaPickHint(false); }; // v2.5.0 返回鍵
   function anaPickHint(on) { $('anaPickHint').hidden = !on; $('anaPickInfo').setAttribute('aria-expanded', on ? 'true' : 'false'); }
   $('anaPickInfo').onclick = function (e) { e.stopPropagation(); anaPickHint($('anaPickHint').hidden); };
-  $('anaAutoCal').onclick = function () { var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P) { P.mode = 'auto'; P.calPts = []; $('anaCalRingRow').style.display = 'none'; anaProcess(sh); } };
-  $('anaRedetect').onclick = function () { var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P && P.T) anaProcess(sh); };
-  $('anaSens').onchange = function () { anaSensSync(); var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.T) anaProcess(sh); };
+  $('anaAutoCal').onclick = function () { if (lockedBlock()) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P) { P.mode = 'auto'; P.calPts = []; $('anaCalRingRow').style.display = 'none'; anaProcess(sh); } };
+  $('anaRedetect').onclick = function () { if (lockedBlock()) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P && P.T) anaProcess(sh); };
+  var anaSens0 = $('anaSens').value;
+  $('anaSens').onchange = function () { if (isLocked() && selSheet() && anaPhotos[selSheet().id]) { lockToast(); $('anaSens').value = anaSens0; anaSensSync(); return; } anaSens0 = $('anaSens').value; anaSensSync(); var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.T) anaProcess(sh); };
   function anaSensSync() { var v = $('anaSens').value; $('anaSensSeg').querySelectorAll('button').forEach(function (b) { var on = b.dataset.v === v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); }); }
   $('anaSensSeg').querySelectorAll('button').forEach(function (b) { b.onclick = function () { if ($('anaSens').value === b.dataset.v) return; $('anaSens').value = b.dataset.v; $('anaSens').onchange(); }; });
-  $('anaManual').onclick = function () { var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (!P) return; P.mode = 'manual'; P.calPts = []; P.T = null; P.Tinv = null; $('anaCalRingRow').style.display = ''; anaView = 'photo'; renderAnalysis(); anaPZLayout(true); };
-  $('anaCalRing').onchange = function () { var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.mode === 'manual') { P.calPts = []; P.T = null; P.Tinv = null; renderAnalysis(); } };
+  $('anaManual').onclick = function () { if (lockedBlock()) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (!P) return; P.mode = 'manual'; P.calPts = []; P.T = null; P.Tinv = null; $('anaCalRingRow').style.display = ''; anaView = 'photo'; renderAnalysis(); anaPZLayout(true); };
+  $('anaCalRing').onchange = function () { if (lockedBlock()) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.mode === 'manual') { P.calPts = []; P.T = null; P.Tinv = null; renderAnalysis(); } };
   function anaRotate(deg) {
     var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (!P || !P.T) return;
+    if (lockedBlock()) return;
     var th = deg * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th), rms = P.T.rms;
     P.T = window.BMVision.rotateAffine(P.T, th); P.T.rms = rms; P.Tinv = C.invertAffine(P.T); P.rotDeg = (P.rotDeg || 0) + deg;
     sh.shots = sh.shots.map(function (q) { return Object.assign({}, q, { x: C.round(c * q.x - sn * q.y, 3), y: C.round(sn * q.x + c * q.y, 3) }); });
@@ -332,11 +338,13 @@
   function anaTg(btn, cb) { btn.onclick = function () { cb.checked = !cb.checked; btn.classList.toggle('on', cb.checked); btn.setAttribute('aria-checked', cb.checked ? 'true' : 'false'); renderAnalysis(); }; }
   anaTg($('anaTgCenter'), $('anaShowCenter')); anaTg($('anaTgOut'), $('anaShowOut')); anaTg($('anaTgSpread'), $('anaShowSpread')); // v2.5.0 散布圈（預設關）
   $('anaUndo').onclick = function () {
+    if (lockedBlock()) return;
     var sh = selSheet(); if (!sh || !sh._undo) { toast(sh ? wrT('app.nothing_to_undo_for_this') : wrT('app.pick_one_below_first_to')); return; }
     var u = sh._undo; if (u.op === 'add') { var i = sh.shots.indexOf(u.q); if (i >= 0) sh.shots.splice(i, 1); } else sh.shots.splice(Math.min(u.i, sh.shots.length), 0, u.q);
     sh._undo = null; persistA(); renderAnalysis(); toast(wrT('app.undone'));
   };
   $('anaDelSheet').onclick = function () {
+    if (lockedBlock()) { anaPop(null, false); return; }
     var sh = selSheet(); anaPop(null, false); if (!sh) return;
     ask(wrT('app.clear_this_target_target_shots', [sheetNo(sh), sh.shots.length]), function () {
       acur.sheets = acur.sheets.filter(function (x) { return x !== sh; }); revokePhotoUrl(anaPhotos[sh.id]); delete anaPhotos[sh.id]; anaSel = 'all'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.target_cleared'));
@@ -344,6 +352,7 @@
   };
   // v1.6.0 清除所有紀錄：清掉這次分析的全部照片與每張紀錄（名稱、日期保留；沒有名稱就從「紀錄」移除這筆空分析）
   $('anaClearAll').onclick = function () {
+    if (lockedBlock()) { anaPop(null, false); return; }
     anaPop(null, false); if (!acur.sheets.length) return;
     ask(wrT('app.clear_everything_all_photos_and', [acur.sheets.length, anaShots(acur).length]), function () {
       revokeAllPhotos();
@@ -353,6 +362,7 @@
   // v2.5.0 刪除目前分析：整筆（名稱、日期、全部靶紙）從紀錄刪掉，雲端也刪；之後開一個新的空分析
   function anaInRecords() { return App.sessions.some(function (x) { return x.id === acur.id; }); }
   $('anaDelAna').onclick = function () {
+    if (lockedBlock()) { anaPop(null, false); return; }
     anaPop(null, false); if (App.anaRO || (!anaInRecords() && !acur.sheets.length && !acur.name)) return;
     var nm = (acur.name && acur.name.trim()) || App.recTitle(acur);
     ask(wrT('app.delete_current_analysis_q', [nm, acur.sheets.length, anaShots(acur).length]), function () {
@@ -369,7 +379,7 @@
     if (App.sessions.length !== n) saveSessions(App.sessions);
     store.set(LS_ACUR, acur.id);
   }
-  $('anaName').oninput = function () { if (ro) return; acur.name = this.value; persistA(); $('anaClearBtn').disabled = !acur.sheets.length && !anaInRecords() && !acur.name; };
+  $('anaName').oninput = function () { if (ro) return; if (isLocked()) { this.value = acur.name || ''; lockToast(); return; } acur.name = this.value; persistA(); $('anaClearBtn').disabled = !acur.sheets.length && !anaInRecords() && !acur.name; };
   function anaStartNew(tid, msg) { anaSetMode(null, true); revokeAllPhotos(); acur = newAnalysis(tid || acur.targetId); anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); renderAnalysis(); if (App.curTab === 'analysis') App.syncTargetSel(); toast(msg || wrT('app.new_analysis_started')); }
   $('anaNew').onclick = function () {
     if (acur.sheets.length) ask(wrT('app.the_current_analysis_is_saved'), function () { anaStartNew(); }); else anaStartNew();
@@ -378,9 +388,78 @@
   function anaChangeTarget(id, revert) {
     if (id === acur.targetId) return;
     if (ro) { toast(wrT('app.ro_close_first')); if (revert) revert(); App.syncTargetSel(); return; }
+    if (!acur.sheets.length && isLocked()) { lockToast(); if (revert) revert(); App.syncTargetSel(); return; } // 有靶紙時換靶種＝開新分析，不動這筆
     if (acur.sheets.length) ask(wrT('app.switching_to_starts_a_new', [T[id].name]), function () { anaStartNew(id, wrT('app.switched_to_new_analysis_started', [T[id].name])); }, revert);
     else { acur.targetId = id; AV.reset(); fillAnaCalRing(); renderAnalysis(); }
   }
+  // ---------- v2.8.0 紀錄鎖定（White 2026-11-21 定案；設計稿 /workspace/lock_preview v4） ----------
+  // 名字旁的小鎖頭點一下＝鎖住／解鎖（存在紀錄的 locked 欄位：本機、雲端同步、JSON 都會帶著；紀錄碼不帶）。
+  // 鎖住時擋：刪除、改名、添加／消滅彈孔、校正、復原、清除、加照片、換靶種（空紀錄）等所有會改紀錄內容的路徑。
+  var LOCK_MS = 260, UNLOCK_MS = 280, lockAnims = [], lockBusy = false;
+  function isLocked(s) { s = s || acur; return !(s === acur && ro) && !!(s && s.locked); }
+  function lockToast() { toast(wrT('app.lock_blocked'), 4000); }
+  function lockedBlock() { if (!isLocked()) return false; lockToast(); return true; }
+  App.isLocked = isLocked; App.lockedBlock = lockedBlock; App.lockToast = lockToast;
+  var LOCK_EDIT_IDS = ['anaModeAdd', 'anaModeDel', 'anaCalBtn', 'anaUndo', 'anaClearBtn', 'anaCamBtn', 'anaPickBtn', 'anaFileBtn'];
+  function lockSync() {
+    var b = $('anaNameLock'), locked = isLocked(), show = !ro && anaInRecords();
+    b.hidden = !show; b.parentNode.classList.toggle('has-lock', show);
+    document.body.classList.toggle('ana-locked', locked);
+    $('anaName').readOnly = !!ro || locked; $('anaName').setAttribute('aria-readonly', locked || ro ? 'true' : 'false');
+    if (!lockAnims.length) b.classList.toggle('is-locked', locked);
+    b.setAttribute('aria-pressed', locked ? 'true' : 'false');
+    b.setAttribute('aria-label', locked ? wrT('app.lock_aria_unlock') : wrT('app.lock_aria_lock')); b.title = locked ? wrT('app.lock_tip_unlock') : wrT('app.lock_tip_lock');
+    LOCK_EDIT_IDS.forEach(function (id) { var e = $(id); if (!e) return; e.classList.toggle('ana-locked-off', locked); if (locked) e.setAttribute('aria-disabled', 'true'); else e.removeAttribute('aria-disabled'); });
+  }
+  function lockCancelAnims() { lockAnims.forEach(function (a) { try { a.cancel(); } catch (e) {} }); lockAnims = []; }
+  /* 咔嚓動畫（WAAPI；參數照 v4 預覽 lock_anim_v4.mp4）
+   * 鎖 260ms：鎖梁微抬（預備）→ 快速落下略超過閉鎖點 → 回彈停住；鎖身撞擊時壓縮再彈回、整顆輕晃。撞擊（52%）短震 12ms。
+   * 解 280ms：鎖梁先往下壓並停頓 → 彈開超過靜止角 → 落在開鎖角；鎖身先縮再撐開。彈開（28%）短震。 */
+  function lockAnimate(locking) {
+    var b = $('anaNameLock'); lockCancelAnims();
+    var reduce = false; try { reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+    if (!b.animate || reduce) return 0;
+    b.classList.toggle('is-locked', !locking); void b.offsetWidth;
+    var dur = locking ? LOCK_MS : UNLOCK_MS, sh = b.querySelector('.lk-shackle'), bd = b.querySelector('.lk-body'), K;
+    var k = function (tf, o, e) { var x = { transform: tf, offset: o }; if (e) x.easing = e; return x; };
+    if (locking) K = [
+      [k('rotate(-40deg)', 0, 'cubic-bezier(.33,0,.7,1)'), k('rotate(-46deg)', 0.16, 'cubic-bezier(.55,.02,.15,1)'), k('rotate(10deg)', 0.56, 'cubic-bezier(.2,.75,.25,1)'), k('rotate(-3.5deg)', 0.76, 'cubic-bezier(.25,.1,.25,1)'), k('rotate(0deg)', 1)],
+      [k('scale(1)', 0, 'cubic-bezier(.4,0,.6,1)'), k('scale(0.94)', 0.16, 'cubic-bezier(.4,0,.2,1)'), k('scale(0.86)', 0.52, 'cubic-bezier(.15,1.3,.3,1)'), k('scale(1.12)', 0.66, 'cubic-bezier(.25,.1,.25,1)'), k('scale(0.97)', 0.82, 'cubic-bezier(.25,.1,.25,1)'), k('scale(1)', 1)],
+      [k('rotate(0deg) translateX(0px)', 0), k('rotate(0deg) translateX(0px)', 0.5, 'cubic-bezier(.3,.8,.4,1)'), k('rotate(-3deg) translateX(-1px)', 0.58, 'linear'), k('rotate(2deg) translateX(1px)', 0.68, 'cubic-bezier(.25,.1,.25,1)'), k('rotate(0deg) translateX(0px)', 0.84), k('rotate(0deg) translateX(0px)', 1)]];
+    else K = [
+      [k('rotate(0deg)', 0, 'cubic-bezier(.4,0,.6,1)'), k('rotate(8deg)', 0.18, 'linear'), k('rotate(8deg)', 0.28, 'cubic-bezier(.12,.8,.15,1.12)'), k('rotate(-50deg)', 0.72, 'cubic-bezier(.25,.1,.25,1)'), k('rotate(-40deg)', 1)],
+      [k('scale(1)', 0, 'cubic-bezier(.4,0,.6,1)'), k('scale(0.90)', 0.2, 'linear'), k('scale(0.90)', 0.28, 'cubic-bezier(.15,1.25,.3,1)'), k('scale(1.10)', 0.58, 'cubic-bezier(.25,.1,.25,1)'), k('scale(0.98)', 0.8, 'cubic-bezier(.25,.1,.25,1)'), k('scale(1)', 1)],
+      [k('rotate(0deg) translateX(0px)', 0), k('rotate(0deg) translateX(0px)', 0.26, 'cubic-bezier(.3,.8,.4,1)'), k('rotate(2.5deg) translateX(1px)', 0.36, 'linear'), k('rotate(-2deg) translateX(-1px)', 0.5, 'cubic-bezier(.25,.1,.25,1)'), k('rotate(0deg) translateX(0px)', 0.7), k('rotate(0deg) translateX(0px)', 1)]];
+    var opt = { duration: dur, easing: 'linear', fill: 'forwards' };
+    lockAnims = [sh.animate(K[0], opt), bd.animate(K[1], opt), b.animate(K[2], opt)];
+    b.classList.remove('lk-rippling'); void b.offsetWidth; b.classList.add('lk-rippling'); setTimeout(function () { b.classList.remove('lk-rippling'); }, 300);
+    setTimeout(function () { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {} }, (locking ? 0.52 : 0.28) * dur);
+    return dur;
+  }
+  function setLocked(on) {
+    if (ro || !anaInRecords()) return false;
+    acur.locked = !!on; if (!on) delete acur.locked; // 沒鎖就不留欄位（舊紀錄、紀錄碼還原的紀錄都一樣）
+    if (on) { anaSetMode(null, true); anaPop(null, false); }
+    persistA();
+    return !!on;
+  }
+  App.anaSetLocked = function (on) { var r = setLocked(on); lockSync(); try { App.renderRecords(); } catch (e) {} return r; };
+  function toggleLock() {
+    if (lockBusy || ro || !anaInRecords()) return;
+    var next = !isLocked(), b = $('anaNameLock');
+    if (document.activeElement === $('anaName')) $('anaName').blur();
+    setLocked(next); lockBusy = true;
+    var dur = lockAnimate(next);
+    var done = function () { lockBusy = false; lockCancelAnims(); b.classList.toggle('is-locked', isLocked()); lockSync(); };
+    lockSync(); try { App.renderRecords(); } catch (e) {}
+    toast(next ? wrT('app.lock_on') : wrT('app.lock_off'));
+    if (dur) setTimeout(done, dur + 16); else done();
+  }
+  $('anaNameLock').onclick = function (e) { e.preventDefault(); e.stopPropagation(); toggleLock(); };
+  // 加照片的三顆（label 包 input）：鎖住時在打開選擇器之前就擋下
+  ['anaCamBtn', 'anaPickBtn', 'anaFileBtn'].forEach(function (id) { var e = $(id); if (e) e.addEventListener('click', function (ev) { if (!isLocked() || App.curTab !== 'analysis') return; ev.preventDefault(); ev.stopPropagation(); lockToast(); }, true); });
+  $('anaName').addEventListener('pointerdown', function (e) { if (isLocked()) { e.preventDefault(); lockToast(); } }, true);
+  $('anaName').addEventListener('focus', function () { if (isLocked()) { this.blur(); } }, true);
   // ---------- v2.5.0 唯讀檢視：好友分享給我的紀錄、預報對照分析 ----------
   // 用完整的分析頁（所有模塊）看「別人的／預報的」資料；暫時換掉 acur，關閉時換回自己的分析。
   // 這段期間 persistA 不寫入、不能改彈孔、不能換靶種；原本的紀錄（好友的或預報的）完全不動。
@@ -456,7 +535,7 @@
   function saveCopy(rec, extra) {
     var c = JSON.parse(JSON.stringify(rec)), now = new Date();
     c.id = (isAna(c) ? 'a' : 's') + now.getTime() + Math.floor(Math.random() * 1000);
-    c.updated = now.toISOString(); delete c.round;
+    c.updated = now.toISOString(); delete c.round; delete c.locked; // v2.8.0：另存的副本一律從「沒鎖」開始（自己的新紀錄，要鎖再自己鎖）
     Object.keys(extra || {}).forEach(function (k) { c[k] = extra[k]; });
     App.sessions.unshift(c); saveSessions(App.sessions);
     try { App.renderRecords(); } catch (e) {}
@@ -511,6 +590,11 @@
     var pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
     var X = function (i) { return n === 1 ? (L + W - R) / 2 : L + i * (W - L - R) / (n - 1); }, Y = function (v) { return Tp + (hi - v) / (hi - lo) * (H - Tp - B); };
     var col = opt.color || 'var(--ana-acc,#1e6fd9)';
+    // v2.8.0 x 軸標籤抽稀：依最長標籤的估計寬度（中日韓字 1em、其他約 .6em，字級 10）算每幾個標一個，保證不重疊（12 張「第10張」／英文都適用）
+    //   放不下時有 opt.short（較短的標籤，例如只用數字）就先換短的，再不行才抽稀
+    function axStepOf(lb) { var w = Math.max.apply(null, lb.slice(0, n).map(function (t) { var x = 0; String(t == null ? '' : t).split('').forEach(function (c) { x += /[\u2e80-\uffff]/.test(c) ? 10 : 6; }); return x; })); return n > 1 ? Math.max(1, Math.ceil((w + 8) / ((W - L - R) / (n - 1)))) : 1; }
+    var axStep = axStepOf(labels);
+    if (axStep > 1 && opt.short) { labels = opt.short; axStep = axStepOf(labels); }
     var s = '<svg class="ana-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(opt.title || '') + '">';
     for (var k = 0; k <= 3; k++) { var v = lo + (hi - lo) * k / 3, y = Y(v); s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" class="gl"/><text x="' + (L - 4) + '" y="' + (y + 3.5) + '" text-anchor="end" class="ax">' + v.toFixed(opt.dp == null ? 1 : opt.dp) + '</text>'; }
     if (n >= 2 && opt.trend) { var tr = C.trend(vals), my = vals.reduce(function (a, b) { return a + b; }, 0) / n, x0 = X(0), x1 = X(n - 1); s += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + Y(my - tr.slope * (n - 1) / 2) + '" y2="' + Y(my + tr.slope * (n - 1) / 2) + '" class="tl"/>'; }
@@ -518,7 +602,7 @@
     vals.forEach(function (v, i) {
       s += '<circle cx="' + X(i) + '" cy="' + Y(v) + '" r="3.6" fill="#fff" stroke="' + col + '" stroke-width="2"/>';
       if (n <= 12) s += '<text x="' + (n > 1 && i === 0 ? X(i) + 5 : n > 1 && i === n - 1 ? X(i) - 5 : X(i)) + '" y="' + (Y(v) - 7) + '" text-anchor="' + (n > 1 && i === 0 ? 'start' : n > 1 && i === n - 1 ? 'end' : 'middle') + '" class="vl">' + v.toFixed(opt.dp == null ? 1 : opt.dp) + '</text>';
-      if (n <= 12 || i % Math.ceil(n / 8) === 0) s += '<text x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="middle" class="ax">' + esc(labels[i]) + '</text>';
+      if (i % axStep === 0) s += '<text x="' + X(i) + '" y="' + (H - 8) + '" text-anchor="middle" class="ax">' + esc(labels[i]) + '</text>';
     });
     return s + '</svg>';
   }
@@ -566,7 +650,7 @@
     if (!single && acur.sheets.length >= 2) {
       var sv = acur.sheets.filter(function (x) { return x.shots.length; }).map(function (x) { return C.computeStats(t, x.shots).avgDec; });
       var tr = C.trend(sv);
-      tb += wrT('app.average_per_target_decimal_trend', [trTag(tr, true, tr.dir === '上升' || tr.dir === '下降' ? ' ' + (tr.change > 0 ? '+' : '') + f2(tr.change) : ''), lineChart(sv, sv.map(function (_, i) { return wrT('app.target', [i + 1]); }), { trend: true, title: wrT('app.average_per_target') })]);
+      tb += wrT('app.average_per_target_decimal_trend', [trTag(tr, true, tr.dir === '上升' || tr.dir === '下降' ? ' ' + (tr.change > 0 ? '+' : '') + f2(tr.change) : ''), lineChart(sv, sv.map(function (_, i) { return wrT('app.trend_x_target', [i + 1]); }), { trend: true, title: wrT('app.average_per_target'), short: sv.map(function (_, i) { return String(i + 1); }) })]);
     }
     if (st.per10.length >= 2) {
       var pv = st.per10.map(function (x) { return x.avgDec; });
@@ -593,7 +677,7 @@
     acur.sheets.forEach(function (x, k) {
       var un = x.shots.filter(isUnsure).length, bad = x.calib && x.calib.mode === 'failed', busy = anaPhotos[x.id] && anaPhotos[x.id].busy, on = anaSel === x.id;
       var s1 = busy ? null : C.computeStats(t, x.shots);
-      ch += wrT('app.x_4', [on ? ' on' : '', x.id, on, SHEET_COLORS[k % SHEET_COLORS.length], k + 1, k + 1, busy ? '…' : wrT('app.shots_3', [x.shots.length]), busy ? wrT('app.analyzing') : bad ? wrT('app.calibration_failed') : wrT('app.x', [s1.total, f1(s1.totalDec)]), un ? wrT('app.x_5', [un]) : '', bad ? '<em>!</em>' : '']);
+      ch += wrT('app.x_4', [on ? ' on' : '', x.id, on, SHEET_COLORS[k % SHEET_COLORS.length], k + 1, k + 1, busy ? '…' : wrT('app.chip_shots', [x.shots.length]), busy ? wrT('app.analyzing') : bad ? wrT('app.calibration_failed') : wrT('app.x', [s1.total, f1(s1.totalDec)]), un ? wrT('app.x_5', [un]) : '', bad ? '<em>!</em>' : '']);
     });
     ch += wrT('app.x_6');
     return ch;
@@ -651,7 +735,7 @@
       el('circle', { cx: sp.mpi.x, cy: -sp.mpi.y, r: sp.meanRadius, fill: 'none', stroke: '#2fd36b', 'stroke-width': sw2, 'stroke-dasharray': (E * 0.012) + ' ' + (E * 0.007), 'class': 'ana-spr' }, lines);
       el('circle', { cx: sp.mec.x, cy: -sp.mec.y, r: sp.mec.r, fill: 'none', stroke: '#ae3ec9', 'stroke-width': sw2, 'class': 'ana-spr' }, lines);
     }
-    anaInfo(t, sh, st); anaFitLabel();
+    anaInfo(t, sh, st); anaFitLabel(); lockSync();
     $('anaUndo').disabled = !(sh && sh._undo); $('anaClearBtn').disabled = !acur.sheets.length && !anaInRecords() && !acur.name; $('anaCalBtn').disabled = !acur.sheets.length;
     if (anaPopOpen) anaPopSync();
     anaSensSync();

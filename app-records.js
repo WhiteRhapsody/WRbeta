@@ -150,7 +150,7 @@
     box.innerHTML = '';
     App.sessions.forEach(function (s) {
       var t = T[s.targetId] || T.ap10, ana = isAna(s), gho = G.isGhost(s), isCur = ana ? s.id === App.acur.id : gho ? !!(App.gcur && s.id === App.gcur.id) : s.id === App.cur.id;
-      var div = document.createElement('div'); div.className = 'rec' + (isCur ? ' cur' : '') + (ana ? ' ana' : ''); div.dataset.id = s.id;
+      var locked = !!s.locked, div = document.createElement('div'); div.className = 'rec' + (isCur ? ' cur' : '') + (ana ? ' ana' : '') + (locked ? ' is-locked' : ''); div.dataset.id = s.id;
       var meta = '';
       if (ana) {
         var as = C.analyzeShots(t, anaShots(s));
@@ -165,7 +165,8 @@
       div.innerHTML = wrT('app.x_8', [recPick[s.id] ? ' checked' : '', ana ? 'b-ana' : gho ? 'b-gh' : 'b-fc', ana ? wrT('app.analysis_2') : gho ? wrT('app.ghost') : wrT('app.call_2'), esc(fmtTW(s.created)), t.name, isCur ? wrT('app.current') : '', meta]);
       div.querySelector('.rec-chk').onchange = function () { if (this.checked) recPick[s.id] = 1; else delete recPick[s.id]; updateCmpBtn(); };
       var name = document.createElement('input'); name.className = 'rec-name'; name.placeholder = wrT('app.custom_name'); name.value = s.name != null && s.name !== '' ? s.name : (s.note || ''); name.setAttribute('aria-label', wrT('app.record_name'));
-      name.onchange = function () { s.name = name.value.trim(); s.updated = new Date().toISOString(); if (!ana) s.note = s.note || ''; if (ana && s.id === App.acur.id) App.acur.name = s.name; saveSessions(App.sessions); renderRecords(); toast(wrT('app.name_updated')); };
+      if (locked) { name.readOnly = true; name.setAttribute('aria-readonly', 'true'); name.addEventListener('pointerdown', function (e) { e.preventDefault(); App.lockToast(); }, true); name.addEventListener('focus', function () { name.blur(); }, true); }
+      name.onchange = function () { if (s.locked) { name.value = s.name || ''; App.lockToast(); return; } s.name = name.value.trim(); s.updated = new Date().toISOString(); if (!ana) s.note = s.note || ''; if (ana && s.id === App.acur.id) App.acur.name = s.name; saveSessions(App.sessions); renderRecords(); toast(wrT('app.name_updated')); };
       var open = document.createElement('button'); open.textContent = wrT('app.open');
       open.onclick = function () {
         if (ana) { App.acur = s; App.anaPhotos = {}; App.anaSel = 'all'; store.set(LS_ACUR, s.id); fillAnaCalRing(); renderAnalysis(); showTab('analysis'); }
@@ -173,7 +174,9 @@
         else { App.cur = s; store.set(LS_CUR, s.id); $('targetSel').value = s.targetId; photo.reset(); App.renderAll(); showTab('predict'); }
       };
       var del = document.createElement('button'); del.textContent = wrT('app.delete'); del.className = 'warn';
+      if (locked) { del.setAttribute('aria-disabled', 'true'); del.title = wrT('app.lock_blocked'); }
       del.onclick = function () {
+        if (s.locked) { App.lockToast(); return; }
         ask(wrT('app.delete_2', [recTitle(s)]), function () {
           App.sessions = App.sessions.filter(function (x) { return x.id !== s.id; }); delete recPick[s.id];
           try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(s.id); } catch (e) {}
@@ -186,7 +189,9 @@
       // v2.7.0 匯出 PDF（所有人都能用；有彈孔才出現）
       var pdfB = null, nShots = ana ? anaShots(s).length : (s.actuals || []).length;
       if (nShots) { pdfB = document.createElement('button'); pdfB.type = 'button'; pdfB.className = 'rec-pdf'; pdfB.textContent = wrT('pdf.rec_btn'); pdfB.setAttribute('aria-label', wrT('pdf.rec_aria', [recTitle(s)])); pdfB.onclick = function () { App.pdfOpen(s); }; }
-      var r = document.createElement('div'); r.className = 'row'; r.appendChild(name); r.appendChild(open); if (pdfB) r.appendChild(pdfB); r.appendChild(del);
+      var r = document.createElement('div'); r.className = 'row';
+      if (locked) { var lk = document.createElement('span'); lk.className = 'rec-lock-ic'; lk.setAttribute('role', 'img'); lk.setAttribute('aria-label', wrT('app.lock_locked')); lk.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V7.2a4 4 0 0 1 8 0V11"/><rect x="6" y="11" width="12" height="10.2" rx="2"/><path d="M12 14.4v3"/></svg>'; r.appendChild(lk); }
+      r.appendChild(name); r.appendChild(open); if (pdfB) r.appendChild(pdfB); r.appendChild(del);
       div.appendChild(r);
       // v2.0.0：分享給好友（唯讀）；登入並建立會員資料後才出現
       var WM = window.WRMember;

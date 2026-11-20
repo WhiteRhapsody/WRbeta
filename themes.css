@@ -1781,3 +1781,54 @@ body:not(.rc-ok) .ana-dh-sub .rc-only{display:none}
 /* v2.6.1 所有紀錄碼介面（紀錄頁卡片、每筆紀錄碼、Lite／鬼影 📋 紀錄碼）都受同一權限管；.rc-no＝沒權限時的替代文字 */
 body:not(.rc-ok) .rc-gate,body:not(.rc-ok) .rc-only{display:none!important}
 body.rc-ok .rc-no{display:none!important}
+
+/* =====================================================================================
+ * v2.8.0 紀錄鎖定（White 2026-11-21 定案；設計稿 /workspace/lock_preview v4）
+ * 分析頁名字旁的線形小鎖頭：點一下鎖住／解鎖（咔嚓動畫：鎖 260ms、解 280ms＋短震）。顏色＝「拍下一張」主色 --w-camB（隨主題變）。
+ * 視覺 18px，點擊區 44px（::after）。未鎖＝開鎖、稍淡（.75）；鎖住＝閉鎖、實色。紀錄頁列表的鎖頭只顯示。
+ * ===================================================================================== */
+.ana-name-lock{flex:none;position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin:0 2px 0 4px;padding:0;min-height:0;min-width:0;
+  border:0;background:none;box-shadow:none;color:var(--w-camB);opacity:.75;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;z-index:4}
+.ana-name-lock[hidden]{display:none}
+.ana-name-lock::after{content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
+.ana-name-lock.is-locked{opacity:1}
+.ana-name-lock:focus-visible{outline:2px solid var(--w-camB);outline-offset:3px;border-radius:6px}
+.ana-name-lock svg{width:18px;height:18px;overflow:visible;display:block;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.ana-name-lock .lk-shackle,.ana-name-lock .lk-body{transform-box:view-box}
+.ana-name-lock .lk-shackle{transform-origin:8px 11px}
+.ana-name-lock .lk-body{transform-origin:12px 16.1px}
+.ana-name-lock:not(.is-locked) .lk-shackle{transform:rotate(-40deg)}
+.ana-name-lock.is-locked .lk-shackle{transform:rotate(0deg)}
+.ana-name-lock .lk-ripple{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:color-mix(in srgb,var(--w-camB) 30%,transparent);transform:scale(.35);opacity:0;pointer-events:none}
+.ana-name-lock.lk-rippling .lk-ripple{animation:lk-rip 280ms ease-out}
+@keyframes lk-rip{0%{transform:scale(.35);opacity:.55}100%{transform:scale(1.2);opacity:0}}
+body.ana-ro .ana-name-lock{display:none}
+/* 名字輸入框收成文字寬度，小鎖頭緊貼名稱 */
+#tab-analysis .ana-nmrow.has-lock .ana-name{flex:0 1 auto;width:auto;max-width:calc(100% - 52px);field-sizing:content;height:24px}
+body.ana-locked .ana-pen{display:none}
+body.ana-locked #anaName{cursor:default;border-bottom-color:transparent !important;padding-right:2px}
+body.ana-locked .ana-nmrow{cursor:default}
+/* 鎖住時：編輯／刪除類按鈕看起來停用，但仍可點（點了跳出提示） */
+body.ana-locked .ana-locked-off{opacity:.42;filter:grayscale(.25);cursor:not-allowed}
+body.ana-locked .ana-locked-off:active{transform:none !important}
+/* 紀錄頁列表：小鎖頭只顯示、刪除停用 */
+.rec-lock-ic{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin:0 6px 0 0;pointer-events:none;color:var(--w-camB);flex:none}
+.rec-lock-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.rec .row{align-items:center}
+.rec.is-locked .rec-name{width:calc(13em - 24px);background:color-mix(in srgb,var(--w-inBg,#fff) 88%,var(--w-camB))}
+.rec .warn[aria-disabled="true"]{opacity:.4;filter:grayscale(.35);cursor:not-allowed;box-shadow:none}
+@media (prefers-reduced-motion:reduce){.ana-name-lock.lk-rippling .lk-ripple{animation:none}}
+
+/* =====================================================================================
+ * v2.8.0 英文版排版修正（/workspace/en_layout_audit/REPORT.md 1–19；只作用在英文介面，中文版不變）
+ * ===================================================================================== */
+html.wr-lang-en #tab-analysis .ana-rb b{font-size:11px;letter-spacing:-.15px;line-height:1.1}            /* #15 圓鈕標籤放大一點 */
+html.wr-lang-en .lite-hint{white-space:normal;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden} /* #8 Lite 評語可兩行 */
+html.wr-lang-en #tab-analysis .ana-info .r1{gap:4px}                                                        /* #1 總分氣泡 */
+html.wr-lang-en #tab-analysis .ana-info .x{padding:1px 6px}
+html.wr-lang-en .ana-st th{white-space:nowrap}                                                              /* #5 小計表欄名 */
+html.wr-lang-en .gh-big .bk{white-space:normal}                                                              /* #16 鬼影底部提示不撐寬頁面 */
+html.wr-lang-en .gh-big{min-width:0}
+body:not(.lite) #tab-ghost .gh-hint{padding-right:96px}                                                     /* #7 鬼影提示讓出右上「編輯版面」（中文原本也會壓到最後幾個字） */
+html.wr-lang-en body:not(.lite) #tab-ghost .gh-hint{padding-right:112px}
+body:not(.lite):not(.can-back) #tab-ghost .gh-hint{padding-left:8px;text-align:left}

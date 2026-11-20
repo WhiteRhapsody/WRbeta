@@ -1194,7 +1194,17 @@
   "pdf.th_appliance": "科技家電",
   "pdf.th_luxury": "精密精品",
   "h.export_pdf": "匯出 PDF",
-  "h.a4_report_overview_analysis": "A4 報告：總覽、分析、每張靶紙，可以列印或傳給教練"
+  "h.a4_report_overview_analysis": "A4 報告：總覽、分析、每張靶紙，可以列印或傳給教練",
+  "app.lock_blocked": "此紀錄已鎖定，點名字旁的鎖頭解鎖",
+  "app.lock_on": "已鎖定這筆紀錄",
+  "app.lock_off": "已解鎖，可以再編輯或刪除",
+  "app.lock_aria_lock": "鎖定這筆紀錄",
+  "app.lock_aria_unlock": "解鎖這筆紀錄",
+  "app.lock_tip_lock": "點一下鎖定",
+  "app.lock_tip_unlock": "點一下解鎖",
+  "app.lock_locked": "已鎖定",
+  "app.chip_shots": "{0}發",
+  "app.trend_x_target": "第{0}張"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["zh-TW"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

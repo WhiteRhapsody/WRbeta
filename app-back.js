@@ -95,7 +95,7 @@
     if (!btn) return;
     var on = !!nextStep();
     if (btn.hidden !== !on) { btn.hidden = !on; B.classList.toggle('can-back', on); }
-    if (on) { place(); var key = App.curTab + '|' + (App.liteStep ? App.liteStep() : '') + '|' + (App.anaRO ? 1 : 0); if (key !== lastKey || !idleT) wake(); lastKey = key; } // 換頁＝放大
+    if (on) { place(); placeSoon(); setTimeout(place, 120); var key = App.curTab + '|' + (App.liteStep ? App.liteStep() : '') + '|' + (App.anaRO ? 1 : 0); if (key !== lastKey || !idleT) wake(); lastKey = key; } // 換頁＝放大
     else { clearTimeout(idleT); idleT = 0; btn.classList.remove('wb-idle'); }
   }
   if (btn) btn.onclick = function (e) { e.preventDefault(); back(); };
