@@ -19,7 +19,8 @@
     if (!root) return;
     root.querySelectorAll('[data-mod]').forEach(function (m) {
       var id = m.dataset.mod; if (!ICON[id] || m.querySelector(':scope .mod-ic')) return;
-      var host = m.querySelector(':scope > .k') || m.querySelector(':scope > .ana-ct') || m.querySelector(':scope summary') || m.firstElementChild || m;
+      var host = m.querySelector(':scope > .ana-ct') || m.querySelector(':scope > .k') || // v2.7.0：先找卡片標題 .ana-ct（趨勢卡內文也有 .k，之前圖示被插到內文那行，沒套到凸起版）
+         m.querySelector(':scope summary') || m.firstElementChild || m;
       var name = m.dataset.modName || (host.textContent || '').trim();
       var b = document.createElement('button'); b.type = 'button'; b.className = 'mod-ic'; b.dataset.ic = id;
       b.setAttribute('aria-label', wrT('mods.what_is', [name])); b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false');

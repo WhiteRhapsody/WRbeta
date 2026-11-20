@@ -183,7 +183,10 @@
           persist(); App.renderAll();
         });
       };
-      var r = document.createElement('div'); r.className = 'row'; r.appendChild(name); r.appendChild(open); r.appendChild(del);
+      // v2.7.0 匯出 PDF（所有人都能用；有彈孔才出現）
+      var pdfB = null, nShots = ana ? anaShots(s).length : (s.actuals || []).length;
+      if (nShots) { pdfB = document.createElement('button'); pdfB.type = 'button'; pdfB.className = 'rec-pdf'; pdfB.textContent = wrT('pdf.rec_btn'); pdfB.setAttribute('aria-label', wrT('pdf.rec_aria', [recTitle(s)])); pdfB.onclick = function () { App.pdfOpen(s); }; }
+      var r = document.createElement('div'); r.className = 'row'; r.appendChild(name); r.appendChild(open); if (pdfB) r.appendChild(pdfB); r.appendChild(del);
       div.appendChild(r);
       // v2.0.0：分享給好友（唯讀）；登入並建立會員資料後才出現
       var WM = window.WRMember;
@@ -253,12 +256,15 @@
     $('recCmpClose').onclick = function () { $('recCompare').innerHTML = ''; };
   }
   $('exportAll').onclick = function () {
+    if (!App.rcOk()) return;
     var blob = new Blob([JSON.stringify({ app: 'WRbeta', appVersion: App.APP_VERSION, version: SCHEMA_V, schema: wrT('app.sessions_kind_forecast_analysis_coordinates'), exported: new Date().toISOString(), sessions: App.sessions }, null, 1)], { type: 'application/json' });
     var a = document.createElement('a'), url = URL.createObjectURL(blob); a.href = url; a.download = wrT('app.wrbeta_records_json', [new Date().toISOString().slice(0, 10)]); a.click(); setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 1000);
   };
   $('importFile').onchange = function () {
+    if (!App.rcOk()) { this.value = ''; return; }
     var f = this.files[0]; if (!f) return; var rd = new FileReader();
     rd.onload = function () {
+      if (!App.rcOk()) return; // 讀檔期間權限被撤銷也不匯入
       try { var data = JSON.parse(rd.result); var add = (data.sessions || []).filter(function (s) { return s.id && T[s.targetId] && (isAna(s) ? Array.isArray(s.sheets) : Array.isArray(s.preds)) && !App.sessions.some(function (x) { return x.id === s.id; }); });
         add.forEach(function (s) { if (!isAna(s)) { s.actuals = s.actuals || []; } if (!s.updated) s.updated = new Date().toISOString(); });
         App.sessions = App.sessions.concat(add); saveSessions(App.sessions); renderRecords(); toast(wrT('app.imported_sets', [add.length])); } catch (e) { toast(wrT('app.invalid_file_format')); }

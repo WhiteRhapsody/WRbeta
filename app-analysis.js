@@ -388,9 +388,9 @@
   function hasRounds(s) { return (s.preds || []).concat(s.actuals || []).some(function (p) { return p && p.r > 0; }); }
   /* 預報紀錄 → 給分析頁看的資料：實際彈孔（有分輪就每輪一張）＋預報↔實際配對 */
   function forecastView(s, sel) {
-    var t = T[s.targetId] || T.ap10, LF = window.BMLite, sheets = [], pairs = [], multi = false;
+    var t = T[s.targetId] || T.ap10, LF = window.BMLite, sheets = [], pairs = [], multi = false, cmp0 = null, preds = [], acts = [];
     if (LF && (sel != null || hasRounds(s))) {
-      var res = LF.result(t, s, sel == null ? 'all' : sel); multi = res.rounds.length > 1;
+      var res = LF.result(t, s, sel == null ? 'all' : sel); multi = res.rounds.length > 1; cmp0 = res.cmp; preds = res.preds; acts = res.acts;
       res.rounds.forEach(function (k) {
         var a = LF.pointsOf(s.actuals, k);
         if (a.length) sheets.push({ id: 'r' + k, created: s.created, shots: a.map(function (p) { return { x: p.x, y: p.y, src: p.src || 'auto' }; }), calib: null, photo: null });
@@ -400,10 +400,13 @@
     } else {
       var acts = (s.actuals || []).map(function (p) { return { x: p.x, y: p.y, src: p.src || 'auto' }; });
       if (acts.length) sheets.push({ id: 'r0', created: s.created, shots: acts, calib: null, photo: null });
-      pairs = C.comparePredictions(t, s.preds || [], s.actuals || [], roPairMode(s)).pairs.map(function (q) { return Object.assign({}, q, { lab: String(q.i) }); });
+      cmp0 = C.comparePredictions(t, s.preds || [], s.actuals || [], roPairMode(s)); preds = s.preds || []; acts = s.actuals || [];
+      pairs = cmp0.pairs.map(function (q) { return Object.assign({}, q, { lab: String(q.i) }); });
     }
     pairs.sort(function (a, b) { return ((a.r || 0) - (b.r || 0)) || (a.i - b.i); });
-    return { view: { v: 2, kind: 'analysis', id: 'ro_' + s.id, created: s.created, tz: 'Asia/Taipei', name: s.name || '', note: '', targetId: s.targetId, sheets: sheets }, pairs: pairs };
+    // v2.7.0 PDF：預報對照的完整結果（配對照上面的標籤與順序）
+    var fc = pairs.length && cmp0 ? { cmp: Object.assign({}, cmp0, { pairs: pairs }), preds: preds, acts: acts } : null;
+    return { view: { v: 2, kind: 'analysis', id: 'ro_' + s.id, created: s.created, tz: 'Asia/Taipei', name: s.name || '', note: '', targetId: s.targetId, sheets: sheets }, pairs: pairs, fc: fc };
   }
   /* o = { kind: 'friend' | 'cmp', title, sub, sel(預報的輪次), saveable, onSave, onClose } */
   function anaOpenRO(rec, o) {
@@ -415,7 +418,7 @@
     if (ro) anaCloseRO(true);
     anaSetMode(null, true); anaPop(null, false); anaPrevClear();
     roSaved = { acur: acur, anaPhotos: anaPhotos, anaSel: anaSel, anaView: anaView, tab: App.curTab, y: window.scrollY };
-    ro = { kind: o.kind || 'friend', rec: rec, title: o.title || v.view.name || '', sub: o.sub || '', pairs: v.pairs, onSave: o.onSave || null, onClose: o.onClose || null, saved: false };
+    ro = { kind: o.kind || 'friend', rec: rec, sel: o.sel, fc: v.fc || null, title: o.title || v.view.name || '', sub: o.sub || '', pairs: v.pairs, onSave: o.onSave || null, onClose: o.onClose || null, saved: false };
     acur = v.view; acur.name = ro.title; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset();
     document.body.classList.add('ana-ro'); $('anaName').readOnly = true;
     anaRoBar();
@@ -461,17 +464,30 @@
   }
   // v2.5.0 分析頁「分享給好友」：選好友（同紀錄頁）；要先登入、建立會員
   function anaShareSync() {
+    anaPdfSync();
     var M = window.WRMember, on = !ro && !!(M && M.canShare && M.canShare());
     $('anaShareCard').hidden = !on; if (!on) return;
     var n = 0; try { M.sharesOf(acur.id).forEach(function (x) { n += (x.to || []).length; }); } catch (e) {}
     $('anaShareFriends').disabled = !anaShots(acur).length;
     $('anaShareInfo').textContent = n ? wrT('app.shared_with', [n]) : '';
   }
+  function anaPdfSync() { var b = $('anaPdfBtn'); if (b) b.disabled = !anaShots(acur).length; }
   $('anaShareFriends').onclick = function () {
     var M = window.WRMember; if (ro || !M || !anaShots(acur).length) return;
     persistA(); M.shareRecord(acur);
   };
   App.anaShareSync = anaShareSync;
+  /* v2.7.0 匯出 PDF 的資料來源：s 省略＝分析頁目前看的（自己的分析、好友分享的唯讀、預報對照唯讀）；給 s＝紀錄頁那一筆。
+   * 回傳 { rec:分析格式, fc:預報對照或 null }；只用紀錄本身的資料。 */
+  App.pdfSource = function (s) {
+    if (!s) {
+      if (ro) return { rec: JSON.parse(JSON.stringify(acur)), fc: ro.fc || null };
+      var a = JSON.parse(JSON.stringify(acur)); if (!(a.name && a.name.trim())) a.name = App.recTitle(acur); return { rec: a, fc: null };
+    }
+    if (isAna(s)) { var c = JSON.parse(JSON.stringify(s)); if (!(c.name && c.name.trim())) c.name = App.recTitle(s); return { rec: c, fc: null }; }
+    var v = forecastView(JSON.parse(JSON.stringify(s))); v.view.name = App.recTitle(s);
+    return { rec: v.view, fc: v.fc };
+  };
   App.anaOpenRO = anaOpenRO; App.anaCloseRO = anaCloseRO; App.anaSaveCopy = saveCopy;
   /* 預報對照分析（Pro 對照區、Lite 第 3 步的按鈕）：s＝目前預報、sel＝Lite 的輪次（Pro 不給＝整組，跟對照區一樣的配對方式） */
   App.anaOpenCmp = function (s, sel) {

@@ -1002,3 +1002,68 @@ body.lt-glass :is(#wrNav button,#wrFab,.pf-btn,.pf-pinch,#navStyleSeg button):is
 html,body{overscroll-behavior-x:none}
 
 .mb-priv-body .lang{display:none}
+/* ---------- v2.7.0 匯出 PDF 選項面板（設計稿 v2 mockup 412px；單手：主按鈕在最下面） ---------- */
+.ana-pdf-card{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ana-pdf-card .wr-pill{min-height:48px;padding:0 18px;display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:800}
+.ana-pdf-card .nv-ic{width:22px;height:22px}
+.ana-pdf-card small{flex:1 1 180px}
+.rec .row .rec-pdf{min-width:52px;font-weight:800}
+body.pdfx-open{overflow:hidden}
+.pdfx-bg{position:fixed;inset:0;z-index:200;background:rgba(10,14,20,.48);display:flex;align-items:flex-end;justify-content:center}
+#pdfSheet .pdfx-card{width:100%;max-width:560px;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;background:#fbf9f4;color:#1a1a18;border-radius:24px 24px 0 0;padding:10px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px rgba(0,0,0,.25);font-family:inherit}
+#pdfSheet .pdfx-grab{flex:none;width:44px;height:5px;border-radius:3px;background:#cfc9bb;margin:0 auto 10px}
+#pdfSheet .pdfx-h{margin:0;font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px;color:#1a1a18}
+#pdfSheet .pdfx-h svg{width:22px;height:22px;fill:none;stroke:#16202b;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#pdfSheet .pdfx-rec{font-size:13px;color:#6a6965;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pdfSheet .pdfx-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -16px;padding:0 16px}
+#pdfSheet .pdfx-lbl{font-size:13px;font-weight:800;color:#6a6965;margin:14px 2px 6px;letter-spacing:.5px}
+#pdfSheet .pdfx-box{background:#fff;border:1px solid rgba(46,46,44,.12);border-radius:16px;overflow:hidden}
+#pdfSheet .pdfx-row{display:flex;align-items:center;min-height:52px;padding:6px 14px;border-top:1px solid rgba(46,46,44,.08);gap:12px;cursor:pointer}
+#pdfSheet .pdfx-row:first-child{border-top:0}
+#pdfSheet .pdfx-row .t{flex:1;font-size:15px;font-weight:700}
+#pdfSheet .pdfx-row .t small{display:block;font-size:12px;color:#6a6965;font-weight:500}
+#pdfSheet .pdfx-row input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+#pdfSheet .pdfx-ck{width:26px;height:26px;border-radius:8px;border:2px solid #16202b;display:flex;align-items:center;justify-content:center;flex:none;background:#fff}
+#pdfSheet .pdfx-ck svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+#pdfSheet .pdfx-row input:checked+.pdfx-ck{background:#16202b}
+#pdfSheet .pdfx-row input:checked+.pdfx-ck svg{opacity:1}
+#pdfSheet .pdfx-row input:focus-visible+.pdfx-ck{box-shadow:0 0 0 3px rgba(42,125,232,.45)}
+#pdfSheet .pdfx-row.lock{cursor:default}
+#pdfSheet .pdfx-row.lock .pdfx-ck{background:#e6e2d9;border-color:#e6e2d9}
+#pdfSheet .pdfx-row.lock .pdfx-ck svg{opacity:1;stroke:#8a8a87}
+#pdfSheet .pdfx-row.off .t{color:#9a9893}
+#pdfSheet .pdfx-row .pill{font-size:11px;font-weight:700;color:#8a8a87;background:#f0ede5;border-radius:10px;padding:2px 8px;white-space:nowrap}
+#pdfSheet .pdfx-themes{display:flex;gap:8px;overflow-x:auto;padding:8px 2px 4px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+#pdfSheet .pdfx-th{flex:none;width:92px;min-height:76px;border-radius:14px;border:1px solid rgba(46,46,44,.14);background:#fff;padding:7px;font-size:12px;font-weight:700;text-align:center;position:relative;color:#1a1a18;scroll-snap-align:start}
+#pdfSheet .pdfx-th i.sw{display:block;width:auto;height:34px;border-radius:9px;margin-bottom:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+#pdfSheet .pdfx-th.on{border:2.5px solid #16202b;padding:5.5px}
+#pdfSheet .pdfx-th b{position:absolute;top:-7px;right:-4px;background:#FF4D00;color:#fff;font-size:10px;border-radius:8px;padding:1px 6px}
+#pdfSheet .pdfx-hint{font-size:12px;color:#8a8a87;margin:4px 4px 0}
+#pdfSheet .pdfx-seg{display:flex;background:#e9e5db;border-radius:14px;padding:4px}
+#pdfSheet .pdfx-seg button{flex:1;height:44px;border:0;border-radius:11px;background:transparent;font-size:15px;font-weight:700;color:#6a6965}
+#pdfSheet .pdfx-seg button.on{background:#fff;color:#1a1a18;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+#pdfSheet .pdfx-foot{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 2px 6px;font-size:13px;color:#6a6965}
+#pdfSheet .pdfx-foot b{color:#1a1a18}
+#pdfSheet .pdfx-foot #pdfName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#pdfSheet .pdfx-status{flex:none;font-size:13px;font-weight:700;color:#2b6a3e;min-height:0;margin:0 2px}
+#pdfSheet .pdfx-status:not(:empty){margin:2px 2px 8px}
+#pdfSheet .pdfx-done{flex:none;display:flex;gap:8px;margin-bottom:8px}
+#pdfSheet .pdfx-done[hidden]{display:none}
+#pdfSheet .pdfx-btn2{flex:1;min-height:48px;border-radius:14px;border:1.5px solid #16202b;background:#fff;color:#16202b;font-size:15px;font-weight:800}
+#pdfSheet .pdfx-go{flex:none;width:100%;height:56px;border:0;border-radius:16px;background:#16202b;color:#fff;font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px}
+#pdfSheet .pdfx-go svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#pdfSheet .pdfx-go:disabled{opacity:.6}
+#pdfSheet .pdfx-go:active:not(:disabled),#pdfSheet .pdfx-btn2:active,#pdfSheet .pdfx-th:active{transform:scale(.97)}
+#pdfSheet .pdfx-cancel{flex:none;display:block;width:100%;min-height:44px;margin-top:4px;border:0;background:transparent;font-size:15px;font-weight:700;color:#6a6965}
+#pdfSheet .pdfx-bg.busy .pdfx-scroll{opacity:.55;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#pdfSheet .pdfx-go:active,#pdfSheet .pdfx-btn2:active,#pdfSheet .pdfx-th:active{transform:none}
+}
+#pdfSheet button{font-family:inherit;box-shadow:none;text-shadow:none;animation:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+#pdfSheet .pdfx-th,#pdfSheet .pdfx-th.on{background:#fff!important;color:#1a1a18!important}
+#pdfSheet .pdfx-seg button{background:transparent!important;color:#6a6965!important}
+#pdfSheet .pdfx-seg button.on{background:#fff!important;color:#1a1a18!important;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+#pdfSheet .pdfx-btn2{background:#fff!important;color:#16202b!important}
+#pdfSheet .pdfx-go{background:#16202b!important;color:#fff!important}
+#pdfSheet .pdfx-cancel{background:transparent!important;color:#6a6965!important;border:0!important}
+
+#recordList .rec-pdf{min-height:44px;min-width:52px}

@@ -43,6 +43,8 @@
   };
   wrT.v = function (code) { if (code == null || lang === 'zh-TW') return code; var s = (D[lang] || {})['v.' + code]; return s == null ? code : s; };
   wrT.lang = function () { return lang; };
+  // v2.7.0：暫時用指定語言跑 fn（PDF 匯出可以選跟 App 不同的語言；fn 必須是同步的）
+  wrT.withLang = function (id, fn) { if (!has(id)) return fn(); var old = lang; lang = id; try { return fn(); } finally { lang = old; } };
   wrT.langs = function () { return LANGS.slice(); };
   wrT.htmlLang = function () { for (var i = 0; i < LANGS.length; i++) if (LANGS[i].id === lang) return LANGS[i].html; return lang; };
   wrT.isEn = function () { return lang === 'en'; };
