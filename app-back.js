@@ -1,4 +1,4 @@
-/* WRbeta v2.5.0 上一頁：左上角「‹ 上一頁」按鈕＋Android 返回鍵／返回手勢（history／popstate）
+/* WRbeta v2.5.0 上一頁：浮動「‹ 上一頁」按鈕（左上角、標題列／名字下方）＋Android 返回鍵／返回手勢（history／popstate）
  * 按一次返回＝退一步，留在 App 裡：先關最上層的視窗（對話框、全頁檢視、說明泡泡、選單、底部清單）、
  * 再離開模式（添加／消滅、唯讀檢視、編輯版面）、再回 Lite 上一步、再回上一個分頁；都沒有了才提示「再按一次返回離開」。
  * Chrome 會跳過「沒有使用者操作時」加的 history 紀錄，所以在使用者點畫面（pointerdown／keydown）時補上防護紀錄。
@@ -63,15 +63,43 @@
   D.addEventListener('pointerdown', onAct, true);
   D.addEventListener('keydown', function (e) { if (e.key !== 'Escape') onAct(); }, true);
   D.addEventListener('click', function () { setTimeout(sync, 60); }, true);
-  // ---------- 左上角「‹ 上一頁」 ----------
+  // ---------- 浮動「‹ 上一頁」（固定在左上角，標題列／分析名稱正下方，不蓋住名字） ----------
   var btn = $('wrBack');
+  function place() {
+    if (!btn || btn.hidden) return;
+    var top = 50, i, el, r, cands = [];
+    el = D.querySelector('header');
+    if (el) top = el.getBoundingClientRect().bottom;
+    if (!B.classList.contains('lite')) {
+      el = D.getElementById('wrNavC');
+      if (el && vis(el)) cands.push(el);
+    }
+    if (B.classList.contains('on-analysis')) {
+      el = D.querySelector('.ana-top');
+      if (el && vis(el)) cands.push(el);
+      el = D.getElementById('anaRoBar');
+      if (el && vis(el)) cands.push(el);
+    }
+    for (i = 0; i < cands.length; i++) {
+      r = cands[i].getBoundingClientRect();
+      if (r.bottom > top) top = r.bottom;
+    }
+    btn.style.top = (top + 6) + 'px';
+  }
+  var placeR = 0;
+  function placeSoon() {
+    if (placeR) return;
+    placeR = requestAnimationFrame(function () { placeR = 0; place(); });
+  }
   function sync() {
     if (!btn) return;
     var on = !!nextStep();
-    if (btn.hidden === !on) return;
-    btn.hidden = !on; B.classList.toggle('can-back', on);
+    if (btn.hidden !== !on) { btn.hidden = !on; B.classList.toggle('can-back', on); }
+    if (on) place();
   }
   if (btn) btn.onclick = function (e) { e.preventDefault(); back(); };
+  window.addEventListener('resize', placeSoon);
+  window.addEventListener('scroll', placeSoon, true);
   App.back = { push: push, drop: drop, back: back, can: function () { return !!nextStep(); }, sync: sync, get tabs() { return tabs.slice(); }, get depth() { return depth; } };
   sync();
 })(window.WRApp = window.WRApp || {});

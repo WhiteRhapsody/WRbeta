@@ -1679,12 +1679,17 @@ body.ana-ro #anaName{pointer-events:none}
 .mb-recl{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto;margin:6px 0 10px}
 .mb-rec{display:flex;flex-direction:column;align-items:flex-start;min-height:52px;padding:8px 12px;border-radius:12px;text-align:left}
 .mb-rec small{opacity:.7;font-size:12px}
-/* v2.5.0 左上角「‹ 上一頁」（標題列是 sticky，所以一直在左上角） */
-.wr-back{flex:none;display:inline-flex;align-items:center;gap:2px;min-height:44px;min-width:44px;margin:-6px 0 -6px -6px;padding:0 10px 0 4px;border-radius:999px;
-  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:inherit;font-size:14px;font-weight:800;box-shadow:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* v2.5.0 上一頁：固定浮在左上角、標題列／名字正下方；顏色完全跟分析頁收邊小圓 .dk-eye 一樣（--w-cam*，深淺主題都對） */
+.wr-back{position:fixed;z-index:6;top:calc(var(--hdr-h,50px) + 6px);left:calc(8px + env(safe-area-inset-left,0px));
+  display:inline-flex;align-items:center;gap:1px;min-height:36px;min-width:36px;height:36px;margin:0;padding:0 10px 0 6px;border-radius:999px;
+  background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.35),transparent 55%),linear-gradient(180deg,var(--w-camA),var(--w-camB));
+  border:1.5px solid var(--w-camBd);box-shadow:0 4px 14px var(--w-camSh),0 0 0 4px var(--w-camRing);
+  color:var(--w-camTx);font-size:12px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .wr-back[hidden]{display:none}
-.wr-back svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
-.wr-back:active{transform:scale(.96)}
-body.lite.lt-light .wr-back,body:not(.lite) .wr-back{background:rgba(127,127,127,.16);border-color:rgba(127,127,127,.35)}
+.wr-back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.wr-back:active{filter:brightness(1.12);transform:scale(.96)}
+body.lt-cyberpunk .wr-back{box-shadow:0 0 14px rgba(255,43,140,.6),0 0 0 4px rgba(0,240,255,.18)}
+body.lt-tron .wr-back{box-shadow:0 0 16px rgba(255,138,31,.8),0 0 0 4px rgba(70,210,255,.18)}
+/* 上一頁出現時，把分析頁左上角分數卡往右移，避免被浮動按鈕擋住 */
+body.can-back.on-analysis #tab-analysis .ana-info{left:90px;max-width:calc(100% - 200px)}
 header .title{min-width:0}
-@media (max-width:440px){body.can-back header .title .beta{display:none}body.can-back header .title{font-size:16px}}
