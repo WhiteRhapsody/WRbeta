@@ -1,4 +1,6 @@
 /* WRbeta 會員：管理頁（admins/{uid} 才看得到：會員清單、停權／解除、改會員 ID、撤銷分享、刪資料、作弊碼與群組）
+ * v2.6.0：整個搬到「設定/說明 › 站長」分頁，只有站長（staff/{uid}.badge=='owner'）看得到；寫入權限仍由 firestore.rules 把關
+ *（會員、停權、作弊碼…沿用 isAdmin()；紀錄碼權限 perms／groupperms 只有站長能寫）。新增：每位會員的選填資料（含不公開欄位，唯讀）、紀錄碼權限（個人／群組）。
  * 2026-11-19 模組分割（純搬移）：原本在 member.js 同一個函式裡；共用名稱掛在 window.WRMemberParts（MP.名稱），對外仍是 window.WRMember（在 member.js）。
  */
 (function (MP, root) {
@@ -11,16 +13,21 @@
 
   // ---------- 7) 管理員畫面（admins/{uid} 存在才顯示） ----------
   function loadAdmin() {
-    if (!S.admin) return Promise.resolve();
+    if (!MP.ownerMe()) return Promise.resolve();
     S.adm = S.adm || { codes: [], pending: [], granted: [], roles: [] };
+    var A = S.adm, BE = MP.BE, errs = [];
+    // v2.6.0：每一項各自接錯誤（站長沒有 admins 文件時，會員清單等會被規則拒絕，但紀錄碼權限照樣能用）
+    function step(p, f) { return p.then(f).catch(function (e) { errs.push(errText(e)); }); }
     return Promise.all([
-      MP.BE.listCodes().then(function (a) { S.adm.codes = a.sort(function (x, y) { return y.createdMs - x.createdMs; }); }),
-      MP.BE.listRedemptions('pending').then(function (a) { S.adm.pending = a; }),
-      MP.BE.listRedemptions('granted').then(function (a) { S.adm.granted = a; }),
-      MP.BE.listRoles().then(function (a) { S.adm.roles = a; }),
-      MP.BE.listProfiles().then(function (a) { S.adm.people = a.sort(function (x, y) { return String(x.mid).localeCompare(String(y.mid)); }); }),
-      MP.BE.listSuspended().then(function (a) { S.adm.held = a; })
-    ]).catch(function (e) { toast(wrT('member.couldnt_load_admin_data', [errText(e)]), 3600); }).then(function () { renderAdmin(true); });
+      step(BE.listCodes(), function (a) { A.codes = a.sort(function (x, y) { return y.createdMs - x.createdMs; }); }),
+      step(BE.listRedemptions('pending'), function (a) { A.pending = a; }),
+      step(BE.listRedemptions('granted'), function (a) { A.granted = a; }),
+      step(BE.listRoles(), function (a) { A.roles = a; }),
+      step(BE.listProfiles(), function (a) { A.people = a.sort(function (x, y) { return String(x.mid).localeCompare(String(y.mid)); }); }),
+      step(BE.listSuspended(), function (a) { A.held = a; }),
+      BE.listPerms ? step(BE.listPerms(), function (a) { var m = {}; a.forEach(function (x) { m[x.id] = x; }); A.perms = m; }) : null,
+      BE.listGroupPerms ? step(BE.listGroupPerms(), function (a) { var m = {}; a.forEach(function (x) { if (x.recordCode === true) m[x.id] = true; }); A.gperms = m; }) : null
+    ]).then(function () { if (errs.length) toast(wrT('member.couldnt_load_admin_data', [errs[0]]), 3600); renderAdmin(true); });
   }
   function codeLabel(h) { var c = S.adm && S.adm.codes.filter(function (x) { return x.id === h; })[0]; return c ? (c.label || wrT('member.no_note')) : String(h).slice(0, 8) + '…'; }
   function audText(a) { if (!a) return ''; return a.type === 'all' ? wrT('member.everyone') : a.type === 'users' ? wrT('member.specific', [(a.mids || []).join(wrT('core.x_3'))]) : wrT('member.groups', [(a.groups || []).map(function (g) { return GROUPS[g] || g; }).join(wrT('core.x_3'))]); }
@@ -30,7 +37,7 @@
     var A = S.adm, gchk = function (name) { return Object.keys(GROUPS).map(function (g) { return '<label class="mb-ck"><input type="checkbox" name="' + name + '" value="' + g + '">' + GROUPS[g] + '</label>'; }).join(''); };
     // v2.3.0：標題（🛠 管理員 · 只有你看得到 · 重新整理）放最上面，會員區塊接在標題下面
     var h = wrT('member.admin_only_you_can_see_2', [gchk('admG')]), cut = h.indexOf('</div>') + 6;
-    h = h.slice(0, cut) + peopleHTML() + h.slice(cut);
+    h = h.slice(0, cut) + (S.admin ? '' : '<p class="mb-note mb-warn">' + esc(wrT('member.owner_needs_admin')) + '</p>') + peopleHTML() + groupPermHTML() + h.slice(cut);
     h += wrT('member.pending', [A.pending.length, A.pending.length ? A.pending.map(function (r) { return wrT('member.approve_reject', [esc(r.id), esc(r.mid), esc(codeLabel(r.code))]); }).join('') : wrT('member.no_pending_requests')]);
     h += wrT('member.cheat_codes', [A.codes.length, A.codes.length ? A.codes.map(function (x) { return wrT('member.delete', [esc(x.id), esc(x.label || wrT('member.no_note')), x.active ? '' : wrT('member.disabled'), esc((x.perks || []).join(', ')), esc(audText(x.audience)), x.needsApproval ? wrT('member.needs_approval') : '', x.active ? wrT('member.disable') : wrT('member.enable')]); }).join('') : wrT('member.no_cheat_codes_yet')]);
     h += wrT('member.active', [A.granted.length, A.granted.length ? A.granted.map(function (r) { return wrT('member.revoke', [esc(r.id), esc(r.mid), esc(codeLabel(r.code))]); }).join('') : wrT('member.nobody_has_redeemed_one_yet')]);
@@ -49,18 +56,41 @@
       };
     });
     c.querySelectorAll('.mb-person').forEach(function (row) { bindPerson(row); });
+    c.querySelectorAll('input[data-gp]').forEach(function (i) {
+      i.onchange = function () {
+        var g = i.dataset.gp, on = i.checked; i.disabled = true;
+        MP.BE.setGroupPerm(g, on).then(function () { toast(wrT(on ? 'member.rc_group_on' : 'member.rc_group_off', [GROUPS[g]])); return loadAdmin(); }, function (e) { i.checked = !on; i.disabled = false; toast(wrT('member.not_completed', [msgOf(e)]), 3600); });
+      };
+    });
+  }
+  // v2.6.0 紀錄碼權限（群組）：勾了＝這個群組的人分析頁都看得到「紀錄碼」區塊
+  function groupPermHTML() {
+    var gp = (S.adm && S.adm.gperms) || {};
+    return '<details class="mb-adm" open><summary>' + esc(wrT('member.rc_groups')) + '</summary><p class="mb-note">' + esc(wrT('member.rc_groups_note')) + '</p><div class="mb-gp">'
+      + Object.keys(GROUPS).map(function (g) { return '<label class="mb-ck"><input type="checkbox" data-gp="' + g + '"' + (gp[g] ? ' checked' : '') + '>' + esc(GROUPS[g]) + '</label>'; }).join('') + '</div></details>';
+  }
+  // v2.6.0 選填資料（含不公開欄位；只能看，不能改）
+  function pfViewHTML(pf) {
+    var P = root.WRApp && root.WRApp.pf; if (!pf || !P) return '<p class="mb-note">' + esc(wrT('member.pf_none')) + '</p>';
+    var pub = pf.pub || [], rows = P.KEYS.filter(function (k) { return pf[k]; }).map(function (k) {
+      return '<div class="mb-pfr"><small>' + esc(P.label(k)) + '</small><b>' + esc(P.show(k, pf[k])) + '</b><i class="' + (pub.indexOf(k) >= 0 ? 'pub' : 'priv') + '">' + esc(wrT(pub.indexOf(k) >= 0 ? 'member.pf_public' : 'member.pf_private')) + '</i></div>';
+    }).join('');
+    return rows ? '<div class="mb-pfv-in">' + rows + '</div>' : '<p class="mb-note">' + esc(wrT('member.pf_none')) + '</p>';
   }
   function peopleHTML() {
     var list = (S.adm && S.adm.people) || [], held = {};
     ((S.adm && S.adm.held) || []).forEach(function (x) { held[x.id] = true; });
     var rows = list.map(function (p) {
-      var on = !!held[p.id], self = p.id === uid();
+      var on = !!held[p.id], self = p.id === uid(), rc = !!(S.adm && S.adm.perms && S.adm.perms[p.id] && S.adm.perms[p.id].recordCode === true);
       return '<div class="mb-fr mb-person" data-uid="' + esc(p.id) + '" data-low="' + esc(p.midLower || '') + '" data-held="' + (on ? '1' : '0') + '"><span class="mb-sht"><b>' + esc(p.mid) + '</b><small>' + esc(p.id) + (on ? ' · ' + esc(wrT('member.suspended_badge')) : '') + (self ? ' · ' + esc(wrT('member.admin_thats_you')) : '') + '</small></span>'
         + (self ? '' : '<button type="button" data-act="hold">' + esc(wrT(on ? 'member.unsuspend' : 'member.suspend')) + '</button>')
         + '<input data-act="newid" maxlength="20" placeholder="' + esc(wrT('member.new_id')) + '" aria-label="' + esc(wrT('member.new_id')) + '">'
         + '<button type="button" data-act="id">' + esc(wrT('member.change_id')) + '</button>'
         + '<button type="button" data-act="shares">' + esc(wrT('member.revoke_shares')) + '</button>'
         + (self ? '' : '<button type="button" data-act="wipe">' + esc(wrT('member.wipe_data')) + '</button>')
+        + '<button type="button" data-act="pf" aria-expanded="false">' + esc(wrT('member.pf_view')) + '</button>'
+        + (self ? '<span class="mb-rc on">' + esc(wrT('member.rc_owner_always')) + '</span>' : '<button type="button" data-act="rc" class="mb-rc' + (rc ? ' on' : '') + '" aria-pressed="' + (rc ? 'true' : 'false') + '">' + esc(wrT(rc ? 'member.rc_on' : 'member.rc_off')) + '</button>')
+        + '<div class="mb-pfv" hidden></div>'
         + '</div>';
     }).join('');
     return '<details class="mb-adm" open><summary>' + esc(wrT('member.admin_people')) + '</summary><p class="mb-note">' + esc(wrT('member.admin_console_only')) + '</p>'
@@ -85,6 +115,17 @@
       ask(wrT('member.revoke_confirm', [mid]), function () {
         MP.BE.revokeOwnedShares(uid).then(function (n) { toast(wrT('member.shares_revoked', [n])); return loadAdmin(); }, fail);
       }, null, { yes: wrT('member.revoke_shares'), danger: true });
+    };
+    var pfBtn = row.querySelector('[data-act=pf]'), pfBox = row.querySelector('.mb-pfv');
+    if (pfBtn) pfBtn.onclick = function () {
+      if (!pfBox.hidden) { pfBox.hidden = true; pfBtn.setAttribute('aria-expanded', 'false'); return; }
+      pfBox.hidden = false; pfBtn.setAttribute('aria-expanded', 'true'); pfBox.innerHTML = '<p class="mb-note">' + esc(wrT('member.checking')) + '</p>';
+      MP.BE.adminGetPf(uid).then(function (pf) { pfBox.innerHTML = pfViewHTML(pf); }, function (e) { pfBox.innerHTML = '<p class="mb-note">⚠️ ' + esc(msgOf(e)) + '</p>'; });
+    };
+    var rcBtn = row.querySelector('[data-act=rc]');
+    if (rcBtn) rcBtn.onclick = function () {
+      var on = rcBtn.getAttribute('aria-pressed') !== 'true'; rcBtn.disabled = true;
+      MP.BE.setPerm(uid, mid, on).then(function () { toast(wrT(on ? 'member.rc_user_on' : 'member.rc_user_off', [mid])); return loadAdmin(); }, function (e) { rcBtn.disabled = false; fail(e); });
     };
     var wipeBtn = row.querySelector('[data-act=wipe]');
     if (wipeBtn) wipeBtn.onclick = function () {

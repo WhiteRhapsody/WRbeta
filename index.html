@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v2.5.1">
-<link rel="icon" href="icon.svg?v=v2.5.1">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.5.1">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.5.1"><link rel="stylesheet" href="themes.css?v=v2.5.1"><!--/STYLE-->
+<link rel="manifest" href="manifest.webmanifest?v=v2.6.0">
+<link rel="icon" href="icon.svg?v=v2.6.0">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.6.0">
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.6.0"><link rel="stylesheet" href="themes.css?v=v2.6.0"><!--/STYLE-->
 </head>
 <body>
 <!-- v2.5.0 分析模塊圖示（White 2026-11-20「超讚」；24×24 單線條，顏色跟著 currentColor，所有主題通用） -->
@@ -283,7 +283,7 @@
     <select id="anaSens" hidden aria-hidden="true" tabindex="-1"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
     <span class="lbl" id="anaQueue"></span>
   </div>
-  <div class="ana-dh lay-head"><span id="anaStatsTitle">數據</span><small class="ana-dh-sub">往下捲：每張小計・逐發・紀錄碼</small><button type="button" class="lay-btn" data-lay-page="analysis" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
+  <div class="ana-dh lay-head"><span id="anaStatsTitle">數據</span><small class="ana-dh-sub">往下捲：每張小計・逐發<span class="rc-only">・紀錄碼</span></small><button type="button" class="lay-btn" data-lay-page="analysis" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
   <div id="anaMods" class="stats lay-grid" data-lay="analysis" data-lay-page="analysis">
     <div id="anaStats" class="lay-contents"></div>
     <div id="anaExtra" class="lay-contents"></div>
@@ -378,9 +378,11 @@
     <button type="button" role="tab" id="stTabSet" data-sub="set" aria-controls="stPaneSet" aria-selected="true" class="on"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/></svg><span>設定</span></button>
     <button type="button" role="tab" id="stTabAcct" data-sub="acct" aria-controls="stPaneAcct" aria-selected="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg><span>帳號</span></button>
     <button type="button" role="tab" id="stTabHelp" data-sub="help" aria-controls="stPaneHelp" aria-selected="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5a2 2 0 0 1 2-2h5v16H6a2 2 0 0 0-2 2z"/><path d="M20 5.5a2 2 0 0 0-2-2h-5v16h5a2 2 0 0 1 2 2z"/></svg><span>說明</span></button>
+    <!-- v2.6.0 站長頁：只有站長（staff/{uid}.badge=='owner'）才會出現；之後一般管理員的分頁也加在這裡（app-nav.js ST_EXTRA） -->
+    <button type="button" role="tab" id="stTabOwner" data-sub="owner" aria-controls="stPaneOwner" aria-selected="false" hidden><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17.5 3 7.5l5 4 4-6.5 4 6.5 5-4-1 10z"/><path d="M4.5 20.5h15"/></svg><span>站長</span></button>
     <i class="st-ink" aria-hidden="true"></i>
   </div>
-  <div class="st-dots" aria-hidden="true"><i data-sub="set" class="on"></i><i data-sub="acct"></i><i data-sub="help"></i><small>左右滑動切換</small></div>
+  <div class="st-dots" aria-hidden="true"><i data-sub="set" class="on"></i><i data-sub="acct"></i><i data-sub="help"></i><i data-sub="owner" hidden></i><small>左右滑動切換</small></div>
   </div>
   <div class="st-panes" id="stPanes">
   <div class="st-pane" id="stPaneSet" role="tabpanel" aria-labelledby="stTabSet">
@@ -423,7 +425,6 @@
   <div class="card pf-card" id="pfStats" data-mod="stats" data-mod-name="我的統計"></div>
   <div class="card pf-card" id="pfSync" data-mod="sync" data-mod-name="同步狀態" hidden></div>
   <div class="card pf-card pf-rows" id="pfExtra" data-mod="extra" data-mod-name="選填資料"></div>
-  <div class="card pf-card mb-card" id="mbAdmin" data-mod="admin" data-mod-name="管理員" hidden></div>
   <div class="card pf-card pf-rows" id="pfLegal" data-mod="legal" data-mod-name="隱私權政策"></div>
   <div id="pfEnd" data-mod="end" data-mod-name="登出與刪除帳號" hidden></div>
   </div>
@@ -433,6 +434,12 @@
   <div class="lay-col" data-lay="aboutHelp" data-lay-page="about" data-lay-cols="1">
   <div class="card" data-mod="ver" data-mod-name="版本與更新"><div class="upd-row"><b>版本 <span id="aboutVer">beta v1.3.0</span></b><button type="button" id="forceUpdate">🔄 檢查更新／強制重新載入</button></div><div class="hint">畫面還是舊版時按這裡：會清掉 App 的暫存檔再重新載入（你的紀錄不會被刪）。</div></div>
   <div class="card prose" id="aboutText" data-mod="help" data-mod-name="使用說明"></div>
+  </div>
+  </div>
+  <!-- v2.6.0「站長」子標籤：原本帳號頁的「🛠 管理員」整個搬過來（會員、選填資料、紀錄碼權限、作弊碼、群組）；只有站長看得到 -->
+  <div class="st-pane" id="stPaneOwner" role="tabpanel" aria-labelledby="stTabOwner" hidden>
+  <div class="pf st-owner-col">
+  <div class="card pf-card mb-card" id="mbAdmin" hidden></div>
   </div>
   </div>
   </div>
@@ -477,22 +484,22 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--I18N--><script src="i18n/zh-TW.js?v=v2.5.1"></script><script src="i18n/en.js?v=v2.5.1"></script><script src="i18n/i18n.js?v=v2.5.1"></script><!--/I18N-->
-<!--CORE--><script src="core.js?v=v2.5.1"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v2.5.1"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v2.5.1"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v2.5.1"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v2.5.1"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v2.5.1"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v2.5.1"></script><script src="member-friends.js?v=v2.5.1"></script><script src="member-admin.js?v=v2.5.1"></script><!--/MEMBER-->
-<!--GHOST--><script src="ghost.js?v=v2.5.1"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v2.5.1"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v2.5.1"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v2.5.1"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v2.5.1"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v2.5.1"></script><!--/DOCK-->
-<!--APP--><script src="app-base.js?v=v2.5.1"></script><script src="app-forecast.js?v=v2.5.1"></script><script src="app-lite.js?v=v2.5.1"></script><script src="app-ghost.js?v=v2.5.1"></script><script src="app-photo.js?v=v2.5.1"></script><script src="app-mods.js?v=v2.5.1"></script>
-<script src="app-analysis.js?v=v2.5.1"></script><script src="app-records.js?v=v2.5.1"></script><script src="app-nav.js?v=v2.5.1"></script><script src="app.js?v=v2.5.1"></script><script src="app-account.js?v=v2.5.1"></script><script src="app-back.js?v=v2.5.1"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v2.6.0"></script><script src="i18n/en.js?v=v2.6.0"></script><script src="i18n/i18n.js?v=v2.6.0"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v2.6.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v2.6.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v2.6.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v2.6.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v2.6.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v2.6.0"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v2.6.0"></script><script src="member-friends.js?v=v2.6.0"></script><script src="member-admin.js?v=v2.6.0"></script><!--/MEMBER-->
+<!--GHOST--><script src="ghost.js?v=v2.6.0"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v2.6.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v2.6.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v2.6.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v2.6.0"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v2.6.0"></script><!--/DOCK-->
+<!--APP--><script src="app-base.js?v=v2.6.0"></script><script src="app-forecast.js?v=v2.6.0"></script><script src="app-lite.js?v=v2.6.0"></script><script src="app-ghost.js?v=v2.6.0"></script><script src="app-photo.js?v=v2.6.0"></script><script src="app-mods.js?v=v2.6.0"></script>
+<script src="app-analysis.js?v=v2.6.0"></script><script src="app-records.js?v=v2.6.0"></script><script src="app-nav.js?v=v2.6.0"></script><script src="app.js?v=v2.6.0"></script><script src="app-account.js?v=v2.6.0"></script><script src="app-back.js?v=v2.6.0"></script><!--/APP-->
 <script>
 (function () {
   var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['BMGhost','ghost.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];

@@ -1693,3 +1693,74 @@ body.lt-tron .wr-back{box-shadow:0 0 16px rgba(255,138,31,.8),0 0 0 4px rgba(70,
 /* 上一頁出現時，把分析頁左上角分數卡往右移，避免被浮動按鈕擋住 */
 body.can-back.on-analysis #tab-analysis .ana-info{left:90px;max-width:calc(100% - 200px)}
 header .title{min-width:0}
+
+/* ---------- v2.6.0 統計卡圖示改到卡片左上角（White 2026-11-20 核准 a2＋a3 樣張）----------
+ * 網格 gap 維持 7px；每張有圖示的卡 margin 左／上各 12px（框往內縮），24px 不透明圓底（主題頁面材質 --w-page／--w-page0）
+ * 圓心對在內縮後的框角，凸起鈕扣：下緣兩層硬陰影（--w-page0 轉暗）＋上緣亮邊＋弧面高光＋柔和投影＋符號微投影。
+ * 點擊區仍是 44×44（往左上只伸 19px＝12px 內縮＋7px gap，不壓到隔壁卡），圓在點擊區裡偏右下（7px）。 */
+#anaMods.stats,#anaMods.lay-grid{overflow:visible}
+#anaMods .stat.has-ic,#anaMods .ana-card.has-ic{position:relative;overflow:visible;margin-top:12px;margin-left:12px}
+#anaMods .stat.has-ic>.k>.mod-ic,#anaMods .ana-card.has-ic>.ana-ct>.mod-ic,#anaMods .ana-card.has-ic summary>.mod-ic{
+  position:absolute;left:-19px;top:-19px;display:block;width:44px;height:44px;min-height:44px;margin:0;z-index:3;overflow:visible;color:var(--w-accTxt,#e8590c)}
+#anaMods .has-ic .mod-ic-b{position:absolute;left:7px;top:7px;display:grid;place-items:center;overflow:visible;width:24px;height:24px;box-sizing:border-box;
+  background:var(--w-page);background-color:var(--w-page0);border:1px solid var(--w-cardBd);
+  box-shadow:0 2px 0 color-mix(in srgb,var(--w-page0) 64%,#000),0 3px 0 color-mix(in srgb,var(--w-page0) 48%,#000),1px 4px 5px color-mix(in srgb,var(--w-page0) 35%,#000),
+    inset 0 1.2px 0 rgba(255,255,255,.40),inset 0 -2px 3px rgba(0,0,0,.28)}
+#anaMods .has-ic .mod-ic-b::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.24),transparent 58%)}
+#anaMods .has-ic .mod-ic-b .mod-svg{position:relative;z-index:1;width:15px;height:15px;filter:drop-shadow(0 1px .4px rgba(0,0,0,.35))}
+#anaMods .has-ic .mod-ic:active .mod-ic-b,#anaMods .has-ic .mod-ic[aria-expanded="true"] .mod-ic-b{transform:translateY(1px) scale(.94);background:var(--w-page);background-color:var(--w-page0)}
+/* 簡約亮色：亮白邊、暖色側面與投影（不發髒灰） */
+body.lt-light #anaMods .has-ic .mod-ic-b{box-shadow:0 2px 0 color-mix(in srgb,var(--w-page0) 70%,#3a2a14),0 3px 0 color-mix(in srgb,var(--w-page0) 52%,#2a1c0c),1px 4px 5px rgba(80,60,20,.22),
+  inset 0 1.2px 0 rgba(255,255,255,.72),inset 0 -2px 2px rgba(80,60,20,.12)}
+body.lt-light #anaMods .has-ic .mod-ic-b::before{background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.38),transparent 60%)}
+body.lt-light #anaMods .has-ic .mod-ic-b .mod-svg{filter:drop-shadow(0 1px .4px rgba(80,60,20,.28))}
+/* 鋼琴烤漆：沿用 .wr-cam 烤漆內陰影，再疊側面厚度 */
+body.lt-piano #anaMods .has-ic .mod-ic-b{border-color:var(--w-camBd);box-shadow:0 2px 0 color-mix(in srgb,var(--w-page0) 55%,#000),0 3px 0 #000,1px 4px 6px rgba(0,0,0,.55),
+  inset 0 2px 0 rgba(255,255,255,.55),inset 0 -6px 10px rgba(0,0,0,.4)}
+body.lt-piano #anaMods .has-ic .mod-ic-b::before{background:radial-gradient(circle at 50% 28%,rgba(255,255,255,.32),transparent 52%)}
+/* 賽博龐克切角（約 887 行，選擇器含 #tab-analysis）：路徑往左上擴到整個 44px 點擊區（-19px～25px），圓、側面與點擊區才不會被裁掉 */
+body.lt-cyberpunk #tab-analysis #anaMods .stat.has-ic,body.lt-cyberpunk #tab-analysis #anaMods .ana-card.has-ic{
+  clip-path:polygon(-19px -19px,25px -19px,25px 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px),0 25px,-19px 25px)}
+
+/* ---------- v2.6.0「設定/說明」第 4 個子標籤（站長頁；只有站長才出現）：欄數與底線跟著 --st-n／--st-i ---------- */
+#tab-about.st-has-extra .st-tabs{grid-template-columns:repeat(var(--st-n,4),1fr)}
+#tab-about.st-has-extra .st-tabs button{gap:5px;padding:6px 4px}
+#tab-about.st-has-extra .st-ink{width:calc(100% / var(--st-n,4));transform:translateX(calc(100% * var(--st-i,0)))}
+body:not(.lite).nav-b #tab-about.st-has-extra .st-ink{width:calc((100% - 8px) / var(--st-n,4))}
+.st-tabs button[hidden],.st-dots i[hidden]{display:none}
+#stTabOwner .nv-ic{color:#e0a322}
+/* 站長頁內容 */
+#stPaneOwner .mb-warn{color:#e5484d;font-weight:700}
+#mbAdmin .mb-person{flex-wrap:wrap}
+#mbAdmin .mb-rc{min-height:44px}
+#mbAdmin button.mb-rc.on,#mbAdmin span.mb-rc.on{color:#1d7a3a;font-weight:800}
+#mbAdmin span.mb-rc{display:inline-flex;align-items:center;font-size:12.5px;padding:0 6px}
+#mbAdmin .mb-pfv{flex-basis:100%;width:100%;margin-top:4px}
+#mbAdmin .mb-pfv-in{display:grid;grid-template-columns:1fr;gap:4px;padding:8px 10px;border-radius:10px;border:1px solid var(--w-cardBd);background:color-mix(in srgb,var(--w-card) 70%,transparent)}
+#mbAdmin .mb-pfr{display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;gap:8px;font-size:13.5px}
+#mbAdmin .mb-pfr small{color:var(--w-tx2)}
+#mbAdmin .mb-pfr b{color:var(--w-tx);overflow-wrap:anywhere}
+#mbAdmin .mb-pfr i{font-style:normal;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
+#mbAdmin .mb-pfr i.priv{color:#c2410c}
+#mbAdmin .mb-pfr i.pub{color:#1d7a3a}
+#mbAdmin .mb-gp{display:flex;flex-wrap:wrap;gap:6px 14px}
+#mbAdmin .mb-gp .mb-ck{min-height:44px;display:inline-flex;align-items:center;gap:6px}
+
+/* ---------- v2.6.0 會員徽章（站長＝C 靶心金章；規格 design/badges/BADGE_STYLE.md）：頭像右下角、凸出一點點、跟統計卡圖示同一套厚度 ---------- */
+.has-pin{position:relative;overflow:visible}
+.wr-pin{position:absolute;right:var(--off,-2.5px);bottom:var(--off,-2.5px);width:var(--pin,13.5px);height:var(--pin,13.5px);z-index:3;pointer-events:none;line-height:0;
+  filter:drop-shadow(0 calc(var(--pin,13.5px) * .07) 0 #6a4210) drop-shadow(0 calc(var(--pin,13.5px) * .12) 0 #3d2508) drop-shadow(.8px calc(var(--pin,13.5px) * .18) 1.8px rgba(0,0,0,.42))}
+.wr-pin svg{display:block;width:100%;height:100%;overflow:visible}
+.mb-av.sm .wr-pin{--pin:13px;--off:-2.5px}
+.mb-av .wr-pin{--pin:13.5px;--off:-2.5px}
+.mh-av .wr-pin{--pin:15px;--off:-2.8px}
+.mb-av.lg .wr-pin{--pin:22px;--off:-3.5px}
+.pf-av .wr-pin{--pin:24px;--off:-3px}
+/* 頭像關掉（只顯示 ID）：徽章放在 ID 後面 */
+.wr-pin.solo{position:relative;right:auto;bottom:auto;display:inline-block;flex:none;vertical-align:-3px;margin:0 3px 0 5px;--pin:15px}
+.mh-t .wr-pin.solo{--pin:14px;vertical-align:-2px;margin:0 2px 0 4px}
+.pf-mid .wr-pin.solo{--pin:18px}
+
+/* ---------- v2.6.0 分析頁「紀錄碼」區塊：預設隱藏；站長或被站長開權限的人（member.js 加 body.rc-ok）才顯示 ---------- */
+body:not(.rc-ok) .ana-code-card{display:none}
+body:not(.rc-ok) .ana-dh-sub .rc-only{display:none}

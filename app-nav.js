@@ -95,17 +95,27 @@
 
   // ---------- v1.7.0「設定/說明」子標籤：設定｜說明（記住上次看的；樣式跟主題，切換方式跟 A/B/C） ----------
   // A／B／Lite：點標籤切換（A 底線分頁、B 膠囊）；C：點標籤或在頁面上左右滑（標籤下有小圓點），規則見 nav 的 tEnd。
-  var ST_SUBS = ['set', 'acct', 'help']; // v1.8.0：中間多了「帳號」
+  var ST_BASE = ['set', 'acct', 'help']; // v1.8.0：中間多了「帳號」
+  /* v2.6.0 額外分頁（排在「說明」後面）：只有符合身分的人才會出現（按鈕、小圓點、左右滑都跳過沒開的）。
+   *   owner＝站長頁（member.js 確認 staff/{uid}.badge=='owner' 後呼叫 stTabs.enable('owner', true)）。
+   *   admin＝之後給一般管理員的分頁（White：內容跟站長頁完全不同）。先留位置：pane: null＝還沒有畫面，enable() 會直接忽略。
+   *   真正的權限在 firestore.rules，分頁只是畫面。 */
+  var ST_EXTRA = { owner: { pane: 'stPaneOwner', tab: 'stTabOwner', on: false, open: function () { try { if (window.WRMember && WRMember.openOwner) WRMember.openOwner(); } catch (e) {} } },
+    admin: { pane: null, tab: null, on: false } };
+  var ST_SUBS = ST_BASE.slice();
+  function stPaneId(name) { return name === 'set' ? 'stPaneSet' : name === 'acct' ? 'stPaneAcct' : name === 'help' ? 'stPaneHelp' : (ST_EXTRA[name] && ST_EXTRA[name].pane); }
   var stSub = (function () {
-    var S = $('tab-about'), P = $('stPanes'), cur = ST_SUBS.indexOf(prefs.aboutSub) >= 0 ? prefs.aboutSub : 'set', anim = 0;
+    var S = $('tab-about'), P = $('stPanes'), cur = ST_BASE.indexOf(prefs.aboutSub) >= 0 ? prefs.aboutSub : 'set', anim = 0;
     function reduced() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
     function set(name, o) {
       o = o || {}; if (ST_SUBS.indexOf(name) < 0) name = 'set';
       var old = cur; cur = name; S.setAttribute('data-sub', name);
       document.querySelectorAll('#stTabs [data-sub]').forEach(function (b) { var on = b.dataset.sub === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; });
       document.querySelectorAll('#tab-about .st-dots i').forEach(function (d) { d.classList.toggle('on', d.dataset.sub === name); });
-      $('stPaneSet').hidden = name !== 'set'; $('stPaneAcct').hidden = name !== 'acct'; $('stPaneHelp').hidden = name !== 'help';
+      ST_BASE.concat(Object.keys(ST_EXTRA)).forEach(function (n) { var id = stPaneId(n), el = id && $(id); if (el) el.hidden = n !== name; });
+      S.style.setProperty('--st-i', String(Math.max(0, ST_SUBS.indexOf(name))));
       if (name === 'acct' && old !== name) { try { App.renderAcct(); } catch (e) {} }
+      if (ST_EXTRA[name] && ST_EXTRA[name].open && old !== name) ST_EXTRA[name].open();
       if (prefs.aboutSub !== name) { prefs.aboutSub = name; savePrefs(); }
       if (old !== name && o.dir && !reduced()) {
         clearTimeout(anim); P.style.transition = 'none'; P.style.transform = 'translateX(' + (o.dir * 22) + '%)'; P.style.opacity = '0.2'; void P.offsetWidth;
@@ -123,7 +133,16 @@
       b.onkeydown = function (e) { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); if (step(e.key === 'ArrowRight' ? 1 : -1)) document.querySelector('#stTabs [data-sub="' + cur + '"]').focus(); } };
     });
     set(cur, { noScroll: true });
-    return { get cur() { return cur; }, set: set, step: step, canStep: canStep, drag: drag, dragEnd: dragEnd };
+    // v2.6.0：開／關額外分頁（站長頁）。關掉時如果正在看那一頁，回到「帳號」。
+    function enable(name, on) {
+      var x = ST_EXTRA[name]; if (!x || !x.pane || !$(x.pane)) return; on = !!on; if (x.on === on) return;
+      x.on = on; ST_SUBS = ST_BASE.concat(Object.keys(ST_EXTRA).filter(function (k) { return ST_EXTRA[k].on; }));
+      var tb = $(x.tab); if (tb) tb.hidden = !on;
+      document.querySelectorAll('#tab-about .st-dots i[data-sub="' + name + '"]').forEach(function (d) { d.hidden = !on; });
+      S.style.setProperty('--st-n', String(ST_SUBS.length)); S.classList.toggle('st-has-extra', ST_SUBS.length > 3);
+      if (!on && cur === name) set('acct', { noScroll: true }); else S.style.setProperty('--st-i', String(Math.max(0, ST_SUBS.indexOf(cur))));
+    }
+    return { get cur() { return cur; }, set: set, step: step, canStep: canStep, drag: drag, dragEnd: dragEnd, enable: enable, get list() { return ST_SUBS.slice(); } };
   })();
 
   // ---------- v1.5.0 功能切換（只在 Pro；Lite 用底部步驟列）：A 底部圖示列／B 浮動按鈕／C 左右滑動 ----------

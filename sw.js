@@ -2,7 +2,7 @@
 // 更新策略：網頁本體（HTML、JS、CSS、manifest）一律「先抓網路，失敗才用快取」→ 有網路時永遠是最新版；
 // 圖示等靜態檔才用快取優先。安裝時用 cache:'reload' 跳過 HTTP 快取（GitHub Pages 會快取 10 分鐘），避免把舊檔存進新快取。
 // 新版啟用後：刪掉所有舊快取（含 bm-v3/v4 時代的），接管頁面，並讓開著的舊頁面自動重新載入一次。
-var VERSION = 'v2.5.1';
+var VERSION = 'v2.6.0';
 var CACHE = 'wrbeta-' + VERSION;
 var SHELL = ['./', 'index.html', 'i18n/zh-TW.js', 'i18n/en.js', 'i18n/i18n.js', 'privacy-en.html', 'style.css', 'core.js', 'recordcode.js', 'liteflow.js', 'vision.js', 'firebase-config.js', 'cloud.js', 'member.js', 'member-friends.js', 'member-admin.js', 'ghost.js', 'press.js', 'crosshair.js', 'themes.css', 'themefx.js', 'layout.js', 'dock.js', 'app-base.js', 'app-forecast.js', 'app-lite.js', 'app-ghost.js', 'app-photo.js', 'app-mods.js', 'app-analysis.js', 'app-records.js', 'app-nav.js', 'app.js', 'app-account.js', 'app-back.js', 'manifest.webmanifest', 'privacy.html'];
 var STATIC = ['icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'fonts/wr-chakra-700.woff', 'fonts/wr-rajdhani-700.woff', 'fonts/wr-saira-700.woff', 'fonts/wr-orbitron-800.woff', 'fonts/wr-playfair-700.woff'];

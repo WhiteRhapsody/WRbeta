@@ -28,6 +28,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   MP.midCheck = midCheck; MP.normCode = normCode; MP.codeLenOk = codeLenOk; MP.codeHash = codeHash; MP.pairId = pairId; MP.parsePerks = parsePerks; MP.parseMids = parseMids;
   MP.$ = $; MP.esc = esc; MP.app = app; MP.toast = toast; MP.ask = ask; MP.ls = ls; MP.uid = uid; MP.hasProfile = hasProfile; MP.errText = errText;
   MP.refreshSocial = refreshSocial; MP.who = who; MP.whoHTML = whoHTML; MP.show = show; MP.renderCards = renderCards; MP.modal = modal; MP.profOf = profOf; MP.avHTML = avHTML;
+  MP.badgeOf = badgeOf; MP.pinHTML = pinHTML; MP.idPin = idPin; MP.ownerMe = ownerMe; MP.applyRc = applyRc; // v2.6.0 徽章、站長、紀錄碼權限
   // 給其他模組用（變數：一律讀寫同一份）
   Object.defineProperty(MP, 'SHARE_MAX', { get: function () { return SHARE_MAX; }, set: function (v) { SHARE_MAX = v; }, enumerable: true, configurable: true });
   Object.defineProperty(MP, 'GROUPS', { get: function () { return GROUPS; }, set: function (v) { GROUPS = v; }, enumerable: true, configurable: true });
@@ -160,6 +161,15 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       getCard: function (u) { return P(function () { return one(d('cards', u || C().uid)); }); },
       setCard: function (c) { return P(function () { var r = d('cards', C().uid); return c && Object.keys(c).length ? C().F.setDoc(r, Object.assign({}, c, { updated: ts() })) : C().F.deleteDoc(r); }); },
       isAdmin: function () { return P(function () { return one(d('admins', C().uid)).then(function (x) { return !!x; }); }); },
+      // v2.6.0 站長徽章（staff，公開、App 不能寫）與功能權限（perms 個人／groupperms 群組，只有站長能寫）
+      listStaff: function () { return P(function () { return C().F.getDocs(C().F.collection(C().db, 'staff')).then(rows); }); },
+      myPerm: function () { return P(function () { return one(d('perms', C().uid)); }); },
+      deleteMyPerm: function () { return P(function () { return C().F.deleteDoc(d('perms', C().uid)); }); },
+      listGroupPerms: function () { return P(function () { return C().F.getDocs(C().F.collection(C().db, 'groupperms')).then(rows); }); },
+      listPerms: function () { return P(function () { return C().F.getDocs(C().F.collection(C().db, 'perms')).then(rows); }); },
+      setPerm: function (uid, mid, on) { return P(function () { return C().F.setDoc(d('perms', uid), { recordCode: !!on, mid: String(mid || '').slice(0, 20), updated: ts(), by: C().uid }); }); },
+      setGroupPerm: function (g, on) { return P(function () { return C().F.setDoc(d('groupperms', g), { recordCode: !!on, updated: ts(), by: C().uid }); }); },
+      adminGetPf: function (uid) { return P(function () { return one(d('users', uid)).then(function (x) { return (x && x.pf) || null; }); }); },
       myRole: function () { return P(function () { return one(d('roles', C().uid)); }); },
       deleteMyRole: function () { return P(function () { return C().F.deleteDoc(d('roles', C().uid)); }); },
       myRedemptions: function () { return P(function () { return q('redemptions', ['uid', '==', C().uid]).then(rows); }); },
@@ -240,7 +250,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
 
   // ---------- 狀態 ----------
   var BE = FirestoreBackend(), mocked = false;
-  var S = { status: 'off', user: null, profile: undefined, loadErr: '', friends: { friends: [], incoming: [], outgoing: [] }, profs: {}, mine: [], toMe: [], reds: [], perks: [], groups: [], admin: false, adm: null, signupOpen: false };
+  var S = { status: 'off', user: null, profile: undefined, loadErr: '', friends: { friends: [], incoming: [], outgoing: [] }, profs: {}, mine: [], toMe: [], reds: [], perks: [], groups: [], admin: false, adm: null, signupOpen: false, staff: ls('wr_staff_v1') || {}, perm: null, gperms: {}, rc: false };
   function uid() { return S.user && S.user.uid; }
   function signedIn() { return S.status === 'signed-in' && !!S.user; }
   function hasProfile() { return signedIn() && !!S.profile; }
@@ -254,7 +264,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     var need = uids.filter(function (u, i) { return u && uids.indexOf(u) === i && !(u in S.profs); });
     return Promise.all(need.map(function (u) { return BE.getProfile(u).then(function (p) { S.profs[u] = p; }, function () { S.profs[u] = null; }); }));
   }
-  function emitChange() { renderHeader(); var A0 = app(); if (A0.renderAcct) { try { A0.renderAcct(); } catch (e) { renderCards(); } } else renderCards(); renderBadges(); try { if (app().renderRecShare) app().renderRecShare(); } catch (e) {} }
+  function emitChange() { applyRc(); try { var A1 = app(); if (A1.stTabs) A1.stTabs.enable('owner', ownerMe()); } catch (e) {} renderHeader(); var A0 = app(); if (A0.renderAcct) { try { A0.renderAcct(); } catch (e) { renderCards(); } } else renderCards(); renderBadges(); try { if (app().renderRecShare) app().renderRecShare(); } catch (e) {} }
 
   function onCloud(st) {
     if (mocked) return;
@@ -263,7 +273,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     if (now && now !== was) { S.profile = undefined; S.profs = {}; loadAll(true); }
     else if (!now && was) reset();
   }
-  function reset() { S.profile = undefined; S.loadErr = ''; S.friends = { friends: [], incoming: [], outgoing: [] }; S.profs = {}; S.mine = []; S.toMe = []; S.reds = []; S.perks = []; S.groups = []; S.admin = false; S.adm = null; closeSignup(); hideBubble(true); emitChange(); }
+  function reset() { S.profile = undefined; S.loadErr = ''; S.friends = { friends: [], incoming: [], outgoing: [] }; S.profs = {}; S.mine = []; S.toMe = []; S.reds = []; S.perks = []; S.groups = []; S.admin = false; S.adm = null; S.perm = null; S.gperms = {}; closeSignup(); hideBubble(true); emitChange(); }
   /* 登入後：讀自己的會員資料；沒有＝第一次登入 → 註冊畫面 */
   function loadAll(first) {
     if (!signedIn()) return Promise.resolve();
@@ -310,6 +320,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       BE.sharesToMe().then(function (a) { S.toMe = a.sort(function (x, y) { return y.createdMs - x.createdMs; }); }).catch(function () {}),
       BE.myShares().then(function (a) { S.mine = a.sort(function (x, y) { return y.createdMs - x.createdMs; }); }).catch(function () {}),
       BE.isAdmin().then(function (a) { S.admin = a; }).catch(function () { S.admin = false; }),
+      loadStaff(),
       loadPerks()
     ]).then(function () {
       var f = S.friends, us = [];
@@ -317,7 +328,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       S.mine.forEach(function (s) { (s.to || []).forEach(function (u) { us.push(u); }); });
       S.toMe.forEach(function (s) { us.push(s.owner); });
       return loadProfiles(us);
-    }).then(function () { emitChange(); if (S.admin && S.adm) return loadAdmin(); });
+    }).then(function () { emitChange(); if (ownerMe() && S.adm) return loadAdmin(); });
   }
   function loadPerks() {
     return Promise.all([
@@ -326,8 +337,11 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
         return Promise.all(reds.filter(function (r) { return r.status === 'granted'; }).map(function (r) { return BE.getPerks(r.code).then(function (p) { by[r.code] = p; }, function () {}); }))
           .then(function () { S.reds = reds; S.perks = perksOf(reds, by); });
       }).catch(function () {}),
-      BE.myRole().then(function (r) { S.groups = (r && r.groups) || []; }).catch(function () { S.groups = []; })
-    ]).then(function () { try { B.dispatchEvent(new CustomEvent('wr-perks', { detail: { perks: S.perks.slice(), groups: S.groups.slice() } })); } catch (e) {} });
+      BE.myRole().then(function (r) { S.groups = (r && r.groups) || []; }).catch(function () { S.groups = []; }),
+      // v2.6.0 紀錄碼權限：個人（perms/{自己}）＋群組（groupperms）
+      (BE.myPerm ? BE.myPerm() : Promise.resolve(null)).then(function (p) { S.perm = p || null; }, function () { S.perm = null; }),
+      (BE.listGroupPerms ? BE.listGroupPerms() : Promise.resolve([])).then(function (a) { var m = {}; (a || []).forEach(function (x) { if (x && GROUPS[x.id] && x.recordCode === true) m[x.id] = true; }); S.gperms = m; }, function () { S.gperms = {}; })
+    ]).then(function () { applyRc(); try { B.dispatchEvent(new CustomEvent('wr-perks', { detail: { perks: S.perks.slice(), groups: S.groups.slice() } })); } catch (e) {} });
   }
 
   // ---------- 頭像：裁成正方形 → 256px → JPEG（約 20–30KB） ----------
@@ -365,10 +379,64 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   }
   function avHTML(p, cls, me) { // 頭像關掉＝什麼都不畫（沒有框、沒有字母）
     if (!p || !p.avatarOn || !p.avatar || !avatarOk(p.avatar)) return '';
-    return '<span class="' + (cls || 'mb-av') + '" style="background-image:url(&quot;' + esc(p.avatar) + '&quot;)"' + (me ? '' : ' aria-hidden="true"') + '></span>';
+    var b = badgeOf(p.id); // v2.6.0 徽章在頭像右下角
+    return '<span class="' + (cls || 'mb-av') + (b ? ' has-pin' : '') + '" style="background-image:url(&quot;' + esc(p.avatar) + '&quot;)"' + (me || b ? '' : ' aria-hidden="true"') + '>' + (b ? pinHTML(b) : '') + '</span>';
   }
   function who(u) { var p = profOf(u); return p ? p.mid : wrT('member.deleted_member'); }
-  function whoHTML(u) { var p = profOf(u); return '<span class="mb-who">' + avHTML(p, 'mb-av sm') + '<b>' + esc(p ? p.mid : wrT('member.deleted_member')) + '</b></span>'; }
+  function whoHTML(u) { var p = profOf(u); return '<span class="mb-who">' + avHTML(p, 'mb-av sm') + '<b>' + esc(p ? p.mid : wrT('member.deleted_member')) + '</b>' + idPin(p) + '</span>'; }
+
+  // ---------- v2.6.0 會員徽章（站長＝C「靶心金章」；設計規格 design/badges/BADGE_STYLE.md） ----------
+  // 誰有徽章：staff/{uid}.badge（公開、App 不能寫，只能從 Firebase 主控台新增）。每次登入列一次 staff（通常只有 1 份＝1 次讀取），
+  // 存在這台裝置（wr_staff_v1），好友名單、分享清單直接查記憶體，不會每個頭像都讀一次。
+  // 之後加新徽章：在 BADGES 加一筆（同一個外圈、金屬圈、亮光、厚度，只換 metal 顏色或 art 中間圖案），再到主控台把 staff/{uid}.badge 設成它。
+  var METALS = { gold: ['#fff6c8', '#ffe084', '#e8b33a', '#c48418', '#8a5a10', '#fffceb', '#ffe9a0', '#e0a322', '#6a4210'] };
+  var BADGES = { owner: { metal: 'gold', art: 'target', label: 'member.badge_owner' } };
+  var ARTS = {
+    target: function (p) { // 黑白十環靶＋金勾勾
+      return '<circle cx="16" cy="16" r="12.2" fill="#f4efe3"/><circle cx="16" cy="16" r="9.55" fill="#1a1a18"/><circle cx="16" cy="16" r="6.85" fill="#f4efe3"/><circle cx="16" cy="16" r="4.15" fill="#1a1a18"/>'
+        + '<circle cx="16" cy="16" r="1.85" fill="url(#' + p + 'H)" stroke="#6a4010" stroke-width=".35"/>'
+        + '<path d="M9.6 16.4 L14.1 21.2 L23.3 10.6" fill="none" stroke="#3d2508" stroke-width="3.15" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '<path d="M9.6 16.4 L14.1 21.2 L23.3 10.6" fill="none" stroke="url(#' + p + 'H)" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+  };
+  function badgeSymbol(id) {
+    var b = BADGES[id], m = METALS[b.metal], p = 'wrPin' + id;
+    var defs = '<linearGradient id="' + p + 'G" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + m[0] + '"/><stop offset="22%" stop-color="' + m[1] + '"/><stop offset="52%" stop-color="' + m[2] + '"/><stop offset="78%" stop-color="' + m[3] + '"/><stop offset="100%" stop-color="' + m[4] + '"/></linearGradient>'
+      + '<linearGradient id="' + p + 'H" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + m[5] + '"/><stop offset="35%" stop-color="' + m[6] + '"/><stop offset="100%" stop-color="' + m[7] + '"/></linearGradient>'
+      + '<radialGradient id="' + p + 'S" cx="50%" cy="30%" r="62%"><stop offset="0%" stop-color="#fff" stop-opacity=".42"/><stop offset="55%" stop-color="#fff" stop-opacity="0"/></radialGradient>';
+    var ring = '<circle cx="16" cy="16" r="15.6" fill="#f4f1ea" stroke="#2a1c0c" stroke-width=".55"/><circle cx="16" cy="16" r="13.85" fill="url(#' + p + 'G)"/>'
+      + '<circle cx="16" cy="16" r="13.85" fill="url(#' + p + 'S)"/><circle cx="16" cy="16" r="13.85" fill="none" stroke="' + m[8] + '" stroke-width=".55" opacity=".55"/>';
+    return { defs: defs, sym: '<symbol id="' + p + '" viewBox="0 0 32 32">' + ring + ARTS[b.art](p) + '</symbol>' };
+  }
+  function ensurePinDefs() { // 漸層只放一份（同一頁很多個徽章共用；不能 display:none，否則漸層會失效）
+    if ($('wrPinDefs')) return;
+    var defs = '', syms = ''; Object.keys(BADGES).forEach(function (k) { var x = badgeSymbol(k); defs += x.defs; syms += x.sym; });
+    var w = D.createElement('div'); w.innerHTML = '<svg id="wrPinDefs" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden"><defs>' + defs + '</defs>' + syms + '</svg>';
+    B.appendChild(w.firstChild);
+  }
+  function badgeOf(u) { var b = u && S.staff ? S.staff[u] : null; return b && BADGES[b] ? b : null; }
+  function ownerMe() { return hasProfile() && badgeOf(uid()) === 'owner'; }
+  function pinHTML(id, solo) {
+    if (!BADGES[id]) return ''; ensurePinDefs(); var name = esc(wrT(BADGES[id].label));
+    return '<span class="wr-pin wr-pin-' + id + (solo ? ' solo' : '') + '" role="img" aria-label="' + name + '" title="' + name + '" data-badge="' + id + '"><svg viewBox="0 0 32 32" aria-hidden="true"><use href="#wrPin' + id + '"/></svg></span>';
+  }
+  function hasAv(p) { return !!(p && p.avatarOn && p.avatar && avatarOk(p.avatar)); }
+  function idPin(p) { var b = p && badgeOf(p.id); return b && !hasAv(p) ? pinHTML(b, true) : ''; } // 頭像關掉＝徽章放在 ID 旁邊
+  function loadStaff() {
+    if (!BE.listStaff) return Promise.resolve();
+    return BE.listStaff().then(function (a) {
+      var m = {}; (a || []).forEach(function (x) { if (x && x.id && typeof x.badge === 'string' && BADGES[x.badge]) m[x.id] = x.badge; });
+      S.staff = m; ls('wr_staff_v1', m);
+    }).catch(function () {});
+  }
+  // 分析頁「紀錄碼」區塊：站長一定看得到；其他人要站長開（個人 perms 或所屬群組 groupperms）。沒登入看不到。
+  function rcAllowed() {
+    if (!signedIn()) return false;
+    if (ownerMe()) return true;
+    if (S.perm && S.perm.recordCode === true) return true;
+    return (S.groups || []).some(function (g) { return S.gperms && S.gperms[g] === true; });
+  }
+  function applyRc() { var on = rcAllowed(); S.rc = on; B.classList.toggle('rc-ok', on); }
 
   // ---------- 1) 註冊畫面（第一次登入） ----------
   var su = null;
@@ -442,7 +510,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     if (!p) { if (chip) chip.remove(); title.hidden = false; B.classList.remove('has-member'); return; }
     if (!chip) { chip = D.createElement('button'); chip.type = 'button'; chip.id = 'mhChip'; chip.className = 'mh-chip'; chip.setAttribute('data-me', ''); title.parentNode.insertBefore(chip, title); }
     var label = app().label || ('beta ' + String(app().version || '').replace(/^v(\d+)\.(\d+)\.0$/, 'v$1.$2'));
-    chip.innerHTML = avHTML(p, 'mh-av', true) + '<span class="mh-t"><b><span class="mh-id">' + esc(p.mid) + '</span>' + ICON.hchev + '</b><small>WRbeta<i>' + esc(label) + '</i></small></span><span class="mb-badge" hidden></span>';
+    chip.innerHTML = avHTML(p, 'mh-av', true) + '<span class="mh-t"><b><span class="mh-id">' + esc(p.mid) + '</span>' + idPin(p) + ICON.hchev + '</b><small>WRbeta<i>' + esc(label) + '</i></small></span><span class="mb-badge" hidden></span>';
     chip.setAttribute('aria-label', wrT('member.member_double_tap_for_settings', [p.mid]));
     title.hidden = true; B.classList.add('has-member');
   }
@@ -452,7 +520,9 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   function identityHTML(u) {
     var p = hasProfile() ? S.profile : null; if (!p) return null; u = u || S.user || {};
     var badges = S.groups.map(function (g) { return '<span class="mb-tag g">' + esc(GROUPS[g] || g) + '</span>'; }).concat(S.perks.map(function (k) { return '<span class="mb-tag">' + esc(perkName(k)) + '</span>'; })).join('');
-    return wrT('member.member_id_signed_in_with', [p.avatarOn && p.avatar ? wrT('member.change', [esc(p.avatar)]) : '', esc(p.mid), esc((u.name || '') + (u.name && u.email ? '・' : '') + (u.email || '')), ICON.g, badges ? '<span class="mb-tags">' + badges + '</span>' : '']);
+    var pb = badgeOf(p.id), avb = p.avatarOn && p.avatar ? wrT('member.change', [esc(p.avatar)]) : '';
+    if (pb && avb) avb = avb.replace(/<\/button>$/, pinHTML(pb) + '</button>'); // v2.6.0 站長徽章
+    return wrT('member.member_id_signed_in_with', [avb, esc(p.mid) + idPin(p), esc((u.name || '') + (u.name && u.email ? '・' : '') + (u.email || '')), ICON.g, badges ? '<span class="mb-tags">' + badges + '</span>' : '']);
   }
   function bindIdentity(box) {
     var ch = box && box.querySelector('[data-act="mbAvChange"]');
@@ -474,7 +544,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
         $('mbSignupBtn').onclick = function () { if (S.loadErr) loadAll(true); else openSignup(); };
       }
     }
-    renderFriends(on); renderShares(on); renderAdmin(on && S.admin);
+    renderFriends(on); renderShares(on); renderAdmin(on && ownerMe()); // v2.6.0 管理頁搬到「設定/說明 › 站長」分頁，只有站長看得到
   }
   function modal(html) { var bg = D.createElement('div'); bg.className = 'modal-bg mb-modal-bg'; bg.innerHTML = html; D.body.appendChild(bg); return bg; }
   function changeMid() {
@@ -691,6 +761,8 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       }).then(function () { return BE.myRedemptions(); }).then(function (a) {
         return Promise.all((a || []).filter(function (r) { return r.status === 'pending' || r.status === 'granted'; }).map(function (r) { return keep(BE.deleteRedemption(r.id)); }));
       }).then(function () { return keep(BE.deleteMyRole()); }).then(function () {
+        return BE.deleteMyPerm ? keep(BE.deleteMyPerm()) : null; // v2.6.0 紀錄碼權限
+      }).then(function () {
         return BE.setCard ? keep(BE.setCard(null)) : null; // v2.5.0 好友資料卡
       }).then(function () {
         return BE.getProfile(me);
@@ -707,7 +779,8 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   D.addEventListener('click', function (e) { var t = e.target && e.target.closest && e.target.closest('.wr-priv-link'); if (t) { e.preventDefault(); openPrivacy(); } });
   if (root.WRCloud && root.WRCloud.on) root.WRCloud.on(onCloud);
   root.WRMember = {
-    get state() { return S; }, get profile() { return S.profile; }, get perks() { return S.perks.slice(); }, get groups() { return S.groups.slice(); }, get admin() { return S.admin; },
+    get state() { return S; }, get profile() { return S.profile; }, get perks() { return S.perks.slice(); }, get groups() { return S.groups.slice(); }, get admin() { return S.admin; }, get owner() { return ownerMe(); }, get recordCode() { return rcAllowed(); }, badgeOf: badgeOf, pinHTML: pinHTML,
+    openOwner: function () { if (ownerMe() && !S.adm) { S.adm = { codes: [], pending: [], granted: [], roles: [] }; return loadAdmin(); } return Promise.resolve(); },
     identityHTML: identityHTML, bindIdentity: bindIdentity, renderCards: renderCards, renderHeader: renderHeader, refresh: function () { return loadAll(false); }, refreshSocial: refreshSocial,
     shareRecord: shareRecord, sharesOf: sharesOf, canShare: function () { return hasProfile(); }, syncPf: syncPf, openPrivacy: openPrivacy, openCheat: openCheat, openSignup: openSignup,
     showBubble: showBubble, hideBubble: hideBubble, goAcct: goAcct, purge: purge, redeem: redeem, counts: counts, addFriend: addFriend, isHeld: function () { return BE.isHeld(); }, _pure: pure,
