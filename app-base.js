@@ -294,4 +294,6 @@
     if (App.nav) App.nav.sync(name);
     if (toCmp && !document.body.classList.contains('lite')) { var hc = $('cmpHead'); if (hc && hc.scrollIntoView) hc.scrollIntoView({ block: 'start' }); }
   }
+  // v2.6.1 紀錄碼介面權限：站長、或站長開給個人／群組（WRMember.applyRc 切換 body.rc-ok）
+  App.rcOk = function () { return document.body.classList.contains('rc-ok'); };
 })(window.WRApp = window.WRApp || {});

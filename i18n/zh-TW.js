@@ -848,7 +848,7 @@
   "h.press_crosshair": "按壓十字",
   "h.score_bar_for_the_10": "本輪 10 發成績條",
   "h.finish_series_1": "完成第 1 輪",
-  "h.ghost_settings_record_code": "鬼影設定・紀錄碼",
+  "h.ghost_settings_record_code": "鬼影設定",
   "h.ghost_source": "鬼影來源",
   "h.same_shot_in_previous_training": "上一次訓練同一發",
   "h.previous_series_this_time": "本次上一輪",
@@ -1147,7 +1147,10 @@
   "member.rc_user_on": "已開放 {0} 使用紀錄碼",
   "member.rc_user_off": "已關閉 {0} 的紀錄碼",
   "h.owner_tab": "站長",
-  "h.rc_suffix": "・紀錄碼"
+  "h.rc_suffix": "・紀錄碼",
+  "h.records_saved_device_sync": "紀錄存在這台裝置；登入「設定/說明 › 帳號」後也會自動同步到你自己的雲端。",
+  "h.compare_manage_records": "比較、管理紀錄",
+  "h.old_backups_can_still_be": "舊版的備份檔仍可匯入。"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["zh-TW"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

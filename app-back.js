@@ -86,7 +86,7 @@
     }
     btn.style.top = (top + 6) + 'px';
   }
-  var placeR = 0;
+  var placeR = 0, lastKey = '';
   function placeSoon() {
     if (placeR) return;
     placeR = requestAnimationFrame(function () { placeR = 0; place(); });
@@ -95,9 +95,22 @@
     if (!btn) return;
     var on = !!nextStep();
     if (btn.hidden !== !on) { btn.hidden = !on; B.classList.toggle('can-back', on); }
-    if (on) place();
+    if (on) { place(); var key = App.curTab + '|' + (App.liteStep ? App.liteStep() : '') + '|' + (App.anaRO ? 1 : 0); if (key !== lastKey || !idleT) wake(); lastKey = key; } // 換頁＝放大
+    else { clearTimeout(idleT); idleT = 0; btn.classList.remove('wb-idle'); }
   }
   if (btn) btn.onclick = function (e) { e.preventDefault(); back(); };
+  // v2.6.1 3 秒沒動＝縮成小箭頭；捲動／手指滑動／換頁＝放大；按下 Q 彈
+  var IDLE_MS = 3000, idleT = 0;
+  function wake() { if (!btn || btn.hidden) return; btn.classList.remove('wb-idle'); clearTimeout(idleT); idleT = setTimeout(function () { btn.classList.add('wb-idle'); }, IDLE_MS); }
+  if (btn) {
+    btn.addEventListener('pointerdown', function () { btn.classList.remove('wb-pop', 'wb-idle'); btn.classList.add('wb-press'); clearTimeout(idleT); });
+    var release = function () { if (!btn.classList.contains('wb-press')) return; btn.classList.remove('wb-press'); void btn.offsetWidth; btn.classList.add('wb-pop'); wake(); };
+    btn.addEventListener('pointerup', release); btn.addEventListener('pointercancel', release); btn.addEventListener('pointerleave', release);
+    btn.addEventListener('animationend', function () { btn.classList.remove('wb-pop'); });
+  }
+  window.addEventListener('scroll', wake, { passive: true, capture: true });
+  D.addEventListener('touchmove', wake, { passive: true, capture: true });
+  D.addEventListener('wheel', wake, { passive: true, capture: true });
   window.addEventListener('resize', placeSoon);
   window.addEventListener('scroll', placeSoon, true);
   App.back = { push: push, drop: drop, back: back, can: function () { return !!nextStep(); }, sync: sync, get tabs() { return tabs.slice(); }, get depth() { return depth; } };

@@ -1679,19 +1679,33 @@ body.ana-ro #anaName{pointer-events:none}
 .mb-recl{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto;margin:6px 0 10px}
 .mb-rec{display:flex;flex-direction:column;align-items:flex-start;min-height:52px;padding:8px 12px;border-radius:12px;text-align:left}
 .mb-rec small{opacity:.7;font-size:12px}
-/* v2.5.0 上一頁：固定浮在左上角、標題列／名字正下方；顏色完全跟分析頁收邊小圓 .dk-eye 一樣（--w-cam*，深淺主題都對） */
+/* v2.6.1 上一頁（White 16:52）：只剩向左箭頭的小圓。按鈕本身固定 40×40（點擊區、也是各頁讓出來的位置，兩種狀態都一樣大，不會蓋到東西）；
+   畫面在動（捲動、手指滑動、換頁）＝放大成 40px 箭頭；3 秒沒動＝縮成小箭頭（約 24px，縮向左上角）。按下去 Q 彈（壓扁→彈過頭→回正）。
+   顏色跟分析頁收邊小圓 .dk-eye 同一組 --w-cam*（深淺主題都對）。減少動態＝直接切換、不彈。 */
 .wr-back{position:fixed;z-index:6;top:calc(var(--hdr-h,50px) + 6px);left:calc(8px + env(safe-area-inset-left,0px));
-  display:inline-flex;align-items:center;gap:1px;min-height:36px;min-width:36px;height:36px;margin:0;padding:0 10px 0 6px;border-radius:999px;
-  background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.35),transparent 55%),linear-gradient(180deg,var(--w-camA),var(--w-camB));
-  border:1.5px solid var(--w-camBd);box-shadow:0 4px 14px var(--w-camSh),0 0 0 4px var(--w-camRing);
-  color:var(--w-camTx);font-size:12px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  display:block;width:40px;height:40px;min-width:40px;min-height:40px;margin:0;padding:0;border:0;background:none;box-shadow:none;border-radius:50%;
+  color:var(--w-camTx);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .wr-back[hidden]{display:none}
-.wr-back svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
-.wr-back:active{filter:brightness(1.12);transform:scale(.96)}
-body.lt-cyberpunk .wr-back{box-shadow:0 0 14px rgba(255,43,140,.6),0 0 0 4px rgba(0,240,255,.18)}
-body.lt-tron .wr-back{box-shadow:0 0 16px rgba(255,138,31,.8),0 0 0 4px rgba(70,210,255,.18)}
+.wr-back .wb-tx{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.wr-back .wb-ic{position:absolute;left:0;top:0;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-sizing:border-box;
+  background:radial-gradient(circle at 50% 34%,rgba(255,255,255,.38),transparent 58%),linear-gradient(180deg,var(--w-camA),var(--w-camB));
+  border:1.5px solid var(--w-camBd);box-shadow:0 4px 12px var(--w-camSh),0 0 0 3px var(--w-camRing);
+  transform-origin:4px 4px;transform:scale(1);transition:transform .34s cubic-bezier(.34,1.56,.64,1),opacity .3s,box-shadow .3s}
+.wr-back svg{width:22px;height:22px;margin-left:-2px;fill:none;stroke:currentColor;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round}
+.wr-back.wb-idle .wb-ic{transform:scale(.6);opacity:.92;box-shadow:0 2px 6px var(--w-camSh),0 0 0 2px var(--w-camRing)}
+.wr-back.wb-press .wb-ic{transform:scale(.78);transition:transform .09s ease-out;filter:brightness(1.12)}
+.wr-back.wb-pop .wb-ic{animation:wbPop .52s cubic-bezier(.3,1.4,.5,1)}
+@keyframes wbPop{0%{transform:scale(.78)}38%{transform:scale(1.16,1.08)}62%{transform:scale(.94,.98)}82%{transform:scale(1.03)}100%{transform:scale(1)}}
+.wr-back:focus-visible .wb-ic{outline:2px solid var(--w-camTx);outline-offset:2px}
+body.lt-cyberpunk .wr-back .wb-ic{box-shadow:0 0 12px rgba(255,43,140,.6),0 0 0 3px rgba(0,240,255,.18)}
+body.lt-tron .wr-back .wb-ic{box-shadow:0 0 14px rgba(255,138,31,.8),0 0 0 3px rgba(70,210,255,.18)}
+@media (prefers-reduced-motion: reduce){.wr-back .wb-ic{transition:none!important;animation:none!important}}
 /* 上一頁出現時，把分析頁左上角分數卡往右移，避免被浮動按鈕擋住 */
-body.can-back.on-analysis #tab-analysis .ana-info{left:90px;max-width:calc(100% - 200px)}
+body.can-back.on-analysis #tab-analysis .ana-info{left:58px;max-width:calc(100% - 170px)}
+/* v2.6.1 「‹ 上一頁」不能蓋住各頁最上方的字：設定/說明子標籤整排往下讓位、預報靶面資訊框右移、鬼影提示左右讓位 */
+body.can-back #tab-about .st-tabs{margin-top:46px}
+body.can-back #tab-predict .pf-info{left:58px;max-width:calc(100% - 170px)}
+body.can-back #tab-ghost .gh-hint{padding-left:52px;padding-right:52px}
 header .title{min-width:0}
 
 /* ---------- v2.6.0 統計卡圖示改到卡片左上角（White 2026-11-20 核准 a2＋a3 樣張）----------
@@ -1764,3 +1778,6 @@ body:not(.lite).nav-b #tab-about.st-has-extra .st-ink{width:calc((100% - 8px) / 
 /* ---------- v2.6.0 分析頁「紀錄碼」區塊：預設隱藏；站長或被站長開權限的人（member.js 加 body.rc-ok）才顯示 ---------- */
 body:not(.rc-ok) .ana-code-card{display:none}
 body:not(.rc-ok) .ana-dh-sub .rc-only{display:none}
+/* v2.6.1 所有紀錄碼介面（紀錄頁卡片、每筆紀錄碼、Lite／鬼影 📋 紀錄碼）都受同一權限管；.rc-no＝沒權限時的替代文字 */
+body:not(.rc-ok) .rc-gate,body:not(.rc-ok) .rc-only{display:none!important}
+body.rc-ok .rc-no{display:none!important}

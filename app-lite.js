@@ -546,6 +546,7 @@
   document.querySelectorAll('#liteSteps [data-step]').forEach(function (b) { b.onclick = function () { setLiteStep(+b.dataset.step); }; });
   $('liteName').onchange = function () { App.cur.name = this.value.trim().slice(0, 60); persist(); renderLite(); toast(wrT('app.name_saved')); };
   $('liteCopyCode').onclick = function () {
+    if (!App.rcOk()) return;
     var Code = window.BMCode, rec = LF.toAnalysisRecord(App.cur), code = rec && Code && Code.encode(rec);
     if (!code) { toast(wrT('app.no_shot_holes_to_copy')); return; }
     App.copyText(code, wrT('app.record_code_copied_characters', [code.length]));

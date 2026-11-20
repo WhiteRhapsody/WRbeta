@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v2.6.0">
-<link rel="icon" href="icon.svg?v=v2.6.0">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.6.0">
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.6.0"><link rel="stylesheet" href="themes.css?v=v2.6.0"><!--/STYLE-->
+<link rel="manifest" href="manifest.webmanifest?v=v2.6.1">
+<link rel="icon" href="icon.svg?v=v2.6.1">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.6.1">
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.6.1"><link rel="stylesheet" href="themes.css?v=v2.6.1"><!--/STYLE-->
 </head>
 <body>
 <!-- v2.5.0 分析模塊圖示（White 2026-11-20「超讚」；24×24 單線條，顏色跟著 currentColor，所有主題通用） -->
@@ -55,7 +55,7 @@
     <select id="targetSel" aria-label="靶種"><option value="ap10">10米空氣手槍</option><option value="ar10">10米空氣步槍</option></select>
   </div>
 </header>
-<button type="button" id="wrBack" class="wr-back" aria-label="上一頁" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>上一頁</span></button>
+<button type="button" id="wrBack" class="wr-back" aria-label="上一頁" hidden><i class="wb-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></i><span class="wb-tx">上一頁</span></button>
 <div id="nojsNotice" class="notice">⚠️ 這個預覽畫面不能執行程式，所以靶面無法操作。請把檔案用 <b>Chrome</b> 開啟（或使用公開網址）。</div>
 <noscript><div class="notice">⚠️ 瀏覽器停用了 JavaScript，請用 Chrome 開啟。</div></noscript>
 <div id="storageNotice" class="notice soft" style="display:none">此畫面無法存檔（儲存空間被封鎖），可以操作，但關閉後資料會消失。請用 Chrome 開啟以保存紀錄。</div>
@@ -135,9 +135,9 @@
       <div id="liteRounds" class="lite-rounds" role="tablist" aria-label="輪次" hidden></div>
       <div class="lite-s3row">
         <input id="liteName" class="lite-name" maxlength="60" placeholder="名稱（選填，例：週二早上）" aria-label="紀錄名稱">
-        <button type="button" id="liteCopyCode">📋 紀錄碼</button>
+        <button type="button" id="liteCopyCode" class="rc-gate">📋 紀錄碼</button>
       </div>
-      <div id="liteCodeInfo" class="lite-codeinfo"></div>
+      <div id="liteCodeInfo" class="lite-codeinfo rc-gate"></div>
     </div>
     <button type="button" id="liteVerify" class="lite-verify glass"><span class="vlbl"><span id="liteGoLbl">下一步：拍照</span> <span class="arr">›</span></span></button>
     <div id="liteDetail" class="lite-detail" data-lay="lite" data-lay-page="lite" data-lay-cols="1"></div><button type="button" class="lay-btn lite-laybtn" data-lay-page="lite" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button>
@@ -339,13 +339,13 @@
           <button type="button" id="ghFinish" class="lite-verify glass gh-primary"><span class="vlbl"><span id="ghFinishLbl">完成第 1 輪</span> <small id="ghFinishSub">0/10</small></span><i class="gh-prog" id="ghProg"></i></button>
         </div>
         <details id="ghOpts" class="gh-opts">
-          <summary>鬼影設定・紀錄碼</summary>
+          <summary>鬼影設定<span class="rc-only">・紀錄碼</span></summary>
           <div class="gh-optrow"><span class="gh-ol">鬼影來源</span><div class="gh-seg" role="group" aria-label="鬼影來源"><button type="button" data-src="prev" aria-pressed="true">上一次訓練同一發</button><button type="button" data-src="round" aria-pressed="false">本次上一輪</button></div></div>
           <div class="gh-optrow" id="ghRefRow"><span class="gh-ol">對照紀錄</span><select id="ghRef" aria-label="鬼影對照的紀錄"></select></div>
           <label class="gh-optrow gh-chk pro-only"><input type="checkbox" id="ghWhole"> 整輪淡影（淡淡顯示上次這一輪全部 10 發）</label>
-          <div class="gh-optrow"><input id="ghName" class="gh-name" maxlength="60" placeholder="名稱（選填）" aria-label="鬼影紀錄名稱"><button type="button" id="ghCopyCode">📋 紀錄碼</button></div>
+          <div class="gh-optrow"><input id="ghName" class="gh-name" maxlength="60" placeholder="名稱（選填）" aria-label="鬼影紀錄名稱"><button type="button" id="ghCopyCode" class="rc-gate">📋 紀錄碼</button></div>
           <div class="gh-optrow"><button type="button" id="ghNew">＋ 開始新的一組（60 發）</button></div>
-          <div id="ghCodeInfo" class="lbl"></div>
+          <div id="ghCodeInfo" class="lbl rc-gate"></div>
         </details>
       </div>
     </div>
@@ -357,14 +357,15 @@
   <div class="lay-col" data-lay="records" data-lay-page="records" data-lay-cols="1">
   <!-- v1.8.0：紀錄全面改用「紀錄碼」（座標系統 A：每一發相對靶心的座標 0.01mm＋預報點＋靶種，算術編碼壓縮）備份與還原 -->
   <div class="card rec-codecard" data-mod="tools" data-mod-name="紀錄碼／新增／比較">
-    <div class="rc-h"><b>紀錄碼</b><small id="recCodeInfo">每一發相對靶心的座標（0.01mm）＋預報點＋靶種</small></div>
-    <div class="row rc-main"><button type="button" id="recCopyAll" class="primary">複製全部紀錄碼</button><button type="button" id="recShareAll" hidden>分享</button><button type="button" id="recPaste">貼上紀錄碼還原</button></div>
-    <div id="recPasteBox" class="rc-paste" hidden><textarea id="recPasteArea" rows="4" placeholder="把紀錄碼貼在這裡（可以一次貼很多筆，重複的會自動略過）" aria-label="貼上紀錄碼"></textarea>
+    <div class="rc-h rc-gate"><b>紀錄碼</b><small id="recCodeInfo">每一發相對靶心的座標（0.01mm）＋預報點＋靶種</small></div>
+    <div class="row rc-main rc-gate"><button type="button" id="recCopyAll" class="primary">複製全部紀錄碼</button><button type="button" id="recShareAll" hidden>分享</button><button type="button" id="recPaste">貼上紀錄碼還原</button></div>
+    <div id="recPasteBox" class="rc-paste rc-gate" hidden><textarea id="recPasteArea" rows="4" placeholder="把紀錄碼貼在這裡（可以一次貼很多筆，重複的會自動略過）" aria-label="貼上紀錄碼"></textarea>
       <div class="row"><button type="button" id="recPasteGo" class="primary">還原</button><button type="button" id="recPasteCancel">取消</button></div></div>
     <div class="row"><button id="newSession2">＋ 新的一組預報</button></div>
     <div class="row rec-cmp-row"><button id="recCmpBtn" class="primary" disabled>比較勾選的紀錄</button><button id="recCmpClear">取消勾選</button><span class="lbl" id="recCmpInfo">勾選 2 筆以上紀錄（分析或預報）即可比較</span></div>
-    <div class="hint">紀錄存在這台裝置，並以「紀錄碼」備份：只存彈孔與預報的座標（不存照片），一筆通常只有幾十到幾百個字，可以貼到備忘錄或 LINE 保存，之後「貼上紀錄碼還原」。登入「設定/說明 › 帳號」後也會自動同步到你自己的雲端。</div>
-    <details class="rc-adv"><summary>舊格式（JSON 檔案）</summary><div class="row"><button id="exportAll">匯出全部（JSON）</button><label class="btn">匯入 JSON<input type="file" id="importFile" accept="application/json,.json" hidden></label></div><div class="lbl">舊版的備份檔仍可匯入；新的備份請用紀錄碼。</div></details>
+    <div class="hint rc-no">紀錄存在這台裝置；登入「設定/說明 › 帳號」後也會自動同步到你自己的雲端。</div>
+    <div class="hint rc-gate">紀錄存在這台裝置，並以「紀錄碼」備份：只存彈孔與預報的座標（不存照片），一筆通常只有幾十到幾百個字，可以貼到備忘錄或 LINE 保存，之後「貼上紀錄碼還原」。登入「設定/說明 › 帳號」後也會自動同步到你自己的雲端。</div>
+    <details class="rc-adv"><summary>舊格式（JSON 檔案）</summary><div class="row"><button id="exportAll">匯出全部（JSON）</button><label class="btn">匯入 JSON<input type="file" id="importFile" accept="application/json,.json" hidden></label></div><div class="lbl"><span class="rc-only">舊版的備份檔仍可匯入；新的備份請用紀錄碼。</span><span class="rc-no">舊版的備份檔仍可匯入。</span></div></details>
   </div>
   <div id="recCompare" data-mod="compare" data-mod-name="紀錄比較"></div>
   <div id="recordList" data-mod="list" data-mod-name="紀錄清單"></div>
@@ -474,7 +475,7 @@
     <div class="lt-sheet-h">更多</div>
     <div class="lt-more-list">
       <button type="button" data-act="theme"><b>🎨 外觀</b><small>10 款主題</small></button>
-      <button type="button" data-act="records"><b>🗂 紀錄</b><small>紀錄碼備份、比較、還原</small></button>
+      <button type="button" data-act="records"><b>🗂 紀錄</b><small><span class="rc-only">紀錄碼備份、比較、還原</span><span class="rc-no">比較、管理紀錄</span></small></button>
       <button type="button" data-act="ghost"><b>👻 鬼影模式</b><small>60 發，和上一次同一發比</small></button>
       <button type="button" data-act="analysis"><b>📈 多張分析</b><small>不預報，連拍多張</small></button>
       <button type="button" data-act="about"><b>⚙️ 設定/說明</b><small>外觀、帳號（雲端）、使用方法、更新</small></button>
@@ -484,22 +485,22 @@
   </div>
 </div>
 <div id="toast"></div>
-<!--I18N--><script src="i18n/zh-TW.js?v=v2.6.0"></script><script src="i18n/en.js?v=v2.6.0"></script><script src="i18n/i18n.js?v=v2.6.0"></script><!--/I18N-->
-<!--CORE--><script src="core.js?v=v2.6.0"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v2.6.0"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v2.6.0"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v2.6.0"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v2.6.0"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v2.6.0"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v2.6.0"></script><script src="member-friends.js?v=v2.6.0"></script><script src="member-admin.js?v=v2.6.0"></script><!--/MEMBER-->
-<!--GHOST--><script src="ghost.js?v=v2.6.0"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v2.6.0"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v2.6.0"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v2.6.0"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v2.6.0"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v2.6.0"></script><!--/DOCK-->
-<!--APP--><script src="app-base.js?v=v2.6.0"></script><script src="app-forecast.js?v=v2.6.0"></script><script src="app-lite.js?v=v2.6.0"></script><script src="app-ghost.js?v=v2.6.0"></script><script src="app-photo.js?v=v2.6.0"></script><script src="app-mods.js?v=v2.6.0"></script>
-<script src="app-analysis.js?v=v2.6.0"></script><script src="app-records.js?v=v2.6.0"></script><script src="app-nav.js?v=v2.6.0"></script><script src="app.js?v=v2.6.0"></script><script src="app-account.js?v=v2.6.0"></script><script src="app-back.js?v=v2.6.0"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v2.6.1"></script><script src="i18n/en.js?v=v2.6.1"></script><script src="i18n/i18n.js?v=v2.6.1"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v2.6.1"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v2.6.1"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v2.6.1"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v2.6.1"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v2.6.1"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v2.6.1"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v2.6.1"></script><script src="member-friends.js?v=v2.6.1"></script><script src="member-admin.js?v=v2.6.1"></script><!--/MEMBER-->
+<!--GHOST--><script src="ghost.js?v=v2.6.1"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v2.6.1"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v2.6.1"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v2.6.1"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v2.6.1"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v2.6.1"></script><!--/DOCK-->
+<!--APP--><script src="app-base.js?v=v2.6.1"></script><script src="app-forecast.js?v=v2.6.1"></script><script src="app-lite.js?v=v2.6.1"></script><script src="app-ghost.js?v=v2.6.1"></script><script src="app-photo.js?v=v2.6.1"></script><script src="app-mods.js?v=v2.6.1"></script>
+<script src="app-analysis.js?v=v2.6.1"></script><script src="app-records.js?v=v2.6.1"></script><script src="app-nav.js?v=v2.6.1"></script><script src="app.js?v=v2.6.1"></script><script src="app-account.js?v=v2.6.1"></script><script src="app-back.js?v=v2.6.1"></script><!--/APP-->
 <script>
 (function () {
   var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['BMGhost','ghost.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];

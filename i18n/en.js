@@ -848,7 +848,7 @@
   "h.press_crosshair": "Press crosshair",
   "h.score_bar_for_the_10": "Score bar for the 10 shots in this series",
   "h.finish_series_1": "Finish series 1",
-  "h.ghost_settings_record_code": "Ghost settings · record code",
+  "h.ghost_settings_record_code": "Ghost settings",
   "h.ghost_source": "Ghost source",
   "h.same_shot_in_previous_training": "Same shot in previous training",
   "h.previous_series_this_time": "Previous series this time",
@@ -1147,7 +1147,10 @@
   "member.rc_user_on": "{0} can now use record codes",
   "member.rc_user_off": "Record codes turned off for {0}",
   "h.owner_tab": "Owner",
-  "h.rc_suffix": " · record code"
+  "h.rc_suffix": " · record code",
+  "h.records_saved_device_sync": "Records are saved on this device; after signing in under “Settings/Help › Account” they also sync to your own cloud automatically.",
+  "h.compare_manage_records": "Compare and manage records",
+  "h.old_backups_can_still_be": "Old backup files can still be imported."
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["en"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

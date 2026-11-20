@@ -53,16 +53,19 @@
     else info.textContent = wrT('app.after_analyzing_you_can_copy');
   }
   $('anaCopyCode').onclick = function () {
+    if (!App.rcOk()) return;
     var Code = window.BMCode, code = Code && Code.encode(App.acur);
     if (!code) { toast(wrT('app.no_analysis_to_copy_yet')); return; }
     copyText(code, wrT('app.record_code_copied_characters_2', [code.length]));
   };
   $('anaShareCode').onclick = function () {
+    if (!App.rcOk()) return;
     var Code = window.BMCode, code = Code && Code.encode(App.acur);
     if (!code) { toast(wrT('app.no_analysis_to_share_yet')); return; }
     try { navigator.share({ title: wrT('app.wrbeta_record_code'), text: code }); } catch (e) { copyText(code, wrT('app.record_code_copied_characters_2', [code.length])); }
   };
   $('anaCopyAllCodes').onclick = function () {
+    if (!App.rcOk()) return;
     var Code = window.BMCode, list = anaRecords(), code = Code && Code.encodeMany(list);
     if (!code) { toast(wrT('app.no_analysis_records_to_copy')); return; }
     copyText(code, wrT('app.copied_analysis_record_codes_characters', [list.length, code.length]));
@@ -71,9 +74,10 @@
     $('anaPasteBox').hidden = !on;
     if (on) { $('anaPasteArea').value = ''; setTimeout(function () { $('anaPasteArea').focus(); }, 0); }
   }
-  $('anaPasteCode').onclick = function () { showPasteBox(true); };
+  $('anaPasteCode').onclick = function () { if (App.rcOk()) showPasteBox(true); };
   $('anaPasteCancel').onclick = function () { showPasteBox(false); };
   $('anaPasteGo').onclick = function () {
+    if (!App.rcOk()) return;
     var added = restoreCodes($('anaPasteArea').value), ana;
     if (!added) return;
     ana = added.filter(isAna);
@@ -115,12 +119,12 @@
     info.textContent = a.n ? wrT('app.records_characters_coordinates_0_01mm', [a.n, a.code.length]) : wrT('app.each_shots_coordinates_relative_to');
   }
   if (navigator.share) $('recShareAll').hidden = false;
-  $('recCopyAll').onclick = function () { var a = recAllCodes(); if (!a.n) { toast(wrT('app.no_records_to_copy_yet')); return; } copyText(a.code, wrT('app.copied_record_codes_characters', [a.n, a.code.length])); };
-  $('recShareAll').onclick = function () { var a = recAllCodes(); if (!a.n) { toast(wrT('app.no_records_to_share_yet')); return; } try { navigator.share({ title: wrT('app.wrbeta_record_code'), text: a.code }); } catch (e) { copyText(a.code, wrT('app.copied_record_codes', [a.n])); } };
+  $('recCopyAll').onclick = function () { if (!App.rcOk()) return; var a = recAllCodes(); if (!a.n) { toast(wrT('app.no_records_to_copy_yet')); return; } copyText(a.code, wrT('app.copied_record_codes_characters', [a.n, a.code.length])); };
+  $('recShareAll').onclick = function () { if (!App.rcOk()) return; var a = recAllCodes(); if (!a.n) { toast(wrT('app.no_records_to_share_yet')); return; } try { navigator.share({ title: wrT('app.wrbeta_record_code'), text: a.code }); } catch (e) { copyText(a.code, wrT('app.copied_record_codes', [a.n])); } };
   function showRecPaste(on) { $('recPasteBox').hidden = !on; if (on) { $('recPasteArea').value = ''; setTimeout(function () { $('recPasteArea').focus(); }, 0); } }
-  $('recPaste').onclick = function () { showRecPaste($('recPasteBox').hidden); };
+  $('recPaste').onclick = function () { if (!App.rcOk()) return; showRecPaste($('recPasteBox').hidden); };
   $('recPasteCancel').onclick = function () { showRecPaste(false); };
-  $('recPasteGo').onclick = function () { var added = restoreCodes($('recPasteArea').value); if (!added) return; showRecPaste(false); App.renderAll(); };
+  $('recPasteGo').onclick = function () { if (!App.rcOk()) return; var added = restoreCodes($('recPasteArea').value); if (!added) return; showRecPaste(false); App.renderAll(); };
   /* v2.0.0：好友分享的唯讀檢視（member.js）：把一筆紀錄畫在 ISSF 靶面上（分析＝全部彈孔；預報＝實際彈著＋預報點） */
   function drawRecord(svg, s) {
     var t = T[s.targetId] || T.ap10; drawTarget(svg, t, 1);
@@ -193,11 +197,11 @@
         div.appendChild(sr);
       }
       // v1.8.0：每筆紀錄都顯示自己的紀錄碼（座標系統 A），可以單獨複製
-      var code = recCode(s), cl = document.createElement('div'); cl.className = 'rec-code';
+      var code = recCode(s), cl = document.createElement('div'); cl.className = 'rec-code rc-gate';
       if (code) {
         cl.innerHTML = wrT('app.chars', [esc(code.slice(0, 22)), code.length]);
         var cb = document.createElement('button'); cb.type = 'button'; cb.className = 'rc-copy'; cb.textContent = wrT('app.copy_record_code');
-        cb.onclick = function () { copyText(code, wrT('app.copied_the_record_code_of', [recTitle(s), code.length])); };
+        cb.onclick = function () { if (!App.rcOk()) return; copyText(code, wrT('app.copied_the_record_code_of', [recTitle(s), code.length])); };
         cl.appendChild(cb);
       } else cl.innerHTML = wrT('app.no_shots_yet_no_record');
       div.appendChild(cl); box.appendChild(div);

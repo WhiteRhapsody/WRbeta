@@ -222,6 +222,7 @@
   $('ghOpts').addEventListener('toggle', function () { this.dataset.touched = '1'; });
   $('ghName').onchange = function () { gcur.name = this.value.trim().slice(0, 60); if (G.countShots(gcur)) ghPersist(); toast(wrT('app.name_saved')); };
   $('ghCopyCode').onclick = function () {
+    if (!App.rcOk()) return;
     var Code = window.BMCode, rec = LF.toAnalysisRecord(gcur), code = rec && Code && Code.encode(rec);
     if (!code) { toast(wrT('app.no_shots_to_copy_yet')); return; }
     App.copyText(code, wrT('app.record_code_copied_characters', [code.length]));

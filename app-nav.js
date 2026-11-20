@@ -106,6 +106,8 @@
   function stPaneId(name) { return name === 'set' ? 'stPaneSet' : name === 'acct' ? 'stPaneAcct' : name === 'help' ? 'stPaneHelp' : (ST_EXTRA[name] && ST_EXTRA[name].pane); }
   var stSub = (function () {
     var S = $('tab-about'), P = $('stPanes'), cur = ST_BASE.indexOf(prefs.aboutSub) >= 0 ? prefs.aboutSub : 'set', anim = 0;
+    // v2.6.1 記住上次的子標籤（含站長頁）：want＝使用者最後選的；額外分頁（站長）要等登入確認後 enable() 才切過去；沒有那個分頁時先顯示預設（設定），但不覆蓋記住的值
+    var want = prefs.aboutSub || 'set';
     function reduced() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
     function set(name, o) {
       o = o || {}; if (ST_SUBS.indexOf(name) < 0) name = 'set';
@@ -116,7 +118,7 @@
       S.style.setProperty('--st-i', String(Math.max(0, ST_SUBS.indexOf(name))));
       if (name === 'acct' && old !== name) { try { App.renderAcct(); } catch (e) {} }
       if (ST_EXTRA[name] && ST_EXTRA[name].open && old !== name) ST_EXTRA[name].open();
-      if (prefs.aboutSub !== name) { prefs.aboutSub = name; savePrefs(); }
+      if (!o.auto) { want = name; if (prefs.aboutSub !== name) { prefs.aboutSub = name; savePrefs(); } }
       if (old !== name && o.dir && !reduced()) {
         clearTimeout(anim); P.style.transition = 'none'; P.style.transform = 'translateX(' + (o.dir * 22) + '%)'; P.style.opacity = '0.2'; void P.offsetWidth;
         P.style.transition = 'transform .26s cubic-bezier(.2,.8,.3,1),opacity .22s'; P.style.transform = ''; P.style.opacity = '';
@@ -132,7 +134,7 @@
       b.onclick = function () { var d = ST_SUBS.indexOf(b.dataset.sub) - ST_SUBS.indexOf(cur); set(b.dataset.sub, { dir: d }); };
       b.onkeydown = function (e) { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); if (step(e.key === 'ArrowRight' ? 1 : -1)) document.querySelector('#stTabs [data-sub="' + cur + '"]').focus(); } };
     });
-    set(cur, { noScroll: true });
+    set(cur, { noScroll: true, auto: true });
     // v2.6.0：開／關額外分頁（站長頁）。關掉時如果正在看那一頁，回到「帳號」。
     function enable(name, on) {
       var x = ST_EXTRA[name]; if (!x || !x.pane || !$(x.pane)) return; on = !!on; if (x.on === on) return;
@@ -140,7 +142,9 @@
       var tb = $(x.tab); if (tb) tb.hidden = !on;
       document.querySelectorAll('#tab-about .st-dots i[data-sub="' + name + '"]').forEach(function (d) { d.hidden = !on; });
       S.style.setProperty('--st-n', String(ST_SUBS.length)); S.classList.toggle('st-has-extra', ST_SUBS.length > 3);
-      if (!on && cur === name) set('acct', { noScroll: true }); else S.style.setProperty('--st-i', String(Math.max(0, ST_SUBS.indexOf(cur))));
+      if (!on && cur === name) set('acct', { noScroll: true, auto: true });
+      else if (on && want === name && cur !== name) set(name, { noScroll: true, auto: true }); // v2.6.1 重新整理後回到記住的站長頁
+      else S.style.setProperty('--st-i', String(Math.max(0, ST_SUBS.indexOf(cur))));
     }
     return { get cur() { return cur; }, set: set, step: step, canStep: canStep, drag: drag, dragEnd: dragEnd, enable: enable, get list() { return ST_SUBS.slice(); } };
   })();
