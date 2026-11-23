@@ -1890,7 +1890,7 @@ html.wr-home,html.wr-home body{overflow:hidden}
 .wr-home .hm-vhd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 15px 8px;border-bottom:1px solid var(--w-line,rgba(0,0,0,.08))}
 .wr-home .hm-vhd b{font:900 15px var(--w-sans)}
 .wr-home .hm-vhd span{font:600 11px/1.2 var(--w-sans);color:var(--w-tx2);white-space:nowrap}
-.wr-home .hm-vsc{flex:1;overflow-y:auto;padding:4px 15px 18px;scrollbar-width:none;-webkit-mask:linear-gradient(#000 calc(100% - 26px),transparent);mask:linear-gradient(#000 calc(100% - 26px),transparent);overscroll-behavior:contain}
+.wr-home .hm-vsc{flex:1;overflow-y:auto;padding:4px 15px 18px;scrollbar-width:none;-webkit-mask:linear-gradient(#000 calc(100% - 6px),transparent);mask:linear-gradient(#000 calc(100% - 6px),transparent);overscroll-behavior:contain}
 .wr-home .hm-vsc::-webkit-scrollbar{display:none}
 .wr-home .hm-ve{padding:9px 0 7px;border-bottom:1px dashed var(--w-line,rgba(0,0,0,.1))}
 .wr-home .hm-ve:last-child{border-bottom:0}
@@ -1926,6 +1926,14 @@ html.wr-home,html.wr-home body{overflow:hidden}
 .wr-home .hm-toast em{font-style:normal;color:#ffb27a}
 @keyframes hmToast{0%{opacity:0;transform:translate(-50%,6px)}8%,85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
 html.wr-lang-en .wr-home .hm-rb b{font-size:12px}
+/* v2.9.1 分數浮字（White 2026-11-23：不要氣泡、只給分數，用寶寶的顏色、誇張一點的字；黑圈外換顏色） */
+.wr-home .hm-toast.sr{animation:none;opacity:0}
+.wr-home .hm-pop{position:absolute;z-index:5;pointer-events:none;white-space:nowrap;line-height:1;font-family:var(--w-num);font-weight:900;font-style:italic;letter-spacing:-.5px;
+  color:var(--hm-tagC,var(--w-camB));-webkit-text-stroke:3px rgba(18,18,16,.92);paint-order:stroke fill;
+  text-shadow:0 2px 0 rgba(0,0,0,.35),0 0 14px rgba(0,0,0,.35);animation:hmPop var(--hm-pop-ms,1.6s) cubic-bezier(.2,.8,.3,1) forwards}
+.wr-home .hm-pop.off{color:#1f45d6;-webkit-text-stroke:3.5px #fff;text-shadow:0 2px 0 rgba(0,0,0,.28),0 3px 10px rgba(0,0,0,.28)}
+@keyframes hmPop{0%{opacity:0;transform:scale(.2) rotate(-14deg)}12%{opacity:1;transform:scale(1.5) rotate(-4deg)}22%{transform:scale(.9) rotate(-7deg)}31%{transform:scale(1.08) rotate(-6deg)}40%{transform:scale(1) rotate(-6deg) translateY(0);opacity:1}78%{opacity:1}100%{opacity:0;transform:scale(1.04) rotate(-6deg) translateY(-48px)}}
+@media (prefers-reduced-motion:reduce){.wr-home .hm-pop{animation:none;transform:rotate(-6deg)}}
 /* 鋼琴烤漆：「拍下一張」主按鈕是黑色琴鍵（--w-camB≈黑），在黑底上看不到 → 標語改用同一顆按鈕的銀色外框（--w-camBd） */
 body.lt-piano .wr-home{--hm-tagC:var(--w-camBd)}
 header .title[role=button]{cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -1962,3 +1970,14 @@ html.wr-lang-en .pf-btn b{font-size:10px;letter-spacing:-.2px}
 #tab-analysis .ana-info.fit-s .d{font-size:calc(13.5px * var(--ai-k,1))}
 #tab-analysis .ana-info.fit-s .x{font-size:calc(11px * var(--ai-k,1))}
 #tab-analysis .ana-info.fit-w .r1{white-space:normal;flex-wrap:wrap;row-gap:0}
+
+/* v2.9.1【White 2026-11-23】各分頁左上角小「首頁」按鈕：標題列最左邊，圖示＋小字；點擊範圍至少 44×44（::before 往外延伸） */
+header .hleft{display:flex;align-items:center;gap:7px;min-width:0;flex:0 1 auto}
+.wr-homebtn{position:relative;flex:none;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:0;width:36px;height:30px;padding:0;margin:0 0 0 -4px;border-radius:10px;
+  border:1px solid color-mix(in srgb,currentColor 28%,transparent);background:color-mix(in srgb,currentColor 9%,transparent);color:inherit;font:800 9px/1.05 var(--w-sans);letter-spacing:.2px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.wr-homebtn::before{content:"";position:absolute;inset:-10px -6px} /* 30px 高＝不撐高標題列（412 寬標題一行時標題列維持 51px） */
+.wr-homebtn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.wr-homebtn span{white-space:nowrap}
+.wr-homebtn:active{transform:scale(.92);background:color-mix(in srgb,currentColor 18%,transparent)}
+html.wr-lang-en .wr-homebtn{font-size:8.5px;letter-spacing:0}
+header .beta{white-space:nowrap} /* v2.9.1：「beta v2.9.1」不拆成兩行（窄畫面整顆換到 WRbeta 下面） */

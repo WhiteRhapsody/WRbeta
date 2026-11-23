@@ -1,4 +1,5 @@
 /* WRbeta v2.9.0 首頁（White 2026-11-23 定稿＝/workspace/home_concept/v3c）
+ * - v2.9.1：開槍後在彈孔旁邊飄出分數（取代提示氣泡）；靶紙下移 4mm、右移 2mm；版本卡片不壓靶紙。
  * - 打開 App 先看到首頁：10 米空氣手槍靶紙（尺寸照 core.js TARGETS.ap10，ISSF 6.3.4.6），準心預設對準十環的「選手」。
  * - 按住靶紙瞄準、放開開槍：打出 4.5mm 彈孔（挖空靶紙，露出主題背景），打中十環 → 1.5 秒後從彈孔圓形展開進入「選手」（＝原本一打開的畫面：Pro 分析、Lite 預報第 1 步）。
  *   沒打中十環：顯示分數，準心回到十環。
@@ -17,6 +18,7 @@
   var ENTER_MS = 1500, REVEAL_MS = 420;
   // 版本更新紀錄：[版本, 日期, 條目 key…]
   var VLOG = [
+    ['v2.9.1', '2026/11/23', ['home.v291_1', 'home.v291_2', 'home.v291_3', 'home.v291_4']],
     ['v2.9.0', '2026/11/23', ['home.v290_1', 'home.v290_2', 'home.v290_3', 'home.v290_4']],
     ['v2.8.0', '2026/11/21', ['home.v280_1', 'home.v280_2', 'home.v280_3', 'home.v280_4']],
     ['v2.7.0', '2026/11/20', ['home.v270_1', 'home.v270_2', 'home.v270_3']],
@@ -76,7 +78,8 @@
   function geom() {
     var W = H.clientWidth || window.innerWidth || 412, Hh = window.innerHeight || H.clientHeight || 915, k = Math.min(1.25, W / 412);
     var S = 5.55 * W / 412;                  // px/mm：黑區半徑≈0.40×寬（White 的裁切）
-    return { W: W, H: Hh, k: k, S: S, CX: 0.82 * W, CY: Hh - 82 * k, Cpx: TG.cardSize * S };
+    // v2.9.1【White 2026-11-23 #12】靶紙整體下移 22k px（≈4mm，原本 CY = H − 82k）、再往右 2mm（原本 CX = 0.82W），比例不變（環照 TARGETS.ap10）
+    return { W: W, H: Hh, k: k, S: S, CX: 0.82 * W + 2 * S, CY: Hh - 60 * k, Cpx: TG.cardSize * S };
   }
   function draw() {
     var g = G = geom(), svg = els.svg, S = g.S, CX = g.CX, CY = g.CY, C2 = g.Cpx / 2;
@@ -123,20 +126,29 @@
       var a = RB[i][2] * Math.PI / 180, x = CX + Math.cos(a) * RB_MM * S, y = CY + Math.sin(a) * RB_MM * S;
       b.style.left = (x - d / 2) + 'px'; b.style.top = (y - d / 2) + 'px'; b.style.width = d + 'px'; b.style.height = d + 'px';
     });
-    // 版本卡片：底邊不能碰到最上面那顆圓鈕
-    var topBtn = Math.min.apply(null, RB.map(function (b) { var a = b[2] * Math.PI / 180; return CY + Math.sin(a) * RB_MM * S - d / 2; }));
-    var vt = els.vlog.getBoundingClientRect().top, maxB = topBtn - 12;
-    els.vlog.style.height = Math.max(96, Math.min(226 * g.k, maxB - vt)) + 'px';
+    // v2.9.1 #12：卡片底邊不跟靶紙重疊；與紙卡上緣（以及最外環）留出明顯間隔。
+    // 最上面那顆圓鈕本來就在白色環區內，清過紙卡上緣就一定清過圓鈕。
+    var paperTop = CY - C2, ringTop = CY - TG.ringDiam[1] / 2 * S;
+    var vt = els.vlog.getBoundingClientRect().top, maxB = Math.min(paperTop, ringTop) - 14;
+    els.vlog.style.height = Math.max(72, Math.min(226 * g.k, maxB - vt)) + 'px';
+    // 最後一行要完整：卡片底邊切在「最後一行完整的字」的行框底下（條目之間或同一條的兩行之間），下一行的字不會露出半截；淡出只剩 6px（themes.css .hm-vsc）。
+    var box = els.vlog.getBoundingClientRect(), bd = parseFloat(getComputedStyle(els.vlog).borderBottomWidth) || 0, lim = box.bottom - bd - 1, cut = 0;
+    els.vlog.querySelectorAll('.hm-vt').forEach(function (v) { var y = v.getBoundingClientRect().bottom + 2; if (y <= lim) cut = Math.max(cut, y); }); // 很矮的畫面：至少切在版本列底下
+    els.vlog.querySelectorAll('.hm-ve li').forEach(function (li) {
+      var r = li.getBoundingClientRect(), lh = parseFloat(getComputedStyle(li).lineHeight) || 19, n = Math.max(1, Math.round(r.height / lh));
+      for (var i = 1; i <= n; i++) { var y = r.top + r.height * i / n; if (y <= lim) cut = Math.max(cut, y); }
+    });
+    if (cut) els.vlog.style.height = Math.max(72, Math.min(maxB, cut + 1 + bd) - vt) + 'px';
   }
   function aim(x, y) {
-    var g = G, C2 = g.Cpx / 2;
+    var g = G || (G = geom()), C2 = g.Cpx / 2;
     els.xhH.setAttribute('x1', g.CX - C2); els.xhH.setAttribute('x2', g.CX + C2); els.xhH.setAttribute('y1', y); els.xhH.setAttribute('y2', y);
     els.xhV.setAttribute('y1', g.CY - C2); els.xhV.setAttribute('y2', g.CY + C2); els.xhV.setAttribute('x1', x); els.xhV.setAttribute('x2', x);
     els.xhO.setAttribute('cx', x); els.xhO.setAttribute('cy', y);
   }
   function holePath(x, y, R, amp) { var n = 48, pts = []; for (var i = 0; i < n; i++) { var a = i / n * Math.PI * 2, k = 1 + (rnd() - 0.5) * amp; if (rnd() < 0.08) k -= amp * 0.8; pts.push((x + Math.cos(a) * R * k).toFixed(2) + ',' + (y + Math.sin(a) * R * k).toFixed(2)); } return pts.join(' '); }
   // 螢幕座標 → 靶面 mm（y 往上為正，同 core.js）
-  function toMm(x, y) { return { x: (x - G.CX) / G.S, y: -(y - G.CY) / G.S }; }
+  function toMm(x, y) { var g = G || (G = geom()); return { x: (x - g.CX) / g.S, y: -(y - g.CY) / g.S }; } // v2.9.1（Gemini PR #4）防呆
   function score(x, y) { var m = toMm(x, y); return C.scoreShot(TG, m.x, m.y); }
   function toast(msg, ms, cls) {
     var t = els.toast; t.className = 'hm-toast'; t.innerHTML = msg; void t.offsetWidth; t.className = 'hm-toast ' + (cls || 'show');
@@ -160,16 +172,39 @@
     }
     els.xh.classList.add('out'); vib(30);
     var dec = sc.dec.toFixed(1);
+    // v2.9.1【White 2026-11-23】不用提示氣泡，只在彈孔旁邊飄出分數（「9.2！」）；文字提示改成只給螢幕報讀（hm-toast.sr，看不見）
+    popScore(x, y, dec, onBlack, sc.ring === 10);
     if (sc.ring === 10) {
       busy = true; els.lbl.classList.add('gone'); els.hint.classList.add('gone');
-      toast(wrT('home.hit', [dec]), ENTER_MS + REVEAL_MS + 200, 'hit');
+      toast(wrT('home.hit', [dec]), ENTER_MS + REVEAL_MS + 200, 'sr');
       clearTimeout(enterT); enterT = setTimeout(function () { reveal(x, y); }, ENTER_MS);
     } else {
-      toast(sc.ring ? wrT('home.miss_ring', [dec, sc.ring]) : wrT('home.miss_out'), 1800);
+      toast(sc.ring ? wrT('home.miss_ring', [dec, sc.ring]) : wrT('home.miss_out'), 1800, 'sr');
       setTimeout(function () { if (busy) return; els.xh.classList.remove('out'); aim(G.CX, G.CY); }, 900);
     }
     host.dataset.last = JSON.stringify({ x: +x.toFixed(2), y: +y.toFixed(2), ring: sc.ring, dec: sc.dec, holeD: +(2 * R).toFixed(3), pxPerMm: +g.S.toFixed(4) });
     return sc;
+  }
+  // ---------- v2.9.1 分數浮字 ----------
+  // 顏色：彈孔在黑區（7–10 環）＝「拍下一張寶寶」主按鈕色（--w-camB，鋼琴烤漆用 --w-camBd）＋深色描邊；
+  //       黑區外（白色環區）＝寶藍 #1f45d6＋白色描邊（APP製作仔決定，見 themes.css .hm-pop.off）。
+  // 位置：彈孔右上方；右邊放不下就放左上方；不出畫面。動畫：放大彈跳 → 往上飄 → 淡出（減少動態＝靜止顯示後消失）。
+  var POP_MS = 1600;
+  function popScore(x, y, dec, onBlack, ten) {
+    var g = G || (G = geom()), R = TG.pellet / 2 * g.S, e = D.createElement('div');
+    e.className = 'hm-pop' + (onBlack ? '' : ' off') + (ten ? ' ten' : ''); e.setAttribute('aria-hidden', 'true');
+    e.textContent = dec + '!';
+    e.style.fontSize = ((ten ? 44 : 38) * g.k).toFixed(1) + 'px';
+    els.stage.appendChild(e);
+    var w = e.offsetWidth, h = e.offsetHeight, gap = R + 4 * g.k;
+    var lx = x + gap; if (lx + w > g.W - 4) lx = x - gap - w; lx = Math.max(4, Math.min(lx, g.W - w - 4));
+    var ty = Math.max(4, y - h * 0.95);
+    e.style.left = lx.toFixed(1) + 'px'; e.style.top = ty.toFixed(1) + 'px';
+    e.style.transformOrigin = (x < lx ? 0 : w) + 'px ' + h + 'px';
+    var ms = ten ? ENTER_MS + REVEAL_MS : POP_MS;
+    e.style.setProperty('--hm-pop-ms', ms + 'ms');
+    setTimeout(function () { e.remove(); }, ms + 80);
+    return e;
   }
   function reveal(x, y) {
     if (!onNow) return;
@@ -192,6 +227,7 @@
     onNow = true; busy = false; aiming = false; seed = 7;
     host.hidden = false; host.classList.remove('hm-reveal'); H.classList.add('wr-home');
     els.lbl.classList.remove('gone'); els.hint.classList.remove('gone'); els.toast.className = 'hm-toast';
+    host.querySelectorAll('.hm-pop').forEach(function (p) { p.remove(); });
     var sc = host.querySelector('.hm-vsc'); if (sc) sc.scrollTop = 0;
     draw(); els.xh.classList.remove('out');
     try { if (App.back) App.back.sync(); } catch (e) {}
@@ -243,9 +279,19 @@
     ttl.addEventListener('click', goHome); ttl.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goHome(); } });
   }
 
+  // v2.9.1【White 2026-11-23】各分頁左上角的小「首頁」按鈕（標題列最左邊；按了回靶紙首頁）
+  var hb = null, hdr = D.querySelector('header');
+  if (hdr && ttl) {
+    var hl = D.createElement('div'); hl.className = 'hleft'; hdr.insertBefore(hl, ttl); hl.appendChild(ttl);
+    hb = D.createElement('button'); hb.type = 'button'; hb.id = 'wrHomeBtn'; hb.className = 'wr-homebtn'; hb.setAttribute('aria-label', wrT('home.go_home'));
+    hb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.2L12 4l8.5 7.2"/><path d="M6 9.6V20h4.6v-5.6h2.8V20H18V9.6"/></svg><span>' + esc(wrT('home.home_btn')) + '</span>';
+    hl.insertBefore(hb, ttl);
+    hb.addEventListener('click', function () { show(); });
+  }
+
   App.home = {
     show: show, hide: function () { hide(); }, fire: function (x, y) { return fire(x, y); }, aim: function (x, y) { aim(x, y); },
-    toast: function (m, ms) { if (built) toast(m, ms); }, get on() { return onNow; }, get geom() { return G; }, get busy() { return busy; }, ENTER_MS: ENTER_MS, REVEAL_MS: REVEAL_MS, KEY: KEY
+    toast: function (m, ms) { if (built) toast(m, ms); }, POP_MS: POP_MS, get on() { return onNow; }, get geom() { return G; }, get busy() { return busy; }, ENTER_MS: ENTER_MS, REVEAL_MS: REVEAL_MS, KEY: KEY
   };
   if (H.classList.contains('wr-home')) show(); else host.hidden = true;
 })(window.WRApp = window.WRApp || {});

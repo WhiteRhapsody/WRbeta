@@ -694,16 +694,27 @@
   }
   /* v2.9.0（§7 第 8 項，White S26U 實機截圖）總分氣泡的右緣不能碰到右上角「靶面／照片」切換鈕與「雙指縮放」鈕：
    * 依兩顆鈕「實際」的位置算最大寬度（手機字型、字型縮放、語言都不同，所以用量的）；第一行放不下就整行等比縮小（最多 70%），第二行換行。 */
+  // v2.9.1（Gemini PR #4 效能建議）：先量完、再寫入。原本「設 max-width → 量 → 改字級 → 量 → 再改 → 量」最多 4 次強制排版；
+  // 現在一開始一次量完（位置、內距、內容寬），放得下就只寫一次（最常見，1 次排版）；放不下才「寫 k₁ → 量 → 寫 k₂ → 量」（最多 3 次）。
+  // 判斷和數值跟原本完全一樣（k₁＝max(0.7, 可用寬／內容寬×0.98)；還放不下 → k₂＝max(0.6, k₁×可用寬／新內容寬×0.98)；還放不下才換行 fit-w）。
+  // 沒有照 Gemini 範例「只量一次直接算 k」：字寬不是完全跟字級成正比（間距、膠囊框不縮、字型取整），那樣算出來的 k 會跟原本差 0.002～0.02，第二次縮字也會不見。
   function anaInfoFit() {
     var box = $('anaInfo'); if (!box || !box.offsetParent) return;
-    box.classList.remove('fit-s', 'fit-w'); box.style.removeProperty('--ai-k'); box.style.maxWidth = '';
+    box.classList.remove('fit-s', 'fit-w'); box.style.removeProperty('--ai-k'); box.style.maxWidth = '';      // 寫：回到原始狀態
+    // ---- 讀（同一次版面）----
     var bl = box.getBoundingClientRect().left, lim = Infinity;
     ['anaViewSeg', 'anaFit'].forEach(function (id) { var e = $(id); if (!e || !e.offsetParent) return; var r = e.getBoundingClientRect(); if (r.width && r.left > bl) lim = Math.min(lim, r.left - bl - 8); });
     if (!isFinite(lim)) { var host = box.offsetParent.getBoundingClientRect(); lim = host.right - bl - 8; }
-    lim = Math.max(120, Math.floor(lim)); box.style.maxWidth = lim + 'px';
-    var r1 = box.querySelector('.r1'); if (!r1) return;
-    var cs = getComputedStyle(box), inner = lim - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0);
-    if (r1.scrollWidth > inner) { var k = Math.max(0.7, inner / r1.scrollWidth * 0.98); box.style.setProperty('--ai-k', k.toFixed(3)); box.classList.add('fit-s'); if (r1.scrollWidth > inner) box.style.setProperty('--ai-k', Math.max(0.6, k * inner / r1.scrollWidth * 0.98).toFixed(3)); if (r1.scrollWidth > inner) box.classList.add('fit-w'); }
+    lim = Math.max(120, Math.floor(lim));
+    var r1 = box.querySelector('.r1'), inner = 0, w0 = 0;
+    if (r1) { var cs = getComputedStyle(box); inner = lim - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0); w0 = r1.scrollWidth; } // 第一行不換行，內容寬跟 max-width 無關
+    // ---- 寫 ----
+    box.style.maxWidth = lim + 'px';
+    if (!r1 || w0 <= inner) return;
+    var k = Math.max(0.7, inner / w0 * 0.98); box.style.setProperty('--ai-k', k.toFixed(3)); box.classList.add('fit-s');
+    var w1 = r1.scrollWidth; if (w1 <= inner) return;                                                          // 讀
+    box.style.setProperty('--ai-k', Math.max(0.6, k * inner / w1 * 0.98).toFixed(3));                         // 寫
+    if (r1.scrollWidth > inner) box.classList.add('fit-w');                                                   // 讀 → 寫
   }
   App.anaInfoFit = anaInfoFit;
   window.addEventListener('resize', function () { if (App.curTab === 'analysis') anaInfoFit(); });

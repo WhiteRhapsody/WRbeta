@@ -166,14 +166,17 @@
     liteFitK();
   }
   // v2.9.0（§7 第 2 項）四塊資訊框的小標（例：戰術 HUD 英文「60-SHOT PROJECTION」）放不下時：先收字距、再縮字（最多縮到 70%），不再出現刪節號
+  // v2.9.1（Gemini PR #4）：先全部量、再全部寫，避免每個資訊框各自「改樣式→量→改樣式→量」造成多次強制排版。
+  // 步驟和判斷跟原本完全一樣：還原 → 量（寬、內容寬、字級）→ 擠的先把字距歸零 → 再量一次 → 還是擠才縮字。版面計算從 2×N 次變成 2 次。
   function liteFitK() {
-    document.querySelectorAll('#litePanel .lp-k').forEach(function (k) {
-      k.style.fontSize = ''; k.style.letterSpacing = '';
-      var a = k.clientWidth; if (!a || k.scrollWidth <= a) return;
-      k.style.letterSpacing = '0px'; if (k.scrollWidth <= a) return;
-      var fs = parseFloat(getComputedStyle(k).fontSize) || 12;
-      k.style.fontSize = Math.max(fs * 0.7, fs * a / k.scrollWidth * 0.97).toFixed(2) + 'px';
-    });
+    var ks = [].slice.call(document.querySelectorAll('#litePanel .lp-k'));
+    ks.forEach(function (k) { k.style.fontSize = ''; k.style.letterSpacing = ''; });                       // 寫
+    var m = ks.map(function (k) { var a = k.clientWidth; return { k: k, a: a, over: !!a && k.scrollWidth > a }; }); // 讀
+    m = m.filter(function (x) { return x.over; }); if (!m.length) return;
+    m.forEach(function (x) { x.fs = parseFloat(getComputedStyle(x.k).fontSize) || 12; });                     // 讀（同一次版面）
+    m.forEach(function (x) { x.k.style.letterSpacing = '0px'; });                                            // 寫
+    m.forEach(function (x) { x.sw = x.k.scrollWidth; });                                                     // 讀
+    m.forEach(function (x) { if (x.sw <= x.a) return; x.k.style.fontSize = Math.max(x.fs * 0.7, x.fs * x.a / x.sw * 0.97).toFixed(2) + 'px'; }); // 寫
   }
   App.liteFitK = liteFitK;
   window.addEventListener('resize', liteLayout);

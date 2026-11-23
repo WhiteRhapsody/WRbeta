@@ -180,7 +180,7 @@
       del.onclick = function () {
         // v2.9.0：好友分享的紀錄可以從自己這邊移除（不會動到好友的紀錄）；不能改、不能解鎖
         if (App.isShared(s)) { ask(wrT('app.rec_shared_remove', [recTitle(s)]), function () { removeRecords([s.id]); }); return; }
-        if (s.locked) { App.lockToast(); return; }
+        if (s.locked) { App.lockToast(s); return; } // v2.9.1（Gemini PR #4）：傳入這筆紀錄，提示才不會看成分析頁開著的那筆
         var WMd = window.WRMember, nSh = 0; try { if (WMd && WMd.sharesOf) WMd.sharesOf(s.id).forEach(function (x) { nSh += (x.to || []).length; }); } catch (e) {}
         ask(nSh ? wrT('app.delete_shared_too', [recTitle(s)]) : wrT('app.delete_2', [recTitle(s)]), function () {
           try { if (WMd && WMd.recordDeleted) WMd.recordDeleted(s.id); } catch (e) {} // v2.9.0：刪掉自己的紀錄＝分享出去的也一起收回（好友那邊跟著消失）

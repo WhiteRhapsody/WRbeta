@@ -158,13 +158,14 @@
   var NAV_NAME = { predict: wrT('app.call_check'), analysis: wrT('app.analysis_2'), records: wrT('app.records'), ghost: wrT('app.ghost_2'), about: wrT('app.settings') };
   var nav = (function () {
     var N = $('wrNav'), H = $('wrNavHandle'), fab = $('wrFab'), scrim = $('wrFabScrim'), B = document.body, M = document.querySelector('main');
-    var HIDE_MS = 3000, hideT = 0, holding = false, keyboard = false, style = 'a', autoHide = prefs.navAutoHide !== false, g = null, anim = 0;
+    var HIDE_MS = 5000, hideT = 0, holding = false, keyboard = false, style = 'a', autoHide = prefs.navAutoHide !== false, g = null, anim = 0;
     // 不算「滑動」的起點：靶面、照片、彈出視窗、可橫向捲動的區塊、輸入元件、功能列本身
     var NO_SWIPE = 'svg.target,svg.lite-photo,.photobox,.lt-sheet,.modal-bg,input,textarea,select,#wrNav,.wr-fab-wrap,.wr-navc,table,.ana-chips,.ana-strip,.ana-photobox,.ana-dock,.wr-pop,.lay-bar,.lay-editing [data-mod],.lite-rounds,.gh-strip,.dk-eye';
     function pro() { return !B.classList.contains('lite'); }
     function reduced() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
     function isHidden() { return B.classList.contains('nav-hidden'); }
     function setHidden(h) { B.classList.toggle('nav-hidden', !!h); N.setAttribute('aria-hidden', h ? 'true' : 'false'); }
+    // v2.9.1【White 2026-11-23】功能列出現後多停 2 秒才收（3000 → 5000ms）
     function arm() {
       clearTimeout(hideT);
       if (style !== 'a' || !autoHide) return;
