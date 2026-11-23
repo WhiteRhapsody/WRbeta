@@ -1802,7 +1802,7 @@ body.rc-ok .rc-no{display:none!important}
 .ana-name-lock .lk-ripple{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:color-mix(in srgb,var(--w-camB) 30%,transparent);transform:scale(.35);opacity:0;pointer-events:none}
 .ana-name-lock.lk-rippling .lk-ripple{animation:lk-rip 280ms ease-out}
 @keyframes lk-rip{0%{transform:scale(.35);opacity:.55}100%{transform:scale(1.2);opacity:0}}
-body.ana-ro .ana-name-lock{display:none}
+body.ana-ro:not(.ana-ro-friend) .ana-name-lock{display:none}
 /* 名字輸入框收成文字寬度，小鎖頭緊貼名稱 */
 #tab-analysis .ana-nmrow.has-lock .ana-name{flex:0 1 auto;width:auto;max-width:calc(100% - 52px);field-sizing:content;height:24px}
 body.ana-locked .ana-pen{display:none}
@@ -1832,3 +1832,133 @@ html.wr-lang-en .gh-big{min-width:0}
 body:not(.lite) #tab-ghost .gh-hint{padding-right:96px}                                                     /* #7 鬼影提示讓出右上「編輯版面」（中文原本也會壓到最後幾個字） */
 html.wr-lang-en body:not(.lite) #tab-ghost .gh-hint{padding-right:112px}
 body:not(.lite):not(.can-back) #tab-ghost .gh-hint{padding-left:8px;text-align:left}
+
+/* =====================================================================================
+ * v2.9.0 首頁（app-home.js；White 2026-11-23 定稿 v3c）：靶紙＋開槍進入選手；顏色全部用主題變數
+ * ===================================================================================== */
+@font-face{font-family:"WR Script";src:url(fonts/wr-dearmrpotter.woff) format("woff");font-weight:400;font-style:normal;font-display:block}
+@font-face{font-family:"WR Tinos";src:url(fonts/wr-tinos-700.woff) format("woff");font-weight:700;font-style:normal;font-display:block}
+@property --hm-r{syntax:"<length>";inherits:false;initial-value:0px}
+#wrHome{display:none}
+html.wr-home #wrHome{display:block}
+html.wr-home,html.wr-home body{overflow:hidden}
+.wr-home{position:fixed;inset:0;z-index:190;background:var(--w-page0,#ecebe6);background:var(--w-page);color:var(--w-tx);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
+  font-family:var(--w-sans);-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+.wr-home.hm-reveal{-webkit-mask:radial-gradient(circle at var(--hm-x,50%) var(--hm-y,50%),transparent var(--hm-r),#000 calc(var(--hm-r) + 1px));mask:radial-gradient(circle at var(--hm-x,50%) var(--hm-y,50%),transparent var(--hm-r),#000 calc(var(--hm-r) + 1px));animation:hmReveal .42s cubic-bezier(.5,0,.2,1) forwards}
+@keyframes hmReveal{from{--hm-r:0px}to{--hm-r:1500px}}
+.wr-home .hm-stage{position:absolute;inset:0}
+.wr-home .hm-stage.hm-shake{animation:hmShake .17s linear}
+@keyframes hmShake{0%{transform:translate(0,0)}20%{transform:translate(1.6px,-1.2px)}40%{transform:translate(-1.4px,1px)}60%{transform:translate(1px,.8px)}80%{transform:translate(-.6px,-.5px)}100%{transform:translate(0,0)}}
+.wr-home .hm-tg{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.wr-home .hm-card{fill:var(--w-paper);stroke:var(--w-stageBd);stroke-width:1;filter:drop-shadow(0 6px 18px rgba(0,0,0,.16))}
+.wr-home .hm-rw{fill:none;stroke:var(--w-ringW)}
+.wr-home .hm-rw.hm-r1{fill:var(--w-paper)}
+.wr-home .hm-black{fill:var(--w-black)}
+.wr-home .hm-rb2{fill:none;stroke:var(--w-ringB)}
+.wr-home .hm-num{fill:var(--w-ringW);font-weight:600;font-family:Roboto,Arial,sans-serif}
+.wr-home .hm-num.b{fill:var(--w-ringB)}
+.wr-home .hm-xh{filter:drop-shadow(0 0 1.2px rgba(245,166,35,.75))}
+.wr-home .hm-xh line{stroke:#f5a623;stroke-width:1.5}
+.wr-home .hm-xh circle{fill:rgba(245,166,35,.45);stroke:#f5a623;stroke-width:2}
+.wr-home .hm-xh.out{animation:hmXhOut .2s ease-in forwards}
+@keyframes hmXhOut{to{opacity:0}}
+.wr-home .hm-hit{position:absolute;z-index:1;cursor:crosshair;outline-offset:-4px}
+.wr-home .hm-plbl{position:absolute;z-index:2;pointer-events:none;text-align:center;color:var(--w-ringB);font-weight:900;line-height:1;letter-spacing:1px;text-shadow:0 0 3px rgba(0,0,0,.9)}
+.wr-home .hm-ahint{position:absolute;z-index:2;pointer-events:none;text-align:center;color:var(--w-ringB);opacity:.72;font-weight:700;line-height:1.1;white-space:nowrap}
+.wr-home .gone{animation:hmLblOut .3s ease-out forwards}
+@keyframes hmLblOut{to{opacity:0;transform:translateY(-6px) scale(.9)}}
+/* 開槍特效 */
+.wr-home .hm-shock{animation:hmShock .38s cubic-bezier(.15,.7,.3,1) forwards}
+@keyframes hmShock{from{r:var(--r0);opacity:.95;stroke-width:3px}to{r:var(--r1);opacity:0;stroke-width:.5px}}
+.wr-home .hm-flash{animation:hmFlash .16s ease-out forwards}
+@keyframes hmFlash{from{opacity:.95;transform:scale(.4)}to{opacity:0;transform:scale(1.3)}}
+.wr-home .hm-chip{animation:hmDeb .55s cubic-bezier(.2,.8,.4,1) forwards}
+@keyframes hmDeb{from{transform:translate(0,0) rotate(0);opacity:1}to{transform:translate(var(--dx),var(--dy)) rotate(var(--rot));opacity:0}}
+.wr-home .hm-hole-in{animation:hmHoleIn .09s ease-out both}
+@keyframes hmHoleIn{from{transform:scale(.55)}to{transform:scale(1)}}
+/* 上方：設定／資訊、版號、標題、標語、版本更新紀錄 */
+.wr-home .hm-top{position:absolute;left:0;right:0;top:0;z-index:4;padding:calc(14px + env(safe-area-inset-top)) 14px 0 12px;pointer-events:none}
+.wr-home .hm-top>*{pointer-events:auto}
+.wr-home .hm-bar{display:flex;align-items:center;gap:10px;height:48px}
+.wr-home .hm-beta{margin-left:auto;font:600 11px/1.2 var(--w-sans);color:var(--w-tx2)}
+.wr-home .hm-vpill{display:inline-block;background:var(--w-verBg);color:var(--w-verTx);font:800 11.5px/1 var(--w-sans);padding:4px 7px;border-radius:6px;letter-spacing:.2px;margin-right:2px}
+.wr-home .hm-brand{margin:-6px 0 0 8px;font:400 min(66px,16vw)/1.15 "WR Script",cursive;color:var(--w-tx);white-space:nowrap;pointer-events:none}
+.wr-home .hm-tag{margin:4px 0 0 12px;font-family:"Times New Roman","WR Tinos",Tinos,"Liberation Serif",serif;font-style:normal;font-weight:700;font-size:14px;line-height:1.25;letter-spacing:-.3px;color:var(--hm-tagC,var(--w-camB));white-space:nowrap;pointer-events:none}
+.wr-home .hm-vlog{position:relative;margin:14px 2px 0;height:226px;display:flex;flex-direction:column;background:var(--w-page0,#ecebe6);border:1px solid var(--w-cardBd);box-shadow:var(--w-cardSh);border-radius:14px;overflow:hidden;touch-action:pan-y}
+.wr-home .hm-vlog::before{content:"";position:absolute;inset:0;background:var(--w-card);pointer-events:none}
+.wr-home .hm-vlog>*{position:relative}
+.wr-home .hm-vhd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 15px 8px;border-bottom:1px solid var(--w-line,rgba(0,0,0,.08))}
+.wr-home .hm-vhd b{font:900 15px var(--w-sans)}
+.wr-home .hm-vhd span{font:600 11px/1.2 var(--w-sans);color:var(--w-tx2);white-space:nowrap}
+.wr-home .hm-vsc{flex:1;overflow-y:auto;padding:4px 15px 18px;scrollbar-width:none;-webkit-mask:linear-gradient(#000 calc(100% - 26px),transparent);mask:linear-gradient(#000 calc(100% - 26px),transparent);overscroll-behavior:contain}
+.wr-home .hm-vsc::-webkit-scrollbar{display:none}
+.wr-home .hm-ve{padding:9px 0 7px;border-bottom:1px dashed var(--w-line,rgba(0,0,0,.1))}
+.wr-home .hm-ve:last-child{border-bottom:0}
+.wr-home .hm-vt{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.wr-home .hm-ver{display:inline-block;background:var(--w-verBg);color:var(--w-verTx);font:800 11px/1 var(--w-sans);padding:4px 7px;border-radius:6px}
+.wr-home .hm-ver.old{background:var(--w-tgBg);color:var(--w-tgTx)}
+.wr-home .hm-d{font:600 11px var(--w-sans);color:var(--w-tx2)}
+.wr-home .hm-now{font:800 9.5px/1 var(--w-sans);color:var(--w-okc);border:1px solid currentColor;border-radius:999px;padding:2px 6px}
+.wr-home .hm-ve ul{margin:0;padding:0}
+.wr-home .hm-ve li{list-style:none;font:600 12.5px/1.55 var(--w-sans);display:flex;gap:7px}
+.wr-home .hm-ve li:before{content:"";width:5px;height:5px;border-radius:50%;background:var(--hm-tagC,var(--w-camB));flex:none;margin-top:7px}
+/* 凸起圓鈕（同 .wr-side：rbA→rbB）＋軟 Q */
+.wr-home .hm-jelly{position:absolute;overflow:visible;padding:0;margin:0;font:inherit;cursor:pointer;touch-action:manipulation;transition:transform .09s cubic-bezier(.3,.7,.4,1),box-shadow .09s;
+  background:linear-gradient(180deg,var(--w-rbA),var(--w-rbB));border:1px solid var(--w-rbBd);color:var(--w-rbTx);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 6px 16px rgba(0,0,0,.28);border-radius:50%}
+.wr-home .hm-bar .hm-jelly{position:relative;width:44px;height:44px;flex:none}
+.wr-home .hm-rb{z-index:3}
+.wr-home .hm-skin{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none}
+.wr-home .hm-dent{position:absolute;width:70%;height:70%;margin:-35% 0 0 -35%;border-radius:50%;background:radial-gradient(circle,rgba(40,36,30,.30) 0,rgba(40,36,30,.14) 30%,rgba(40,36,30,0) 62%);opacity:0;transform:scale(.4)}
+.wr-home .hm-jelly.sq{transform:scale(.86,.84);box-shadow:inset 0 3px 9px rgba(0,0,0,.35),inset 0 -1px 0 rgba(255,255,255,.35),0 2px 5px rgba(0,0,0,.2)}
+.wr-home .hm-jelly.sq .hm-dent{opacity:1;transform:scale(1);transition:transform .09s,opacity .06s}
+.wr-home .hm-rip{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid var(--w-camB);opacity:.55;animation:hmRip .5s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes hmRip{from{transform:scale(.4);opacity:.9}to{transform:scale(7.5);opacity:0}}
+.wr-home .hm-jelly.boing{animation:hmBoing .62s linear}
+@keyframes hmBoing{0%{transform:scale(.86,.84)}18%{transform:scale(1.13,1.08)}34%{transform:scale(.93,.97)}50%{transform:scale(1.05,1.02)}66%{transform:scale(.98,.995)}82%{transform:scale(1.01,1)}100%{transform:scale(1)}}
+.wr-home .hm-in{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;height:100%;pointer-events:none}
+.wr-home .hm-ic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;display:block}
+.wr-home .hm-rb b{font:800 13px/1.1 var(--w-sans);white-space:nowrap}
+.wr-home .hm-soon{display:inline-block;font:800 8px/1 var(--w-sans);padding:2px 4px;border-radius:999px;background:var(--w-tgBg);color:var(--w-tgTx);border:1px solid var(--w-tgBd);white-space:nowrap}
+.wr-home .hm-toast{position:absolute;left:50%;bottom:calc(30% + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:6;max-width:calc(100% - 28px);background:rgba(29,29,27,.92);color:#fff;font:800 13px/1.3 var(--w-sans);padding:10px 14px;border-radius:999px;text-align:center;opacity:0;pointer-events:none}
+.wr-home .hm-toast.show{animation:hmToast 2.4s ease forwards}
+.wr-home .hm-toast.hit{animation:hmToastHit 1.5s ease .25s both}
+@keyframes hmToastHit{0%{opacity:0;transform:translate(-50%,6px) scale(.96)}14%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:1}}
+.wr-home .hm-toast em{font-style:normal;color:#ffb27a}
+@keyframes hmToast{0%{opacity:0;transform:translate(-50%,6px)}8%,85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+html.wr-lang-en .wr-home .hm-rb b{font-size:12px}
+/* 鋼琴烤漆：「拍下一張」主按鈕是黑色琴鍵（--w-camB≈黑），在黑底上看不到 → 標語改用同一顆按鈕的銀色外框（--w-camBd） */
+body.lt-piano .wr-home{--hm-tagC:var(--w-camBd)}
+header .title[role=button]{cursor:pointer;-webkit-tap-highlight-color:transparent}
+@media (prefers-reduced-motion:reduce){.wr-home .hm-jelly,.wr-home .hm-jelly.boing,.wr-home .hm-stage.hm-shake,.wr-home .hm-rip,.wr-home .hm-hole-in,.wr-home.hm-reveal{animation:none!important;transition:none!important}.wr-home .hm-toast.show,.wr-home .hm-toast.hit{animation:none;opacity:1}}
+
+/* =====================================================================================
+ * v2.9.0 §7 第 2–6、8、11 項
+ * ===================================================================================== */
+/* 第 5 項：紀錄頁每列的鎖頭可以點（沿用分析頁的 .ana-name-lock 外觀與 44px 點擊區）；第 11 項：好友分享＝絕對鎖定（閉鎖、實心底，點了只提示） */
+.rec .rec-lock{margin:0 4px 0 2px;width:22px;height:22px}
+.rec .rec-lock svg{width:20px;height:20px}
+.ana-name-lock.lk-abs{opacity:1;cursor:default}
+.ana-name-lock.lk-abs .lk-body rect{fill:color-mix(in srgb,var(--w-camB) 28%,transparent)}
+.rec-shtag{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;border:1px solid var(--w-camB);color:var(--w-camB);margin-right:2px;vertical-align:1px}
+.rec.is-shared .rec-name{background:color-mix(in srgb,var(--w-inBg,#fff) 88%,var(--w-camB))}
+/* 第 3 項：紀錄頁每列（鎖頭、名稱、開啟、PDF、刪除）一律同一行；名稱欄自動吃剩下的寬度 */
+#recordList .rec .row{flex-wrap:nowrap;gap:6px;flex:1 1 100%;min-width:0;max-width:100%}
+#recordList .rec .row .rec-name{flex:1 1 auto;width:auto;min-width:48px}
+#recordList .rec.is-locked .rec-name{width:auto}
+#recordList .rec .row>button{flex:none;white-space:nowrap}
+#recordList .rec .row>button:not(.rec-lock){padding-left:11px;padding-right:11px}
+#recordList .rec-pdf{min-width:48px}
+/* 第 4 項：預報頁靶面右下 New set／Clear set／Undo：圓鈕同分析頁（54px），小標 8.5px → 10.5px */
+.pf-btn{width:54px;height:54px}
+.pf-btn .nv-ic{width:19px;height:19px}
+.pf-btn b{font-size:10.5px;letter-spacing:-.1px}
+.pf-btn.a2{right:69px}.pf-btn.a3{bottom:69px}
+body.lt-cyberpunk .pf-btn.a3{bottom:77px}
+html.wr-lang-en .pf-btn b{font-size:10px;letter-spacing:-.2px}
+/* 第 8 項：分析頁總分氣泡不能壓到右上「靶面／照片」切換鈕（寬度由 app-analysis.js anaInfoFit 依實際位置算；第二行放不下就換行，不截斷） */
+#tab-analysis .ana-info .r2{white-space:normal;overflow:visible;text-overflow:clip;max-width:none;overflow-wrap:anywhere}
+#tab-analysis .ana-info.fit-s .s{font-size:calc(27px * var(--ai-k,1))}
+#tab-analysis .ana-info.fit-s .n{font-size:calc(12.5px * var(--ai-k,1))}
+#tab-analysis .ana-info.fit-s .d{font-size:calc(13.5px * var(--ai-k,1))}
+#tab-analysis .ana-info.fit-s .x{font-size:calc(11px * var(--ai-k,1))}
+#tab-analysis .ana-info.fit-w .r1{white-space:normal;flex-wrap:wrap;row-gap:0}

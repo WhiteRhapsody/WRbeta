@@ -28,7 +28,7 @@
   // ---------- 分析分頁（純分析：連續拍多張靶紙 → 自動校正＋找彈孔 → 統計） ----------
   var LS_ACUR = 'bm_acur_v1';
   var SHEET_COLORS = ['#1e6fd9', '#e8590c', '#2b8a3e', '#ae3ec9', '#c2255c', '#0c8599', '#5c940d', '#795548'];
-  var acur = (function () { var id = store.get(LS_ACUR); return App.sessions.filter(function (s) { return s.id === id && isAna(s); })[0] || newAnalysis(); })();
+  var acur = (function () { var id = store.get(LS_ACUR); return App.sessions.filter(function (s) { return s.id === id && isAna(s) && !App.isShared(s); })[0] || newAnalysis(); })();
   var anaSel = 'all', anaPhotos = {}, anaQueue = [], anaBusy = false;
   var ro = null, roSaved = null; // v2.5.0 唯讀檢視（見 anaOpenRO）
   var anaSvg = $('anaSvg');
@@ -367,6 +367,7 @@
     var nm = (acur.name && acur.name.trim()) || App.recTitle(acur);
     ask(wrT('app.delete_current_analysis_q', [nm, acur.sheets.length, anaShots(acur).length]), function () {
       var id = acur.id;
+      try { if (window.WRMember && WRMember.recordDeleted) WRMember.recordDeleted(id); } catch (e) {} // v2.9.0：分享出去的一起收回
       App.sessions = App.sessions.filter(function (x) { return x.id !== id; }); saveSessions(App.sessions);
       try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(id); } catch (e) {}
       anaStartNew(acur.targetId, wrT('app.analysis_deleted'));
@@ -396,27 +397,29 @@
   // 名字旁的小鎖頭點一下＝鎖住／解鎖（存在紀錄的 locked 欄位：本機、雲端同步、JSON 都會帶著；紀錄碼不帶）。
   // 鎖住時擋：刪除、改名、添加／消滅彈孔、校正、復原、清除、加照片、換靶種（空紀錄）等所有會改紀錄內容的路徑。
   var LOCK_MS = 260, UNLOCK_MS = 280, lockAnims = [], lockBusy = false;
-  function isLocked(s) { s = s || acur; return !(s === acur && ro) && !!(s && s.locked); }
-  function lockToast() { toast(wrT('app.lock_blocked'), 4000); }
+  // v2.9.0：好友分享的紀錄（App.isShared）一律絕對鎖定——不能改、不能解鎖
+  function isLocked(s) { s = s || acur; return !(s === acur && ro) && !!(s && (s.locked || App.isShared(s))); }
+  function isAbs(s) { s = s || acur; return (s === acur && ro && ro.kind === 'friend') || App.isShared(s); }
+  function lockToast(s) { toast(isAbs(s) ? wrT('app.lock_abs') : wrT('app.lock_blocked'), 4000); }
   function lockedBlock() { if (!isLocked()) return false; lockToast(); return true; }
-  App.isLocked = isLocked; App.lockedBlock = lockedBlock; App.lockToast = lockToast;
+  App.isLocked = isLocked; App.lockedBlock = lockedBlock; App.lockToast = lockToast; App.isAbsLocked = isAbs;
   var LOCK_EDIT_IDS = ['anaModeAdd', 'anaModeDel', 'anaCalBtn', 'anaUndo', 'anaClearBtn', 'anaCamBtn', 'anaPickBtn', 'anaFileBtn'];
   function lockSync() {
-    var b = $('anaNameLock'), locked = isLocked(), show = !ro && anaInRecords();
+    var b = $('anaNameLock'), abs = isAbs(), locked = isLocked() || abs, show = (!ro && anaInRecords()) || !!(ro && ro.kind === 'friend');
     b.hidden = !show; b.parentNode.classList.toggle('has-lock', show);
-    document.body.classList.toggle('ana-locked', locked);
+    document.body.classList.toggle('ana-locked', locked && !ro); b.classList.toggle('lk-abs', abs);
     $('anaName').readOnly = !!ro || locked; $('anaName').setAttribute('aria-readonly', locked || ro ? 'true' : 'false');
     if (!lockAnims.length) b.classList.toggle('is-locked', locked);
     b.setAttribute('aria-pressed', locked ? 'true' : 'false');
-    b.setAttribute('aria-label', locked ? wrT('app.lock_aria_unlock') : wrT('app.lock_aria_lock')); b.title = locked ? wrT('app.lock_tip_unlock') : wrT('app.lock_tip_lock');
+    b.setAttribute('aria-label', abs ? wrT('app.lock_abs_aria') : locked ? wrT('app.lock_aria_unlock') : wrT('app.lock_aria_lock')); b.title = abs ? wrT('app.lock_abs') : locked ? wrT('app.lock_tip_unlock') : wrT('app.lock_tip_lock');
     LOCK_EDIT_IDS.forEach(function (id) { var e = $(id); if (!e) return; e.classList.toggle('ana-locked-off', locked); if (locked) e.setAttribute('aria-disabled', 'true'); else e.removeAttribute('aria-disabled'); });
   }
   function lockCancelAnims() { lockAnims.forEach(function (a) { try { a.cancel(); } catch (e) {} }); lockAnims = []; }
   /* 咔嚓動畫（WAAPI；參數照 v4 預覽 lock_anim_v4.mp4）
    * 鎖 260ms：鎖梁微抬（預備）→ 快速落下略超過閉鎖點 → 回彈停住；鎖身撞擊時壓縮再彈回、整顆輕晃。撞擊（52%）短震 12ms。
    * 解 280ms：鎖梁先往下壓並停頓 → 彈開超過靜止角 → 落在開鎖角；鎖身先縮再撐開。彈開（28%）短震。 */
-  function lockAnimate(locking) {
-    var b = $('anaNameLock'); lockCancelAnims();
+  function lockAnimate(locking, btn) {
+    var b = btn || $('anaNameLock'); lockCancelAnims();
     var reduce = false; try { reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
     if (!b.animate || reduce) return 0;
     b.classList.toggle('is-locked', !locking); void b.offsetWidth;
@@ -445,6 +448,7 @@
   }
   App.anaSetLocked = function (on) { var r = setLocked(on); lockSync(); try { App.renderRecords(); } catch (e) {} return r; };
   function toggleLock() {
+    if (isAbs()) { lockToast(); return; }
     if (lockBusy || ro || !anaInRecords()) return;
     var next = !isLocked(), b = $('anaNameLock');
     if (document.activeElement === $('anaName')) $('anaName').blur();
@@ -456,6 +460,22 @@
     if (dur) setTimeout(done, dur + 16); else done();
   }
   $('anaNameLock').onclick = function (e) { e.preventDefault(); e.stopPropagation(); toggleLock(); };
+  /* v2.9.0（§7 第 5 項，White 2026-11-21 02:23）紀錄頁每列的鎖頭也能點：只限自己的分析紀錄（好友分享的一律鎖定、點了只提示）。
+   * 跟分析頁同一套：同樣的咔嚓動畫、短震、吐司；存進同一個 locked 欄位（本機、雲端同步）。 */
+  App.recToggleLock = function (s, btn) {
+    if (!s) return;
+    if (App.isShared(s)) { lockToast(s); return; }
+    if (lockBusy || !isAna(s)) return;
+    var next = !s.locked; lockBusy = true;
+    if (next) s.locked = true; else delete s.locked;
+    if (acur && acur.id === s.id && acur !== s) { if (next) acur.locked = true; else delete acur.locked; }
+    if (next && acur && acur.id === s.id) { anaSetMode(null, true); anaPop(null, false); }
+    s.updated = new Date().toISOString(); saveSessions(App.sessions);
+    var dur = btn ? lockAnimate(next, btn) : 0;
+    toast(next ? wrT('app.lock_on') : wrT('app.lock_off'));
+    var done = function () { lockBusy = false; lockCancelAnims(); lockSync(); try { App.renderRecords(); } catch (e) {} };
+    if (dur) setTimeout(done, dur + 16); else done();
+  };
   // 加照片的三顆（label 包 input）：鎖住時在打開選擇器之前就擋下
   ['anaCamBtn', 'anaPickBtn', 'anaFileBtn'].forEach(function (id) { var e = $(id); if (e) e.addEventListener('click', function (ev) { if (!isLocked() || App.curTab !== 'analysis') return; ev.preventDefault(); ev.stopPropagation(); lockToast(); }, true); });
   $('anaName').addEventListener('pointerdown', function (e) { if (isLocked()) { e.preventDefault(); lockToast(); } }, true);
@@ -499,7 +519,7 @@
     roSaved = { acur: acur, anaPhotos: anaPhotos, anaSel: anaSel, anaView: anaView, tab: App.curTab, y: window.scrollY };
     ro = { kind: o.kind || 'friend', rec: rec, sel: o.sel, fc: v.fc || null, title: o.title || v.view.name || '', sub: o.sub || '', pairs: v.pairs, onSave: o.onSave || null, onClose: o.onClose || null, saved: false };
     acur = v.view; acur.name = ro.title; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset();
-    document.body.classList.add('ana-ro'); $('anaName').readOnly = true;
+    document.body.classList.add('ana-ro'); document.body.classList.toggle('ana-ro-friend', ro.kind === 'friend'); $('anaName').readOnly = true;
     anaRoBar();
     if (App.curTab !== 'analysis') App.showTab('analysis'); else { fillAnaCalRing(); renderAnalysis(); App.syncTargetSel(); }
     fillAnaCalRing(); window.scrollTo(0, 0);
@@ -519,7 +539,7 @@
     var cb = ro.onClose, back = roSaved || {};
     ro = null; roSaved = null; anaSetMode(null, true); anaPrevClear();
     acur = back.acur || acur; anaPhotos = back.anaPhotos || {}; anaSel = back.anaSel || 'all'; anaView = back.anaView || 'target'; AV.reset();
-    document.body.classList.remove('ana-ro'); $('anaName').readOnly = false; anaRoBar(); fillAnaCalRing();
+    document.body.classList.remove('ana-ro', 'ana-ro-friend'); $('anaName').readOnly = false; anaRoBar(); fillAnaCalRing();
     if (App.back) App.back.drop('anaro');
     if (silent) return;
     if (back.tab && back.tab !== App.curTab) App.showTab(back.tab); else { renderAnalysis(); App.syncTargetSel(); }
@@ -670,7 +690,24 @@
       h = wrT('app.target_shots_combined_targets_shots', [sheetNo(sh), busy ? '…' : s1.total, busy ? '' : '<span class="d">(' + f1(s1.totalDec) + ')</span>', sh.shots.length, n, all.n, all.n ? f2(all.avgDec) : '—']);
     } else h = wrT('app.combined_shots_targets_avg', [all.total, f1(all.totalDec), all.n, n, all.n ? f2(all.avgDec) : '—', all.n > 1 ? wrT('app.group_mm', [f1(all.groupSize)]) : '']);
     box.innerHTML = h;
+    anaInfoFit();
   }
+  /* v2.9.0（§7 第 8 項，White S26U 實機截圖）總分氣泡的右緣不能碰到右上角「靶面／照片」切換鈕與「雙指縮放」鈕：
+   * 依兩顆鈕「實際」的位置算最大寬度（手機字型、字型縮放、語言都不同，所以用量的）；第一行放不下就整行等比縮小（最多 70%），第二行換行。 */
+  function anaInfoFit() {
+    var box = $('anaInfo'); if (!box || !box.offsetParent) return;
+    box.classList.remove('fit-s', 'fit-w'); box.style.removeProperty('--ai-k'); box.style.maxWidth = '';
+    var bl = box.getBoundingClientRect().left, lim = Infinity;
+    ['anaViewSeg', 'anaFit'].forEach(function (id) { var e = $(id); if (!e || !e.offsetParent) return; var r = e.getBoundingClientRect(); if (r.width && r.left > bl) lim = Math.min(lim, r.left - bl - 8); });
+    if (!isFinite(lim)) { var host = box.offsetParent.getBoundingClientRect(); lim = host.right - bl - 8; }
+    lim = Math.max(120, Math.floor(lim)); box.style.maxWidth = lim + 'px';
+    var r1 = box.querySelector('.r1'); if (!r1) return;
+    var cs = getComputedStyle(box), inner = lim - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0);
+    if (r1.scrollWidth > inner) { var k = Math.max(0.7, inner / r1.scrollWidth * 0.98); box.style.setProperty('--ai-k', k.toFixed(3)); box.classList.add('fit-s'); if (r1.scrollWidth > inner) box.style.setProperty('--ai-k', Math.max(0.6, k * inner / r1.scrollWidth * 0.98).toFixed(3)); if (r1.scrollWidth > inner) box.classList.add('fit-w'); }
+  }
+  App.anaInfoFit = anaInfoFit;
+  window.addEventListener('resize', function () { if (App.curTab === 'analysis') anaInfoFit(); });
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { anaInfoFit(); }); } catch (e) {}
   function anaChipsHTML(t) {
     var ch = '', n = acur.sheets.length;
     if (n) ch += wrT('app.all_shots', [anaSel === 'all' ? ' on' : '', anaSel === 'all', n, anaShots(acur).length]);

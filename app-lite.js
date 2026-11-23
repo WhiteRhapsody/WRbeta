@@ -163,7 +163,19 @@
     V.style.minHeight = Math.max(0, avail) + 'px';
     var tg = $('liteTg'); tg.style.width = size + 'px'; tg.style.height = size + 'px';
     ['lpBig', 'lpCount', 'lpEst', 'lpSum'].forEach(function (id) { liteFit($(id)); });
+    liteFitK();
   }
+  // v2.9.0（§7 第 2 項）四塊資訊框的小標（例：戰術 HUD 英文「60-SHOT PROJECTION」）放不下時：先收字距、再縮字（最多縮到 70%），不再出現刪節號
+  function liteFitK() {
+    document.querySelectorAll('#litePanel .lp-k').forEach(function (k) {
+      k.style.fontSize = ''; k.style.letterSpacing = '';
+      var a = k.clientWidth; if (!a || k.scrollWidth <= a) return;
+      k.style.letterSpacing = '0px'; if (k.scrollWidth <= a) return;
+      var fs = parseFloat(getComputedStyle(k).fontSize) || 12;
+      k.style.fontSize = Math.max(fs * 0.7, fs * a / k.scrollWidth * 0.97).toFixed(2) + 'px';
+    });
+  }
+  App.liteFitK = liteFitK;
   window.addEventListener('resize', liteLayout);
   try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { liteLayout(); }); } catch (e) {}
   if (window.ResizeObserver) try { new ResizeObserver(function () { liteLayout(); }).observe($('liteView')); } catch (e) {}

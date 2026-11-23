@@ -23,7 +23,9 @@
   function top(sel) { var a = [].slice.call(D.querySelectorAll(sel)).filter(vis); return a[a.length - 1] || null; }
   function liteBackStep() { return B.classList.contains('lite') && App.curTab === 'predict' && App.liteStep && App.liteStep() > 1; }
   /* 這一步會做什麼（不做）：回傳函式或 null */
-  function nextStep() {
+  function nextStep(hw) {
+    // v2.9.0 首頁開著：返回鍵不在首頁裡做事（直接走「再按一次返回離開」）
+    if (App.home && App.home.on) return null;
     var m = top('.modal-bg');
     if (m) return function () { var b = m.querySelector('.no, .x, .mb-view-top .x, [data-close]'); if (b) b.click(); else m.remove(); };
     var v = top('.mb-view');
@@ -40,9 +42,11 @@
     if (liteBackStep()) return function () { App.setLiteStep(App.liteStep() - 1); };
     while (tabs.length && tabs[tabs.length - 1] === App.curTab) tabs.pop();
     if (tabs.length) return function () { var t = tabs.pop(); fromBack = true; try { App.showTab(t); window.scrollTo(0, 0); } finally { fromBack = false; } };
+    // v2.9.0：都退完了 → 回首頁（只給返回鍵／返回手勢；左上角「‹」按鈕不因此出現）
+    if (hw && App.home) return function () { App.home.show(); };
     return null;
   }
-  function back() { var f = nextStep(); if (!f) return false; f(); setTimeout(sync, 0); return true; }
+  function back(hw) { var f = nextStep(hw); if (!f) return false; f(); setTimeout(sync, 0); return true; }
   // ---------- history 防護紀錄 ----------
   function guard(hasAct) {
     try { history.pushState({ wrBack: depth + 1 }, ''); depth++; armedNoAct = !hasAct; } catch (e) {}
@@ -50,10 +54,10 @@
   function onPop(e) {
     if (ignorePop) { ignorePop--; depth = (e.state && e.state.wrBack) || 0; return; }
     depth = (e.state && e.state.wrBack) || 0;
-    if (back()) { exitAt = 0; if (!depth) guard(false); return; }
+    if (back(true)) { exitAt = 0; if (!depth) guard(false); return; }
     // 已經在最上層：第一次提示；兩秒內再按一次＝真的離開（不再補防護紀錄）
     if (depth > 0) { ignorePop++; try { history.go(-depth); } catch (er) { ignorePop = 0; } }
-    exitAt = Date.now(); toast(wrT('app.back_again_to_exit'), EXIT_MS);
+    exitAt = Date.now(); (App.home && App.home.on ? App.home.toast : toast)(wrT('app.back_again_to_exit'), EXIT_MS);
   }
   function onAct() {
     if (!depth || armedNoAct) { if (exitAt && Date.now() - exitAt < 300) return; exitAt = 0; guard(true); }

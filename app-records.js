@@ -11,7 +11,7 @@
     lineChart = App.lineChart, renderAnalysis = App.renderAnalysis, ask = App.ask, toast = App.toast, showTab = App.showTab;
   // 給其他模組用（函式）
   App.copyText = copyText; App.updateAnaCodeInfo = updateAnaCodeInfo; App.restoreCodes = restoreCodes; App.drawRecord = drawRecord;
-  App.recMetaHTML = recMetaHTML; App.recTitle = recTitle; App.renderRecords = renderRecords;
+  App.recMetaHTML = recMetaHTML; App.recTitle = recTitle; App.renderRecords = renderRecords; App.removeRecords = removeRecords; App.openSharedRec = openSharedRec;
 
   // ---------- 分析紀錄碼 ----------
   function anaShotCount(s) {
@@ -150,7 +150,7 @@
     box.innerHTML = '';
     App.sessions.forEach(function (s) {
       var t = T[s.targetId] || T.ap10, ana = isAna(s), gho = G.isGhost(s), isCur = ana ? s.id === App.acur.id : gho ? !!(App.gcur && s.id === App.gcur.id) : s.id === App.cur.id;
-      var locked = !!s.locked, div = document.createElement('div'); div.className = 'rec' + (isCur ? ' cur' : '') + (ana ? ' ana' : '') + (locked ? ' is-locked' : ''); div.dataset.id = s.id;
+      var shared = App.isShared(s), locked = !!s.locked || shared, div = document.createElement('div'); div.className = 'rec' + (isCur ? ' cur' : '') + (ana ? ' ana' : '') + (locked ? ' is-locked' : '') + (shared ? ' is-shared' : ''); div.dataset.id = s.id;
       var meta = '';
       if (ana) {
         var as = C.analyzeShots(t, anaShots(s));
@@ -162,27 +162,33 @@
         var ps = C.computeStats(t, s.preds), xs = C.computeStats(t, s.actuals), cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal');
         meta = wrT('app.calls_actual', [ps.n, ps.n ? wrT('app.x', [ps.total, f1(ps.totalDec)]) : '', xs.n, xs.n ? wrT('app.x', [xs.total, f1(xs.totalDec)]) : '', cmp.m ? wrT('app.avg_call_error_mm', [f2(cmp.meanErr)]) : '']);
       }
-      div.innerHTML = wrT('app.x_8', [recPick[s.id] ? ' checked' : '', ana ? 'b-ana' : gho ? 'b-gh' : 'b-fc', ana ? wrT('app.analysis_2') : gho ? wrT('app.ghost') : wrT('app.call_2'), esc(fmtTW(s.created)), t.name, isCur ? wrT('app.current') : '', meta]);
+      if (shared) meta = '<span class="rec-shtag">' + esc(s.sharedOwner ? wrT('app.rec_shared_from', [s.sharedOwner]) : wrT('app.rec_shared')) + '</span> ' + meta;
+      div.innerHTML = wrT('app.x_8', [recPick[s.id] ? ' checked' : '', ana ? 'b-ana' : gho ? 'b-gh' : 'b-fc', ana ? wrT('app.analysis_2') : gho ? wrT('app.ghost') : wrT('app.call_2'), esc(fmtTW(s.created)), t.name, isCur && !shared ? wrT('app.current') : '', meta]);
       div.querySelector('.rec-chk').onchange = function () { if (this.checked) recPick[s.id] = 1; else delete recPick[s.id]; updateCmpBtn(); };
       var name = document.createElement('input'); name.className = 'rec-name'; name.placeholder = wrT('app.custom_name'); name.value = s.name != null && s.name !== '' ? s.name : (s.note || ''); name.setAttribute('aria-label', wrT('app.record_name'));
-      if (locked) { name.readOnly = true; name.setAttribute('aria-readonly', 'true'); name.addEventListener('pointerdown', function (e) { e.preventDefault(); App.lockToast(); }, true); name.addEventListener('focus', function () { name.blur(); }, true); }
-      name.onchange = function () { if (s.locked) { name.value = s.name || ''; App.lockToast(); return; } s.name = name.value.trim(); s.updated = new Date().toISOString(); if (!ana) s.note = s.note || ''; if (ana && s.id === App.acur.id) App.acur.name = s.name; saveSessions(App.sessions); renderRecords(); toast(wrT('app.name_updated')); };
+      if (locked) { name.readOnly = true; name.setAttribute('aria-readonly', 'true'); name.addEventListener('pointerdown', function (e) { e.preventDefault(); App.lockToast(s); }, true); name.addEventListener('focus', function () { name.blur(); }, true); }
+      name.onchange = function () { if (s.locked || App.isShared(s)) { name.value = s.name || ''; App.lockToast(s); return; } s.name = name.value.trim(); s.updated = new Date().toISOString(); if (!ana) s.note = s.note || ''; if (ana && s.id === App.acur.id) App.acur.name = s.name; saveSessions(App.sessions); renderRecords(); toast(wrT('app.name_updated')); };
       var open = document.createElement('button'); open.textContent = wrT('app.open');
       open.onclick = function () {
+        if (shared) { openSharedRec(s); return; } // v2.9.0 好友分享：一律用唯讀檢視打開（不會變成可編輯的分析／預報）
         if (ana) { App.acur = s; App.anaPhotos = {}; App.anaSel = 'all'; store.set(LS_ACUR, s.id); fillAnaCalRing(); renderAnalysis(); showTab('analysis'); }
         else if (gho) { App.gcur = s; App.ghView = null; App.ghPrev = null; store.set(LS_GCUR, s.id); showTab('ghost'); window.scrollTo(0, 0); }
         else { App.cur = s; store.set(LS_CUR, s.id); $('targetSel').value = s.targetId; photo.reset(); App.renderAll(); showTab('predict'); }
       };
-      var del = document.createElement('button'); del.textContent = wrT('app.delete'); del.className = 'warn';
-      if (locked) { del.setAttribute('aria-disabled', 'true'); del.title = wrT('app.lock_blocked'); }
+      var del = document.createElement('button'); del.textContent = shared ? wrT('app.rec_remove') : wrT('app.delete'); del.className = 'warn';
+      if (locked && !shared) { del.setAttribute('aria-disabled', 'true'); del.title = wrT('app.lock_blocked'); }
       del.onclick = function () {
+        // v2.9.0：好友分享的紀錄可以從自己這邊移除（不會動到好友的紀錄）；不能改、不能解鎖
+        if (App.isShared(s)) { ask(wrT('app.rec_shared_remove', [recTitle(s)]), function () { removeRecords([s.id]); }); return; }
         if (s.locked) { App.lockToast(); return; }
-        ask(wrT('app.delete_2', [recTitle(s)]), function () {
+        var WMd = window.WRMember, nSh = 0; try { if (WMd && WMd.sharesOf) WMd.sharesOf(s.id).forEach(function (x) { nSh += (x.to || []).length; }); } catch (e) {}
+        ask(nSh ? wrT('app.delete_shared_too', [recTitle(s)]) : wrT('app.delete_2', [recTitle(s)]), function () {
+          try { if (WMd && WMd.recordDeleted) WMd.recordDeleted(s.id); } catch (e) {} // v2.9.0：刪掉自己的紀錄＝分享出去的也一起收回（好友那邊跟著消失）
           App.sessions = App.sessions.filter(function (x) { return x.id !== s.id; }); delete recPick[s.id];
           try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(s.id); } catch (e) {}
           if (ana && s.id === App.acur.id) { App.acur = newAnalysis(App.acur.targetId); App.anaPhotos = {}; App.anaSel = 'all'; }
           if (gho && App.gcur && s.id === App.gcur.id) { App.gcur = null; App.ghView = null; }
-          if (!ana && !gho && s.id === App.cur.id) { App.cur = App.sessions.filter(function (x) { return !isAna(x) && !G.isGhost(x); })[0] || newSession(); if (App.sessions.indexOf(App.cur) < 0) App.sessions.push(App.cur); }
+          if (!ana && !gho && s.id === App.cur.id) { App.cur = App.sessions.filter(function (x) { return !isAna(x) && !G.isGhost(x) && !App.isShared(x); })[0] || newSession(); if (App.sessions.indexOf(App.cur) < 0) App.sessions.push(App.cur); }
           persist(); App.renderAll();
         });
       };
@@ -190,12 +196,20 @@
       var pdfB = null, nShots = ana ? anaShots(s).length : (s.actuals || []).length;
       if (nShots) { pdfB = document.createElement('button'); pdfB.type = 'button'; pdfB.className = 'rec-pdf'; pdfB.textContent = wrT('pdf.rec_btn'); pdfB.setAttribute('aria-label', wrT('pdf.rec_aria', [recTitle(s)])); pdfB.onclick = function () { App.pdfOpen(s); }; }
       var r = document.createElement('div'); r.className = 'row';
-      if (locked) { var lk = document.createElement('span'); lk.className = 'rec-lock-ic'; lk.setAttribute('role', 'img'); lk.setAttribute('aria-label', wrT('app.lock_locked')); lk.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V7.2a4 4 0 0 1 8 0V11"/><rect x="6" y="11" width="12" height="10.2" rx="2"/><path d="M12 14.4v3"/></svg>'; r.appendChild(lk); }
+      // v2.9.0（§7 第 5 項）自己的分析紀錄：鎖頭可以直接點（鎖住／解鎖，同分析頁）；好友分享：閉鎖頭、點了只提示（絕對鎖定）
+      if (ana || shared) {
+        var lk = document.createElement('button'); lk.type = 'button'; lk.className = 'ana-name-lock rec-lock' + (locked ? ' is-locked' : '') + (shared ? ' lk-abs' : '');
+        lk.setAttribute('aria-pressed', locked ? 'true' : 'false');
+        lk.setAttribute('aria-label', shared ? wrT('app.lock_abs_aria') : locked ? wrT('app.lock_aria_unlock') : wrT('app.lock_aria_lock')); lk.title = shared ? wrT('app.lock_abs') : locked ? wrT('app.lock_tip_unlock') : wrT('app.lock_tip_lock');
+        lk.innerHTML = '<span class="lk-ripple" aria-hidden="true"></span><svg viewBox="0 0 24 24" aria-hidden="true"><g class="lk-shackle"><path d="M8 11V7.2a4 4 0 0 1 8 0V11"/></g><g class="lk-body"><rect x="6" y="11" width="12" height="10.2" rx="2"/><path d="M12 14.4v3"/></g></svg>';
+        lk.onclick = function (e) { e.preventDefault(); App.recToggleLock(s, lk); };
+        r.appendChild(lk);
+      } else if (locked) { var lki = document.createElement('span'); lki.className = 'rec-lock-ic'; lki.setAttribute('role', 'img'); lki.setAttribute('aria-label', wrT('app.lock_locked')); lki.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V7.2a4 4 0 0 1 8 0V11"/><rect x="6" y="11" width="12" height="10.2" rx="2"/><path d="M12 14.4v3"/></svg>'; r.appendChild(lki); }
       r.appendChild(name); r.appendChild(open); if (pdfB) r.appendChild(pdfB); r.appendChild(del);
       div.appendChild(r);
       // v2.0.0：分享給好友（唯讀）；登入並建立會員資料後才出現
       var WM = window.WRMember;
-      if (WM && WM.canShare() && recCode(s)) {
+      if (WM && WM.canShare() && recCode(s) && !shared) {
         var sr = document.createElement('div'); sr.className = 'rec-share';
         var sh = WM.sharesOf(s.id), nTo = 0; sh.forEach(function (x) { nTo += (x.to || []).length; });
         var sb = document.createElement('button'); sb.type = 'button'; sb.className = 'rc-share'; sb.innerHTML = wrT('app.share_with_friends');
@@ -205,6 +219,7 @@
         div.appendChild(sr);
       }
       // v1.8.0：每筆紀錄都顯示自己的紀錄碼（座標系統 A），可以單獨複製
+      if (shared) { box.appendChild(div); return; } // 好友分享的紀錄不給紀錄碼（避免用「貼上還原」變成自己的、可編輯的紀錄）
       var code = recCode(s), cl = document.createElement('div'); cl.className = 'rec-code rc-gate';
       if (code) {
         cl.innerHTML = wrT('app.chars', [esc(code.slice(0, 22)), code.length]);
@@ -214,6 +229,25 @@
       } else cl.innerHTML = wrT('app.no_shots_yet_no_record');
       div.appendChild(cl); box.appendChild(div);
     });
+  }
+  /* v2.9.0 好友分享的紀錄：打開前先問一次分享還在不在（有登入、有網路才問得到）；不在了＝好友刪除或收回 → 從這邊移除 */
+  function openSharedRec(s) {
+    var go = function () { App.anaOpenRO(JSON.parse(JSON.stringify(s)), { kind: 'friend', title: recTitle(s), sub: wrT('app.ro_friend_sub', [s.sharedOwner || wrT('app.rec_shared'), fmtTW(s.created)]) }); };
+    var WM = window.WRMember, p = null;
+    try { if (WM && WM.checkShared) p = WM.checkShared(s.sharedFrom || s.copiedFrom); } catch (e) { p = null; }
+    if (!p || !p.then) { go(); return; }
+    p.then(function (alive) { if (alive === false) { removeRecords([s.id]); toast(wrT('app.rec_shared_gone'), 3600); } else go(); }, go);
+  }
+  /* 從本機（和雲端同步）移除幾筆紀錄；好友分享消失、紀錄頁「移除」都用這個 */
+  function removeRecords(ids) {
+    var m = {}; (ids || []).forEach(function (id) { m[id] = 1; }); if (!Object.keys(m).length) return 0;
+    var before = App.sessions.length;
+    App.sessions = App.sessions.filter(function (x) { return !m[x.id]; }); Object.keys(m).forEach(function (id) { delete recPick[id]; try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(id); } catch (e) {} });
+    if (m[App.acur.id]) { App.acur = newAnalysis(App.acur.targetId); App.anaPhotos = {}; App.anaSel = 'all'; }
+    if (App.gcur && m[App.gcur.id]) { App.gcur = null; App.ghView = null; }
+    if (m[App.cur.id]) { App.cur = App.sessions.filter(function (x) { return !isAna(x) && !G.isGhost(x) && !App.isShared(x); })[0] || newSession(); if (App.sessions.indexOf(App.cur) < 0) App.sessions.push(App.cur); }
+    persist(); App.renderAll();
+    return before - App.sessions.length;
   }
   function updateCmpBtn() {
     var n = Object.keys(recPick).length;

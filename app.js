@@ -16,7 +16,7 @@
   Object.defineProperty(App, 'APP_VERSION', { get: function () { return APP_VERSION; }, set: function (v) { APP_VERSION = v; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'APP_LABEL', { get: function () { return APP_LABEL; }, set: function (v) { APP_LABEL = v; }, enumerable: true, configurable: true });
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.8.0', APP_LABEL = 'beta v2.8.0'; // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.9.0', APP_LABEL = 'beta v2.9.0'; // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = APP_LABEL; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = wrT('app.x', [APP_LABEL, APP_VERSION]); document.title = APP_NAME; } catch (e) {}
   var tsel = $('targetSel');
   Object.keys(T).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = T[k].name; tsel.appendChild(o); });
@@ -67,5 +67,7 @@
     // v1.8.0
     renderAcct: function (st) { App.renderAcct(st); }, profileStats: function () { return App.profileStats(); }, restoreCodes: function (t) { return restoreCodes(t); },
     // v2.0.0（member.js 用）
-    label: APP_LABEL, anaOpenRO: function (r, o) { return App.anaOpenRO(r, o); }, anaSaveCopy: function (r, x) { return App.anaSaveCopy(r, x); }, recTitle: function (r) { return App.recTitle(r); }, toast: toast, ask: ask, drawRecord: drawRecord, recMetaHTML: recMetaHTML, renderRecShare: function () { if (App.curTab === 'records') renderRecords(); }, navBulge: function () { navBulge(); } };
+    label: APP_LABEL, anaOpenRO: function (r, o) { return App.anaOpenRO(r, o); }, anaSaveCopy: function (r, x) { return App.anaSaveCopy(r, x); }, recTitle: function (r) { return App.recTitle(r); }, toast: toast, ask: ask, drawRecord: drawRecord, recMetaHTML: recMetaHTML, renderRecShare: function () { if (App.curTab === 'records') renderRecords(); }, navBulge: function () { navBulge(); },
+    // v2.9.0（member-friends.js 用）：好友刪除／收回分享 → 移除本機保存的那份
+    removeRecords: function (ids) { return App.removeRecords(ids); } };
 })(window.WRApp = window.WRApp || {});

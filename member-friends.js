@@ -8,6 +8,7 @@
     ask = MP.ask, ls = MP.ls, LS_SEEN = MP.LS_SEEN, ICON = MP.ICON, S = MP.S, uid = MP.uid, hasProfile = MP.hasProfile, errText = MP.errText,
     refreshSocial = MP.refreshSocial, who = MP.who, whoHTML = MP.whoHTML, show = MP.show, renderCards = MP.renderCards, modal = MP.modal;
   // 給其他模組用（函式）
+  MP.pruneShared = pruneShared; MP.recordDeleted = recordDeleted; MP.checkShared = checkShared;
   MP.renderFriends = renderFriends; MP.addFriend = addFriend; MP.sharesOf = sharesOf; MP.renderShares = renderShares; MP.closeView = closeView;
   MP.shareRecord = shareRecord; MP.counts = counts; MP.renderBadges = renderBadges;
 
@@ -96,6 +97,27 @@
       row.querySelector('[data-all]').onclick = function () { ask(wrT('member.withdraw_this_share_your_friend'), function () { act(MP.BE.deleteShare(s.id), wrT('member.all_withdrawn')); }, null, { yes: wrT('member.withdraw') }); };
     });
   }
+  /* v2.9.0 好友分享、保存在自己這邊的紀錄：分享清單（sharesToMe，規則只讓「還在 to 名單裡」的人查到）裡沒有了
+   * ＝好友刪除紀錄、收回分享或刪帳號 → 從這邊移除（本機＋自己的雲端）。只有在清單確定讀到時才呼叫（讀失敗不動）。 */
+  function pruneShared(list) {
+    var A = app(); if (!A || !A.sessions || !A.removeRecords) return 0;
+    var live = {}; (list || []).forEach(function (x) { live[x.id] = 1; });
+    var gone = A.sessions.filter(function (x) { var k = x.sharedFrom || x.copiedFrom; return k && !live[k]; }).map(function (x) { return x.id; });
+    if (!gone.length) return 0;
+    var n = A.removeRecords(gone); if (n) toast(wrT('member.kept_gone', [n]), 4200);
+    return n;
+  }
+  /* 打開保存的好友紀錄前問一次：true＝還在、false＝沒了（被刪／收回）、null＝不知道（沒登入、離線）→ 照樣用本機那份打開 */
+  function checkShared(sid) {
+    if (!sid || !uid() || !MP.BE || !MP.BE.getShare) return Promise.resolve(null);
+    return MP.BE.getShare(sid).then(function (x) { return !!(x && (x.to || []).indexOf(uid()) >= 0); }, function (e) { return e && /permission-denied|not-found/.test(e.code || '') ? false : null; });
+  }
+  /* 刪掉自己的紀錄：分享出去的那幾份一起收回（擁有者可以刪自己的分享，規則不用改） */
+  function recordDeleted(recId) {
+    if (!uid() || !MP.BE) return;
+    var mine = sharesOf(recId); if (!mine.length) return;
+    Promise.all(mine.map(function (x) { return MP.BE.deleteShare(x.id).catch(function () {}); })).then(function () { return MP.refreshSocial ? MP.refreshSocial() : null; }).catch(function () {});
+  }
   /* 唯讀檢視：用紀錄碼還原，畫在 ISSF 靶面上（不存進自己的紀錄） */
   function closeView(bg) { bg.remove(); if (!D.querySelector('.mb-view')) B.classList.remove('mb-view-open'); }
   function openShared(sid) {
@@ -108,10 +130,12 @@
       D.querySelectorAll('.mb-view').forEach(function (v) { closeView(v); });
       var owner = s.ownerMid || who(s.owner);
       return A0.anaOpenRO(rec, { kind: 'friend', title: (s.name && s.name.trim()) || kindName(s), sub: wrT('app.ro_friend_sub', [owner, fmtDate(s.recCreated)]),
+        // v2.9.0（§7 第 6、11 項，White 2026-11-21）不能「另存成我的」；改成保存在自己這邊唯讀檢視（sharedFrom＝分享 id），
+        // 一律絕對鎖定；好友刪除紀錄或收回分享後，下次登入／重新整理好友資料時自動移除（pruneShared）。
         onSave: function (r, done) {
-          var A = app(), had = A.sessions.some(function (x) { return x.copiedFrom === sid; });
-          if (!had) A.anaSaveCopy(r, { copiedFrom: sid, name: wrT('app.ro_copy_name', [owner, (r.name && r.name.trim()) || kindName(s)]).slice(0, 120) });
-          toast(wrT('app.ro_copy_saved'), 3200); done();
+          var A = app(), had = A.sessions.some(function (x) { return x.sharedFrom === sid || x.copiedFrom === sid; });
+          if (!had) A.anaSaveCopy(r, { sharedFrom: sid, sharedOwner: String(owner || '').slice(0, 40), name: wrT('app.ro_copy_name', [owner, (r.name && r.name.trim()) || kindName(s)]).slice(0, 120) });
+          toast(wrT('app.ro_copy_saved'), 3600); done();
         },
         onClose: function () { renderCards(); } });
     }

@@ -4,7 +4,7 @@
 (function (App) {
   'use strict';
   // 給其他模組用（函式）
-  App.saveSessions = saveSessions; App.savePrefs = savePrefs; App.isAna = isAna; App.newSession = newSession; App.newAnalysis = newAnalysis;
+  App.saveSessions = saveSessions; App.savePrefs = savePrefs; App.isAna = isAna; App.isShared = isShared; App.newSession = newSession; App.newAnalysis = newAnalysis;
   App.fmtTW = fmtTW; App.anaShots = anaShots; App.persist = persist; App.tgt = tgt; App.el = el; App.drawTarget = drawTarget;
   App.labelSize = labelSize; App.drawShot = drawShot; App.previewMark = previewMark; App.stat = stat; App.offsetText = offsetText;
   App.renderStats = renderStats; App.shotTable = shotTable; App.attachZoom = attachZoom; App.ask = ask; App.toast = toast; App.toastAct = toastAct;
@@ -68,12 +68,14 @@
     try { return new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); }
     catch (e) { return new Date(iso).toLocaleString(); }
   }
+  // v2.9.0（§7 第 6、11 項）好友分享、保存在自己這邊的紀錄（sharedFrom＝分享 id；v2.5–v2.8「另存成我的」留下的 copiedFrom 也算）：唯讀、一律絕對鎖定
+  function isShared(s) { return !!(s && (s.sharedFrom || s.copiedFrom)); }
   function anaShots(s) { var o = []; (s.sheets || []).forEach(function (sh) { o = o.concat(sh.shots); }); return o; }
   var sessions = loadSessions();
   var cur = null;
   (function initCur() {
     var id = store.get(LS_CUR);
-    cur = sessions.filter(function (s) { return s.id === id && !isAna(s) && s.mode !== 'ghost'; })[0];
+    cur = sessions.filter(function (s) { return s.id === id && !isAna(s) && s.mode !== 'ghost' && !isShared(s); })[0];
     if (!cur) { cur = newSession(); sessions.unshift(cur); }
   })();
   function persist(noTouch) {

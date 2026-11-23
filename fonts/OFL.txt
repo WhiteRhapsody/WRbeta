@@ -9,3 +9,11 @@ wr-playfair-700.woff  Playfair Display Bold    Copyright 2017 The Playfair Displ
 這些字型以 SIL Open Font License 1.1 授權（https://openfontlicense.org）。
 子集化後改用 WR 開頭的檔名與 font-family 名稱（"WR Chakra" 等），未使用原始的保留字型名稱。
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+v2.9.0 首頁字型
+wr-tinos-700.woff     Tinos Bold               Digitized data copyright (c) 2010-2012 Google Corporation（設計 Steve Matteson）。
+                      SIL Open Font License 1.1，全文見 Tinos-OFL.txt。只取 ASCII 與 ‘’“”…–— 的子集，font-family 改名 "WR Tinos"。
+                      首頁標語用 Times New Roman；手機沒有內建 Times New Roman 時才用它（字寬與 Times New Roman 相同）。
+wr-dearmrpotter.woff  DearMrPotter（Regular）   Robin of 10DigitDesign（http://10digitdesign.blogspot.co.uk ／ http://krats.deviantart.com）。
+                      作者說明見 DearMrPotter-ReadMe.rtf（可商用，希望註明出處）。White 2026-11-23 確認授權沒問題；首頁標題 White Rhapsody 用。
+                      只把原檔 OTF 轉成 WOFF，字形沒改。
