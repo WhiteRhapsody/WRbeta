@@ -1,7 +1,9 @@
 /* WRbeta v2.9.4「教練」版（PROGRESS.md §7 下次更新要點第 13 項，White 2026-11-23 18:09 指定）
  * 目前所有分頁都屬於「選手」；這版加入「教練」版本的兩個空白分頁，標「施工中」。
  * 入口：首頁的「教練」軟 Q 鈕（按了離開首頁、打開教練版；以前只跳「即將推出」）。
- * 教練版是一張蓋在 App 上的全頁（不動選手的分頁、功能列、Lite），左上「首頁」回首頁、「選手」或返回鍵＝回選手的分頁。
+ * 教練版是一張蓋在 App 上的全頁（不動選手的分頁、功能列、Lite），左上「首頁」回首頁、「回選手」＝回選手的分頁。
+ * v2.9.5 hotfix（White S26U 實機回報 2026-11-25）：Android 返回手勢／返回鍵＝回首頁（教練版是從首頁進來的），跟「首頁」鈕同一條路；
+ * 三種離開都只是關掉這一層＋App.back.drop，不另外 pushState，歷史堆疊不會多出東西。
  * 兩個分頁的名稱與內容待 White 決定（教練版之後也會有預報、分析、紀錄、設定／說明，再加教練專屬功能，細節待討論）；
  * 分頁名稱「教練分頁 1／2」是白幻仔暫定。 */
 (function (App) {
@@ -17,7 +19,7 @@
       '<div class="co-pane" id="coachPane" role="tabpanel"><div class="co-wip"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 52h48"/><path d="M14 52 30 14h4l16 38"/><path d="M20 38h24M24 28h16"/></svg><b id="coachWipH"></b><p>' + esc(wrT('coach.wip_note')) + '</p></div></div>';
     D.body.appendChild(pg);
     pg.querySelectorAll('[role=tab]').forEach(function (b) { b.onclick = function () { set(+b.dataset.i); }; });
-    D.getElementById('coachHome').onclick = function () { close(); if (App.home) App.home.show(); };
+    D.getElementById('coachHome').onclick = goHome;
     D.getElementById('coachPlayer').onclick = close;
   }
   function set(i) {
@@ -30,11 +32,12 @@
     if (!pg) build();
     var s = 0; try { s = +localStorage.getItem(KEY) || 0; } catch (e) {}
     set(s); pg.hidden = false; D.body.classList.add('coach-open');
-    if (App.back) App.back.push('coach', close);
+    if (App.back) App.back.push('coach', goHome); // v2.9.5：返回＝回首頁
   }
   function close() {
     if (!pg || pg.hidden) return;
     pg.hidden = true; D.body.classList.remove('coach-open'); if (App.back) App.back.drop('coach');
   }
-  App.coach = { open: open, close: close, get on() { return !!pg && !pg.hidden; } };
+  function goHome() { close(); if (App.home && !App.home.on) App.home.show(); }
+  App.coach = { open: open, close: close, home: goHome, get on() { return !!pg && !pg.hidden; } };
 })(window.WRApp = window.WRApp || {});

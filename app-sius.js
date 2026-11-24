@@ -23,6 +23,16 @@
   var sheet = null, st = null;
   var ICAM = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.3l1.6-2.2h5.2l1.6 2.2h2.3a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/></svg>';
   var IPIC = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4.5 3.5"/></svg>';
+  var IFILE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>';
+  // v2.9.5：「檔案」選得到任何檔案 → 只收圖片（跟分析頁一樣：不是圖片＝提示；HEIC 瀏覽器讀不了＝說明怎麼轉 JPG）
+  var isImg = function (f) { return /^image\//i.test(f.type || '') || /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(f.name || ''); };
+  var heic = function (f) { return App.pickIsHeic ? App.pickIsHeic(f) : /heic|heif/i.test((f.type || '') + (f.name || '')); };
+  function onFiles() {
+    var fs = Array.prototype.slice.call(this.files || []); this.value = '';
+    var ok = fs.filter(function (f) { return isImg(f) && !heic(f); }), bad = fs.filter(function (f) { return ok.indexOf(f) < 0; });
+    if (bad.length) { if (bad.some(heic)) alert(wrT('app.this_photo_is_in_heic')); else App.toast(wrT('app.is_not_a_photo', [bad[0].name || wrT('app.this_file')])); }
+    if (ok.length) addFiles(ok);
+  }
   function build() {
     sheet = D.createElement('div'); sheet.id = 'siusSheet'; sheet.className = 'sius-bg'; sheet.hidden = true;
     sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-modal', 'true'); sheet.setAttribute('aria-label', wrT('sius.title'));
@@ -32,6 +42,8 @@
         '<div class="sius-src" id="siusSrc">' +
           '<label class="sius-sb" id="siusCamBtn">' + ICAM + '<span><b>' + esc(wrT('sius.take')) + '</b><small>' + esc(wrT('sius.take_sub')) + '</small></span><input type="file" id="siusCam" accept="image/*" capture="environment" hidden></label>' +
           '<label class="sius-sb" id="siusPickBtn">' + IPIC + '<span><b>' + esc(wrT('sius.pick')) + '</b><small>' + esc(wrT('sius.pick_sub')) + '</small></span><input type="file" id="siusPick" accept="image/*" multiple hidden></label>' +
+          // v2.9.5：「相簿」旁多一個「檔案」（一般檔案選擇器，相簿找不到的照片，例如 LINE 存的）；Android 兩顆都走 app-nav.js 的 showOpenFilePicker（相簿＝只列圖片、檔案＝全部）
+          '<label class="sius-sb" id="siusFileBtn">' + IFILE + '<span><b>' + esc(wrT('sius.file')) + '</b><small>' + esc(wrT('sius.file_sub')) + '</small></span><input type="file" id="siusFile" accept="*/*" multiple hidden></label>' +
         '</div>' +
         '<div class="sius-photos" id="siusPhotos" hidden></div>' +
         '<div class="sius-prog" id="siusProg" hidden role="status" aria-live="polite"><div class="sius-pbar"><i id="siusPbar"></i></div><span id="siusPtx"></span><button type="button" class="wr-pill" id="siusStop">' + esc(wrT('sius.ocr_cancel')) + '</button></div>' +
@@ -47,8 +59,7 @@
     D.body.appendChild(sheet);
     sheet.querySelector('.sius-x').onclick = close;
     sheet.addEventListener('click', function (e) { if (e.target === sheet) close(); });
-    var onFiles = function () { var fs = Array.prototype.slice.call(this.files || []); this.value = ''; if (fs.length) addFiles(fs); };
-    $('siusCam').onchange = onFiles; $('siusPick').onchange = onFiles;
+    $('siusCam').onchange = onFiles; $('siusPick').onchange = onFiles; $('siusFile').onchange = onFiles;
     $('siusStop').onclick = function () { if (!st.busy) return; st.cancel = true; if (OCR()) OCR().stop(); if (st.abort) st.abort(); };
     $('siusTg').querySelectorAll('button').forEach(function (b) { b.onclick = function () { if (st.busy) return; st.tgUser = b.dataset.v; if (st.model) { st.model.targetId = b.dataset.v; st.model.gun.unverified = b.dataset.v === 'ap10'; } recheck(); }; });
     $('siusPrev').onclick = function () { step(-1); }; $('siusNext').onclick = function () { step(1); };
@@ -197,8 +208,8 @@
     sheet.classList.toggle('has-model', !!m);
     var ph = $('siusPhotos'), hp = st.files.length && !st.recId;
     ph.hidden = !hp;
-    if (hp) ph.innerHTML = '<span class="sius-pn">' + esc(wrT('sius.photos_n', [st.files.length])) + '</span>' + st.urls.map(function (u, i) { return u ? '<img src="' + esc(u) + '" alt="' + (i + 1) + '">' : ''; }).join('') + (st.busy ? '' : '<label class="sius-add">' + esc(wrT('sius.add_more')) + '<input type="file" accept="image/*" multiple hidden></label>');
-    var add = ph.querySelector('.sius-add input'); if (add) add.onchange = function () { var fs = Array.prototype.slice.call(this.files || []); this.value = ''; if (fs.length) addFiles(fs); };
+    if (hp) ph.innerHTML = '<span class="sius-pn">' + esc(wrT('sius.photos_n', [st.files.length])) + '</span>' + st.urls.map(function (u, i) { return u ? '<img src="' + esc(u) + '" alt="' + (i + 1) + '">' : ''; }).join('') + (st.busy ? '' : '<label class="sius-add">' + esc(wrT('sius.add_more')) + '<input type="file" id="siusAdd" accept="image/*" multiple hidden></label>');
+    var add = ph.querySelector('.sius-add input'); if (add) add.onchange = onFiles;
     $('siusProg').hidden = !st.busy;
     var tg = m ? m.targetId : (st.tgUser || defTg());
     $('siusTg').querySelectorAll('button').forEach(function (b) { var o = b.dataset.v === tg; b.classList.toggle('on', o); b.setAttribute('aria-checked', o ? 'true' : 'false'); b.disabled = st.busy; });

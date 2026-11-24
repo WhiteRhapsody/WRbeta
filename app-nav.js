@@ -65,7 +65,7 @@
   // 相簿＝只列圖片的檔案選擇器；檔案＝全部檔案。拍照鈕（capture）不經過這裡。沒有這個 API 時退回原本的 input。
   (function () {
     var IMG = { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'], 'image/webp': ['.webp'], 'image/gif': ['.gif'], 'image/heic': ['.heic'], 'image/heif': ['.heif'] };
-    var KIND = { litePick: 'img', photoPick: 'img', anaPick: 'img', liteFile: 'any', photoFile: 'any', anaFile: 'any' };
+    var KIND = { litePick: 'img', photoPick: 'img', anaPick: 'img', liteFile: 'any', photoFile: 'any', anaFile: 'any', siusPick: 'img', siusAdd: 'img', siusFile: 'any' }; // v2.9.5：小白單的相簿／再加一張／檔案
     var android = /Android/i.test(navigator.userAgent || '');
     function feed(inp, files) {
       try { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); inp.files = dt.files; } catch (e) { return; }
