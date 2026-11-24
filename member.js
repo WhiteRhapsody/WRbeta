@@ -155,6 +155,8 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       setShareTo: function (sid, to) { return P(function () { return to.length ? C().F.updateDoc(d('shares', sid), { to: to, updated: ts() }) : C().F.deleteDoc(d('shares', sid)); }); },
       leaveShare: function (sid, to) { return P(function () { return C().F.updateDoc(d('shares', sid), { to: to, updated: ts() }); }); },
       deleteShare: function (sid) { return P(function () { return C().F.deleteDoc(d('shares', sid)); }); },
+      // v2.9.4 第 14 項：舊分享換成檢視碼（view），刪掉完整紀錄碼（code）
+      upgradeShare: function (sid, view) { return P(function () { return C().F.updateDoc(d('shares', sid), { view: view, code: C().F.deleteField(), updated: ts() }); }); },
       // v2.9.0 好友分享還在不在（文件被刪＝規則讀不到 resource → permission-denied；被移出 to 名單也一樣）
       getShare: function (sid) { return P(function () { return one(d('shares', sid)); }); },
       // v2.5.0 選填資料：私人的 users/{uid}.pf（整份換掉＝mergeFields）、給好友看的 cards/{uid}（只有公開欄位；沒有就刪掉）
@@ -320,7 +322,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     return Promise.all([
       BE.friendships().then(function (docs) { S.friends = friendView(docs, me); }).catch(function () {}),
       BE.sharesToMe().then(function (a) { S.toMe = a.sort(function (x, y) { return y.createdMs - x.createdMs; }); try { if (MP.pruneShared) MP.pruneShared(a); } catch (e) {} }).catch(function () {}),
-      BE.myShares().then(function (a) { S.mine = a.sort(function (x, y) { return y.createdMs - x.createdMs; }); }).catch(function () {}),
+      BE.myShares().then(function (a) { S.mine = a.sort(function (x, y) { return y.createdMs - x.createdMs; }); try { if (MP.upgradeShares) MP.upgradeShares(a).catch(function () {}); } catch (e) {} }).catch(function () {}),
       BE.isAdmin().then(function (a) { S.admin = a; }).catch(function () { S.admin = false; }),
       loadStaff(),
       loadPerks()

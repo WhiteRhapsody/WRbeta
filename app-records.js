@@ -20,7 +20,7 @@
     return n;
   }
   function anaRecords() {
-    return App.sessions.filter(function (s) { return isAna(s) && anaShotCount(s); }).sort(function (a, b) { return Date.parse(a.created) - Date.parse(b.created); });
+    return App.sessions.filter(function (s) { return isAna(s) && anaShotCount(s) && !App.isShared(s); }) // v2.9.4 第 14 項：好友分享的紀錄不進「複製全部紀錄碼」.sort(function (a, b) { return Date.parse(a.created) - Date.parse(b.created); });
   }
   function copyText(text, okMsg) {
     function done() { toast(okMsg); }
@@ -36,7 +36,7 @@
     }
   }
   function updateAnaCodeInfo() {
-    var info = $('anaCodeInfo'), Code = window.BMCode, n = anaShotCount(App.acur), code = null;
+    var info = $('anaCodeInfo'), Code = window.BMCode, n = noCode(App.acur) ? 0 : anaShotCount(App.acur), code = null;
     if (!$('anaShareCode').dataset.ready) {
       $('anaShareCode').dataset.ready = '1';
       if (navigator.share) $('anaShareCode').hidden = false;
@@ -54,13 +54,13 @@
   }
   $('anaCopyCode').onclick = function () {
     if (!App.rcOk()) return;
-    var Code = window.BMCode, code = Code && Code.encode(App.acur);
+    var Code = window.BMCode, code = Code && !noCode(App.acur) && Code.encode(App.acur);
     if (!code) { toast(wrT('app.no_analysis_to_copy_yet')); return; }
     copyText(code, wrT('app.record_code_copied_characters_2', [code.length]));
   };
   $('anaShareCode').onclick = function () {
     if (!App.rcOk()) return;
-    var Code = window.BMCode, code = Code && Code.encode(App.acur);
+    var Code = window.BMCode, code = Code && !noCode(App.acur) && Code.encode(App.acur);
     if (!code) { toast(wrT('app.no_analysis_to_share_yet')); return; }
     try { navigator.share({ title: wrT('app.wrbeta_record_code'), text: code }); } catch (e) { copyText(code, wrT('app.record_code_copied_characters_2', [code.length])); }
   };
@@ -111,7 +111,9 @@
     if (s.actuals && s.actuals.length) return { shots: s.actuals, src: wrT('app.actual') };
     return { shots: s.preds || [], src: wrT('app.call_2') };
   }
-  function recCode(s) { var Code = window.BMCode; if (!Code) return null; try { return Code.encode(s); } catch (e) { return null; } }
+  // v2.9.4 第 14 項：好友分享的紀錄（sharedFrom／copiedFrom）一律不產生紀錄碼（單筆、全部、分享都一樣）
+  function noCode(s) { return !s || App.isShared(s) || (s === App.acur && !!App.anaRO); }
+  function recCode(s) { var Code = window.BMCode; if (!Code || noCode(s)) return null; try { return Code.encode(s); } catch (e) { return null; } }
   function recAllCodes() { var s = '', n = 0; App.sessions.forEach(function (x) { var c = recCode(x); if (c) { s += c; n++; } }); return { code: s, n: n }; }
   function updateRecCodeInfo() {
     var a = recAllCodes(), info = $('recCodeInfo'); if (!info) return;
@@ -233,6 +235,7 @@
   /* v2.9.0 好友分享的紀錄：打開前先問一次分享還在不在（有登入、有網路才問得到）；不在了＝好友刪除或收回 → 從這邊移除 */
   function openSharedRec(s) {
     var go = function () { App.anaOpenRO(JSON.parse(JSON.stringify(s)), { kind: 'friend', title: recTitle(s), sub: wrT('app.ro_friend_sub', [s.sharedOwner || wrT('app.rec_shared'), fmtTW(s.created)]) }); };
+    if (s.copiedFrom && !s.sharedFrom) { go(); return; } // v2.9.4 第 15 項：舊的「另存成我的」副本鎖住照開，不再因為原分享消失就刪掉
     var WM = window.WRMember, p = null;
     try { if (WM && WM.checkShared) p = WM.checkShared(s.sharedFrom || s.copiedFrom); } catch (e) { p = null; }
     if (!p || !p.then) { go(); return; }

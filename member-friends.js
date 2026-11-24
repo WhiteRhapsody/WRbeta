@@ -102,7 +102,9 @@
   function pruneShared(list) {
     var A = app(); if (!A || !A.sessions || !A.removeRecords) return 0;
     var live = {}; (list || []).forEach(function (x) { live[x.id] = 1; });
-    var gone = A.sessions.filter(function (x) { var k = x.sharedFrom || x.copiedFrom; return k && !live[k]; }).map(function (x) { return x.id; });
+    // v2.9.4 第 15 項（White 2026-11-23 同意）：v2.5～v2.8「另存成我的」留下的 copiedFrom 舊副本＝鎖住但不自動刪除（原分享消失也留著，避免丟資料）；
+    //   只有 v2.9.0 起的 sharedFrom（保存的唯讀分享）照舊跟著原分享消失
+    var gone = A.sessions.filter(function (x) { return x.sharedFrom && !x.copiedFrom && !live[x.sharedFrom]; }).map(function (x) { return x.id; });
     if (!gone.length) return 0;
     var n = A.removeRecords(gone); if (n) toast(wrT('member.kept_gone', [n]), 4200);
     return n;
@@ -112,6 +114,18 @@
     if (!sid || !uid() || !MP.BE || !MP.BE.getShare) return Promise.resolve(null);
     return MP.BE.getShare(sid).then(function (x) { return !!(x && (x.to || []).indexOf(uid()) >= 0); }, function (e) { return e && /permission-denied|not-found/.test(e.code || '') ? false : null; });
   }
+  /* v2.9.4 第 14 項：我分享出去、還存著完整紀錄碼（code）的舊分享 → 換成檢視碼（view）、刪掉 code（規則只允許擁有者這樣改）。
+   * 用分享文件裡的 code 自己轉（不需要本機還有那筆紀錄）；失敗（離線、規則還沒更新）就下次再試，不影響其他功能。 */
+  function upgradeShares(list) {
+    var Code = root.BMCode; if (!Code || !Code.encodeShare || !MP.BE || !MP.BE.upgradeShare) return Promise.resolve(0);
+    var todo = (list || []).filter(function (x) { return x && x.owner === uid() && typeof x.code === 'string' && !x.view; });
+    return Promise.all(todo.map(function (x) {
+      var rec = null; try { rec = Code.decodeShare(x.code, x.id); } catch (e) {}
+      var v = rec && Code.encodeShare(rec, x.id); if (!v) return 0;
+      return MP.BE.upgradeShare(x.id, v).then(function () { x.view = v; delete x.code; return 1; }, function () { return 0; });
+    })).then(function (a) { return a.reduce(function (s, n) { return s + n; }, 0); });
+  }
+  MP.upgradeShares = upgradeShares;
   /* 刪掉自己的紀錄：分享出去的那幾份一起收回（擁有者可以刪自己的分享，規則不用改） */
   function recordDeleted(recId) {
     if (!uid() || !MP.BE) return;
@@ -123,7 +137,8 @@
   function openShared(sid) {
     var s = S.toMe.filter(function (x) { return x.id === sid; })[0]; if (!s) return;
     var seen = ls(LS_SEEN) || {}; seen[sid] = 1; ls(LS_SEEN, seen); renderBadges();
-    var Code = root.BMCode, rec = null; try { rec = Code && Code.decode(s.code).records[0]; } catch (e) {}
+    // v2.9.4 第 14 項：新分享存檢視碼 view（不是紀錄碼）；舊分享（v2.9.3 以前）還是 code，一樣讀得到
+    var Code = root.BMCode, rec = null; try { rec = Code && (Code.decodeShare ? Code.decodeShare(s.view || s.code, s.id) : Code.decode(s.code).records[0]); } catch (e) {}
     // v2.5.0：打開完整的分析頁（所有模塊）唯讀檢視；可「另存成我的紀錄」（複製一份，對方的紀錄不會被改）
     var A0 = app();
     if (rec && A0 && A0.anaOpenRO) {
@@ -193,7 +208,7 @@
     yes.onclick = function () {
       var to = sel(); if (!to.length) return; yes.disabled = true;
       var sid = (String(uid()).slice(0, 10) + '_' + String(s.id).replace(/[^A-Za-z0-9_-]/g, '').slice(-24) + '_' + Date.now().toString(36)).slice(0, 64);
-      MP.BE.createShare(sid, { ownerMid: S.profile.mid, to: to, recId: String(s.id).slice(0, 64), kind: s.kind === 'analysis' ? 'analysis' : 'forecast', targetId: String(s.targetId || 'ap10').slice(0, 16), name: String((s.name && s.name.trim()) || '').slice(0, 120), recCreated: String(s.created || '').slice(0, 40), code: code })
+      MP.BE.createShare(sid, { ownerMid: S.profile.mid, to: to, recId: String(s.id).slice(0, 64), kind: s.kind === 'analysis' ? 'analysis' : 'forecast', targetId: String(s.targetId || 'ap10').slice(0, 16), name: String((s.name && s.name.trim()) || '').slice(0, 120), recCreated: String(s.created || '').slice(0, 40), view: Code.encodeShare(s, sid) })
         .then(function () { bg.remove(); toast(wrT('member.shared_with', [to.map(who).join(wrT('core.x_3'))])); return refreshSocial(); }, function (e) { yes.disabled = false; toast(wrT('member.share_failed', [errText(e)]), 3600); });
     };
   }

@@ -19,6 +19,7 @@
   var ENTER_MS = 1500, REVEAL_MS = 420;
   // 版本更新紀錄：[版本, 日期, 條目 key…]
   var VLOG = [
+    ['v2.9.4', '2026/11/25', ['home.v294_1', 'home.v294_2', 'home.v294_3', 'home.v294_4']],
     ['v2.9.3', '2026/11/24', ['home.v293_1', 'home.v293_2', 'home.v293_3', 'home.v293_4']],
     ['v2.9.2', '2026/11/24', ['home.v292_1', 'home.v292_2', 'home.v292_3', 'home.v292_4']],
     ['v2.9.1', '2026/11/23', ['home.v291_1', 'home.v291_2', 'home.v291_3', 'home.v291_4']],
@@ -53,6 +54,8 @@
   var els = {};
   function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
 
+  // v2.9.4 第 13 項：「教練」打開教練版（兩個空白分頁，施工中，app-coach.js）；其他三顆仍是即將推出
+  function soonOf(k) { return k === 'coach' && App.coach ? wrT('coach.wip') : wrT('home.soon'); }
   function build() {
     host.className = 'wr-home'; host.setAttribute('role', 'region'); host.setAttribute('aria-label', wrT('home.aria'));
     var vl = VLOG.map(function (v) {
@@ -60,10 +63,10 @@
       return '<div class="hm-ve"><div class="hm-vt"><span class="hm-ver' + (now ? '' : ' old') + '">' + v[0] + '</span><span class="hm-d">' + v[1] + '</span>' + (now ? '<span class="hm-now">' + esc(wrT('home.current')) + '</span>' : '') + '</div><ul>' +
         v[2].map(function (k) { return '<li>' + esc(wrT(k)) + '</li>'; }).join('') + '</ul></div>';
     }).join('');
-    host.innerHTML = '<div class="hm-stage"><svg class="hm-tg" aria-hidden="true" focusable="false"></svg>' +
+    host.innerHTML = '<div class="hm-stage"><svg class="hm-tg" aria-hidden="true" focusable="false"></svg><svg class="hm-tg hm-xtop" aria-hidden="true" focusable="false"></svg>' +
       '<div class="hm-hit" data-xh="off" role="button" tabindex="0" aria-label="' + esc(wrT('home.player_aria')) + '"></div>' +
       '<div class="hm-plbl" aria-hidden="true">' + esc(wrT('home.player')) + '</div><div class="hm-ahint" aria-hidden="true">' + esc(wrT('home.aim_hint')) + '</div>' +
-      RB.map(function (b) { return '<button type="button" class="hm-rb hm-jelly" data-k="' + b[0] + '" aria-label="' + esc(wrT(b[1]) + ' · ' + wrT('home.soon')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic(b[0]) + '<b>' + esc(wrT(b[1])) + '</b><span class="hm-soon">' + esc(wrT('home.soon')) + '</span></span></button>'; }).join('') +
+      RB.map(function (b) { return '<button type="button" class="hm-rb hm-jelly" data-xh="off" data-k="' + b[0] + '" aria-label="' + esc(wrT(b[1]) + ' · ' + soonOf(b[0])) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic(b[0]) + '<b>' + esc(wrT(b[1])) + '</b><span class="hm-soon">' + esc(soonOf(b[0])) + '</span></span></button>'; }).join('') +
       '</div>' +
       '<div class="hm-band" aria-hidden="true"></div><div class="hm-top"><div class="hm-bar"><button type="button" class="hm-gear hm-jelly" data-k="set" aria-label="' + esc(wrT('home.settings')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic('gear') + '</span></button>' +
       '<button type="button" class="hm-gear hm-jelly" data-k="help" aria-label="' + esc(wrT('home.help')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic('info') + '</span></button>' +
@@ -71,7 +74,7 @@
       '<div class="hm-brand" lang="en">White Rhapsody</div><div class="hm-tag" lang="en">' + esc(wrT('home.tagline')) + '</div>' +
       '<section class="hm-vlog" aria-label="' + esc(wrT('home.vlog')) + '"><div class="hm-vhd"><b>' + esc(wrT('home.vlog')) + '</b><span>' + esc(wrT('home.vlog_more')) + '</span></div><div class="hm-vsc" tabindex="0">' + vl + '</div></section></div>' +
       '<div class="hm-toast" role="status" aria-live="polite"></div>';
-    els.svg = host.querySelector('.hm-tg'); els.hit = host.querySelector('.hm-hit'); els.lbl = host.querySelector('.hm-plbl'); els.hint = host.querySelector('.hm-ahint');
+    els.svg = host.querySelector('.hm-tg'); els.xtop = host.querySelector('.hm-xtop'); els.hit = host.querySelector('.hm-hit'); els.lbl = host.querySelector('.hm-plbl'); els.hint = host.querySelector('.hm-ahint');
     els.toast = host.querySelector('.hm-toast'); els.vlog = host.querySelector('.hm-vlog'); els.stage = host.querySelector('.hm-stage'); els.band = host.querySelector('.hm-band');
     bindJelly(); bindAim();
     built = true;
@@ -87,7 +90,8 @@
   function draw() {
     var g = G = geom(), svg = els.svg, S = g.S, CX = g.CX, CY = g.CY, C2 = g.Cpx / 2;
     svg.setAttribute('viewBox', '0 0 ' + g.W + ' ' + g.H); svg.setAttribute('width', g.W); svg.setAttribute('height', g.H);
-    svg.innerHTML = '';
+    svg.innerHTML = ''; host.classList.remove('hm-snap');
+    if (els.xtop) { els.xtop.setAttribute('viewBox', '0 0 ' + g.W + ' ' + g.H); els.xtop.setAttribute('width', g.W); els.xtop.setAttribute('height', g.H); els.xtop.innerHTML = ''; }
     var defs = sel('defs', {}, svg);
     var mask = sel('mask', { id: 'hmHoles', maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: g.W, height: g.H }, defs);
     sel('rect', { x: 0, y: 0, width: g.W, height: g.H, fill: '#fff' }, mask);
@@ -185,7 +189,7 @@
       clearTimeout(enterT); enterT = setTimeout(function () { reveal(x, y); }, ENTER_MS);
     } else {
       toast(sc.ring ? wrT('home.miss_ring', [dec, sc.ring]) : wrT('home.miss_out'), 1800, 'sr');
-      setTimeout(function () { if (busy) return; els.xh.classList.remove('out'); aim(G.CX, G.CY); }, 900);
+      setTimeout(function () { if (busy) return; els.xh.classList.remove('out'); unsnap(); aim(G.CX, G.CY); }, 900);
     }
     host.dataset.last = JSON.stringify({ x: +x.toFixed(2), y: +y.toFixed(2), ring: sc.ring, dec: sc.dec, holeD: +(2 * R).toFixed(3), pxPerMm: +g.S.toFixed(4) });
     return sc;
@@ -241,16 +245,27 @@
   }
 
   // ---------- 瞄準與開槍 ----------
-  function pt(ev) { return { x: ev.clientX, y: ev.clientY }; }
+  // v2.9.4 第 25 項（White 指定）：瞄準到「裁判／教練／新聞／社群」按鈕時，大十字線本身吸附到按鈕中心；
+  //   按鈕上不再另外冒出按壓小十字（按鈕加 data-xh="off"，crosshair.js 就不畫）。按住按鈕＝十字移到那顆中心，放開後回選手；
+  //   從選手拖著瞄準滑過按鈕也一樣吸附（開槍也打在吸附的中心）。
+  function rbAt(x, y) {
+    var hit = null; host.querySelectorAll('.hm-rb').forEach(function (b) { if (hit) return; var r = b.getBoundingClientRect(); if (!r.width) return; var cx = r.left + r.width / 2, cy = r.top + r.height / 2; if (Math.hypot(x - cx, y - cy) <= r.width / 2) hit = { x: cx, y: cy, k: b.dataset.k }; });
+    return hit;
+  }
+  // 吸附時把準心搬到按鈕上面那一層（.hm-xtop，z-index 在按鈕之上），沒吸附時放回靶紙那一層（在按鈕下面，跟以前一樣）
+  function snap(p) { var h = rbAt(p.x, p.y); host.classList.toggle('hm-snap', !!h); var to = h ? els.xtop : els.svg; if (els.xh && to && els.xh.parentNode !== to) to.appendChild(els.xh); return h ? { x: h.x, y: h.y } : p; }
+  function unsnap() { host.classList.remove('hm-snap'); if (els.xh && els.xh.parentNode !== els.svg) els.svg.appendChild(els.xh); }
+  function pt(ev) { return snap({ x: ev.clientX, y: ev.clientY }); }
   function bindAim() {
     var hit = els.hit;
     hit.addEventListener('pointerdown', function (ev) { if (busy || !onNow) return; aiming = true; try { hit.setPointerCapture(ev.pointerId); } catch (e) {} var p = pt(ev); els.xh.classList.remove('out'); aim(p.x, p.y); });
     hit.addEventListener('pointermove', function (ev) { if (!aiming) return; var p = pt(ev); aim(p.x, p.y); });
     hit.addEventListener('pointerup', function (ev) { if (!aiming) return; aiming = false; var p = pt(ev); fire(p.x, p.y); });
-    hit.addEventListener('pointercancel', function () { aiming = false; aim(G.CX, G.CY); });
+    hit.addEventListener('pointercancel', function () { aiming = false; unsnap(); aim(G.CX, G.CY); });
     hit.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && !busy) { e.preventDefault(); fire(G.CX, G.CY); } });
   }
   // ---------- 軟 Q 按鈕（被子彈打到的果凍感） ----------
+  var rbT = 0;
   function bindJelly() {
     host.querySelectorAll('.hm-jelly').forEach(function (e) {
       e.addEventListener('pointerdown', function (ev) {
@@ -259,7 +274,9 @@
         dn.style.left = x + 'px'; dn.style.top = y + 'px';
         var rp = D.createElement('i'); rp.className = 'hm-rip'; rp.style.left = x + 'px'; rp.style.top = y + 'px'; sk.appendChild(rp); setTimeout(function () { rp.remove(); }, 520);
         e.classList.remove('boing'); e.classList.add('sq'); vib(12);
+        if (e.classList.contains('hm-rb') && !aiming) { clearTimeout(rbT); var c = snap({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); els.xh.classList.remove('out'); aim(c.x, c.y); }
       });
+      if (e.classList.contains('hm-rb')) { var back = function () { clearTimeout(rbT); rbT = setTimeout(function () { if (busy || aiming) return; unsnap(); aim(G.CX, G.CY); }, 450); }; ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) { e.addEventListener(n, back); }); }
       var up = function () { if (!e.classList.contains('sq')) return; e.classList.remove('sq'); void e.offsetWidth; e.classList.add('boing'); vib([0, 40, 8]); };
       e.addEventListener('pointerup', up); e.addEventListener('pointerleave', function () { e.classList.remove('sq'); }); e.addEventListener('pointercancel', function () { e.classList.remove('sq'); });
       e.addEventListener('animationend', function (a) { if (a.animationName === 'hmBoing') e.classList.remove('boing'); });
@@ -267,6 +284,7 @@
         if (busy) return;
         var k = e.dataset.k;
         if (k === 'set' || k === 'help') { busy = true; setTimeout(function () { hide(function () { openAbout(k); }); }, reduced() ? 0 : 220); return; }
+        if (k === 'coach' && App.coach) { busy = true; setTimeout(function () { hide(function () { App.coach.open(); }); }, reduced() ? 0 : 220); return; }
         var nm = RB.filter(function (b) { return b[0] === k; })[0];
         setTimeout(function () { toast(wrT('home.soon_toast', [wrT(nm[1]), wrT(nm[3])]), 2400); }, reduced() ? 0 : 140);
       });

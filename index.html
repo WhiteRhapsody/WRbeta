@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v2.9.3">
-<link rel="icon" href="icon.svg?v=v2.9.3">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.9.3">
+<link rel="manifest" href="manifest.webmanifest?v=v2.9.4">
+<link rel="icon" href="icon.svg?v=v2.9.4">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.9.4">
 <script>/* v2.9.0 首頁：同一個分頁第一次打開才顯示（app-home.js） */try{if(!sessionStorage.getItem('wr_home_seen'))document.documentElement.classList.add('wr-home');}catch(e){document.documentElement.classList.add('wr-home');}</script>
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.9.3"><link rel="stylesheet" href="themes.css?v=v2.9.3"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.9.4"><link rel="stylesheet" href="themes.css?v=v2.9.4"><!--/STYLE-->
 </head>
 <body>
 <!-- v2.5.0 分析模塊圖示（White 2026-11-20「超讚」；24×24 單線條，顏色跟著 currentColor，所有主題通用） -->
@@ -316,8 +316,9 @@
   <div class="ana-dock" id="anaDock" data-edge="home">
     <button type="button" class="dk-home" id="dockHome" aria-label="拍照按鈕回到預設位置" title="回到預設位置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg></button>
     <label class="wr-side dk-it" id="anaPickBtn"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4.5 3.5"/></svg><span><b>相簿</b><small>可多選</small></span><input type="file" id="anaPick" accept="image/*" multiple hidden></label>
-    <label class="wr-cam dk-it" id="anaCamBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.3l1.6-2.2h5.2l1.6 2.2h2.3a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/></svg><b>拍下一張</b><input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label>
-    <span class="wr-sidecol dk-it"><span class="wr-sidewrap"><label class="wr-side" id="anaFileBtn" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span><b>檔案</b><small>可多選</small></span><input type="file" id="anaFile" accept="*/*" multiple hidden></label><button type="button" class="wr-qi" id="anaPickInfo" aria-label="相簿找不到照片怎麼辦" aria-expanded="false" aria-controls="anaPickHint">i</button></span><button type="button" class="wr-side mini" id="anaSiusBtn" title="拍 SIUS 成績單（小白單），自動讀分數與 X/Y"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 3.5h11v17l-2.2-1.4-2.2 1.4-2.2-1.4-2.2 1.4-2.2-1.4z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/></svg><span><b>小白單</b><small>掃成績單</small></span></button></span>
+    <!-- v2.9.4 第 22 項（White 指定）：小白單入口掛在「拍下一張寶寶」左邊；按鈕組收在左邊時鏡像到寶寶右邊（.dk-att 跟著寶寶一起滑進滑出） -->
+    <span class="wr-camwrap dk-it"><label class="wr-cam" id="anaCamBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5a2 2 0 0 1 2-2h2.3l1.6-2.2h5.2l1.6 2.2h2.3a2 2 0 0 1 2 2v9.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.8"/></svg><b>拍下一張</b><input type="file" id="anaCam" accept="image/*" capture="environment" hidden></label><button type="button" class="wr-side mini dk-att" id="anaSiusBtn" title="拍 SIUS 成績單（小白單），自動讀分數與 X/Y"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 3.5h11v17l-2.2-1.4-2.2 1.4-2.2-1.4-2.2 1.4-2.2-1.4z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/></svg><span><b>小白單</b><small>掃成績單</small></span></button></span>
+    <span class="wr-sidecol dk-it"><span class="wr-sidewrap"><label class="wr-side" id="anaFileBtn" title="相簿找不到照片時用：開啟系統檔案／圖庫選擇器"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg><span><b>檔案</b><small>可多選</small></span><input type="file" id="anaFile" accept="*/*" multiple hidden></label><button type="button" class="wr-qi" id="anaPickInfo" aria-label="相簿找不到照片怎麼辦" aria-expanded="false" aria-controls="anaPickHint">i</button></span></span>
     <div id="anaPickHint" class="wr-pop ana-pickhint" role="note" hidden>相簿裡找不到靶紙照片？按「檔案」，在選單裡選「相簿／圖庫」或到 <b>DCIM › Camera</b> 資料夾找。</div>
   </div>
   <!-- v1.7.0：拍照按鈕收到邊緣後留下的小圓（兩隻眼睛會眨眼、偶爾往內看）；點它或從它往內滑＝叫出按鈕 -->
@@ -494,22 +495,22 @@
 </div>
 <div id="toast"></div>
 <div id="wrHome" hidden></div>
-<!--I18N--><script src="i18n/zh-TW.js?v=v2.9.3"></script><script src="i18n/en.js?v=v2.9.3"></script><script src="i18n/i18n.js?v=v2.9.3"></script><!--/I18N-->
-<!--CORE--><script src="core.js?v=v2.9.3"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v2.9.3"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v2.9.3"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v2.9.3"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v2.9.3"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v2.9.3"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v2.9.3"></script><script src="member-friends.js?v=v2.9.3"></script><script src="member-admin.js?v=v2.9.3"></script><!--/MEMBER-->
-<!--GHOST--><script src="ghost.js?v=v2.9.3"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v2.9.3"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v2.9.3"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v2.9.3"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v2.9.3"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v2.9.3"></script><!--/DOCK-->
-<!--APP--><script src="app-base.js?v=v2.9.3"></script><script src="app-forecast.js?v=v2.9.3"></script><script src="app-lite.js?v=v2.9.3"></script><script src="app-ghost.js?v=v2.9.3"></script><script src="app-photo.js?v=v2.9.3"></script><script src="app-mods.js?v=v2.9.3"></script>
-<script src="app-analysis.js?v=v2.9.3"></script><script src="sius-img.js?v=v2.9.3"></script><script src="sius.js?v=v2.9.3"></script><script src="sius-ocr.js?v=v2.9.3"></script><script src="app-sius.js?v=v2.9.3"></script><script src="app-records.js?v=v2.9.3"></script><script src="app-nav.js?v=v2.9.3"></script><script src="app.js?v=v2.9.3"></script><script src="app-account.js?v=v2.9.3"></script><script src="app-back.js?v=v2.9.3"></script><script src="app-home.js?v=v2.9.3"></script><script src="pdf-report.js?v=v2.9.3"></script><script src="pdf-export.js?v=v2.9.3"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v2.9.4"></script><script src="i18n/en.js?v=v2.9.4"></script><script src="i18n/i18n.js?v=v2.9.4"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v2.9.4"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v2.9.4"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v2.9.4"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v2.9.4"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v2.9.4"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v2.9.4"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v2.9.4"></script><script src="member-friends.js?v=v2.9.4"></script><script src="member-admin.js?v=v2.9.4"></script><!--/MEMBER-->
+<!--GHOST--><script src="ghost.js?v=v2.9.4"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v2.9.4"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v2.9.4"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v2.9.4"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v2.9.4"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v2.9.4"></script><!--/DOCK-->
+<!--APP--><script src="app-base.js?v=v2.9.4"></script><script src="app-forecast.js?v=v2.9.4"></script><script src="app-lite.js?v=v2.9.4"></script><script src="app-ghost.js?v=v2.9.4"></script><script src="app-photo.js?v=v2.9.4"></script><script src="app-mods.js?v=v2.9.4"></script>
+<script src="app-analysis.js?v=v2.9.4"></script><script src="sius-img.js?v=v2.9.4"></script><script src="sius.js?v=v2.9.4"></script><script src="sius-ocr.js?v=v2.9.4"></script><script src="app-sius.js?v=v2.9.4"></script><script src="app-records.js?v=v2.9.4"></script><script src="app-nav.js?v=v2.9.4"></script><script src="app.js?v=v2.9.4"></script><script src="app-account.js?v=v2.9.4"></script><script src="app-back.js?v=v2.9.4"></script><script src="app-coach.js?v=v2.9.4"></script><script src="app-home.js?v=v2.9.4"></script><script src="pdf-report.js?v=v2.9.4"></script><script src="pdf-export.js?v=v2.9.4"></script><!--/APP-->
 <script>
 (function () {
   var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['BMGhost','ghost.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];

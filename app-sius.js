@@ -62,6 +62,7 @@
     freeUrls();
     st = { model: null, ck: null, sel: null, recId: null, files: [], urls: [], passes: [], tgUser: null, edits: {}, subEd: {}, totEd: null, busy: false, cancel: false, gunAsked: false };
     if (rec) { st.model = S.fromRecord(rec); st.recId = rec.id; st.tgUser = rec.targetId; }
+    var oldAsk = $('siusAsk'); if (oldAsk) oldAsk.remove();
     sheet.hidden = false; D.body.classList.add('sius-open');
     if (App.back) App.back.push('sius', close);
     recheck(); $('siusScroll').scrollTop = 0;
@@ -96,7 +97,7 @@
       if (!m.shots.length) { my.files.splice(base); my.urls.splice(base).forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} }); my.model = my.model && my.model.shots.length ? my.model : null; recheck(); toast(wrT('sius.ocr_none'), 4200); return; }
       my.model = m; my.sel = null; recheck();
       toast(my.ck.bad || my.ck.near ? wrT('sius.read_ok', [my.ck.nSighter, my.ck.nMatch, S.problems(m, my.ck).length]) : wrT('sius.read_ok_all', [my.ck.nSighter, my.ck.nMatch]), 3600);
-      gunFlow();
+      if (!my.tgUser && !my.gunAsked && !(m.gun && m.gun.sure)) askGun(); else gunFlow();
     }, function (e) { if (st !== my) return; done(e); });
     function done(e) {
       if (fin) return; fin = true; my.abort = null;
@@ -131,10 +132,48 @@
     if (q.ocr) { q.ocr.conflict = (q.ocr.conflict || []).filter(function (c) { return c !== f && !(f === 'inner' && c === 'dec'); }); q.ocr.missing = false; }
     if (q.n != null) { var k = keyOf(q); (st.edits[k] = st.edits[k] || {})[f] = v; }
   }
+  /* v2.9.4 第 24 項（White 指定 2026-11-25 03:05／03:09 手繪草圖）：表頭沒讀到、看不出是什麼靶 → 從左下的「拍下一張寶寶」冒出對話泡泡：
+   *   「抱歉看不出來是什麼靶」＋三個可以直接點的選項：10米手槍／10米步槍／50米步槍（50米灰色、標「施工中」、不能選，WR 還沒有 50 米靶面）。
+   *   白幻仔提議：從格式猜到的種類（整數分數＝手槍、小數＝步槍）排第一個並標「看起來像」；選完照那個靶面重新合併、重新核對每一發。
+   *   寶寶暫時用現有的拍下一張按鈕圖（吉祥物之後另外設計）。 */
+  var IGUN = {
+    ap10: '<svg viewBox="0 0 48 24" aria-hidden="true"><path d="M4 6h34l2 3h4v4H22l-2 2-3 7h-6l2-9H6z"/><path d="M19 13h-4"/></svg>',
+    ar10: '<svg viewBox="0 0 64 24" aria-hidden="true"><path d="M2 9h40l4-2h14v5H44l-6 3H26l-4 7h-6l3-7H8l-6 4z"/></svg>',
+    r50: '<svg viewBox="0 0 64 24" aria-hidden="true"><path d="M2 9h44l4-2h12v4H46l-6 3H28l-5 8h-6l3-8H8l-6 4z"/><path d="M28 6v3M32 6v3"/></svg>'
+  };
+  function askGun() {
+    var m = st.model; if (!m) return;
+    st.gunAsked = true;
+    var guess = m.gun.guess === 'ap10' || m.gun.guess === 'ar10' ? m.gun.guess : null;
+    var ord = ['ap10', 'ar10']; if (guess === 'ar10') ord = ['ar10', 'ap10'];
+    var opts = ord.map(function (id) { return { id: id, name: T(id).name, like: id === guess }; }).concat([{ id: 'r50', name: wrT('sius.gun_r50'), wip: true }]);
+    var bg = D.createElement('div'); bg.className = 'sius-ask'; bg.id = 'siusAsk'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-labelledby', 'siusAskQ');
+    bg.innerHTML = '<div class="sius-ask-in"><div class="sius-bub"><p id="siusAskQ">' + esc(wrT('sius.gun_ask')) + '</p><div class="sius-gopts">' +
+      opts.map(function (o) { return '<button type="button" class="sius-gopt' + (o.like ? ' like' : '') + (o.wip ? ' wip' : '') + '" data-g="' + o.id + '"' + (o.wip ? ' aria-disabled="true"' : '') + '>' + IGUN[o.id] + '<span><b>' + esc(o.name) + '</b>' + (o.like ? '<em>' + esc(wrT('sius.gun_like')) + '</em>' : '') + (o.wip ? '<em>' + esc(wrT('coach.wip')) + '</em>' : '') + '</span></button>'; }).join('') +
+      '</div></div><div class="sius-baby" aria-hidden="true"><i></i><i></i></div></div>';
+    sheet.querySelector('.sius-card').appendChild(bg);
+    bg.querySelectorAll('.sius-gopt').forEach(function (b) {
+      b.onclick = function () {
+        var g = b.dataset.g;
+        if (g === 'r50') { toast(wrT('sius.gun_r50_wip'), 2600); return; }
+        bg.remove(); pickGun(g);
+      };
+    });
+    var f = bg.querySelector('.sius-gopt:not(.wip)'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
+  }
+  // 使用者選了槍種：照那個靶面重新合併（手槍只採用整數讀法）、重新核對，右上角靶種跟著換
+  function pickGun(g) {
+    st.tgUser = g;
+    if (st.passes.length) st.model = buildModel(st.passes); else if (st.model) { st.model.targetId = g; st.model.gun.unverified = g === 'ap10'; }
+    st.sel = null; recheck();
+    toast(wrT('sius.gun_picked', [T(g).name]), 2600);
+    gunFlow(g);
+  }
   // 槍種：單子上讀到的跟分析頁目前的不一樣 → 右上角靶種跟著換（分析頁已有資料就先問）
-  function gunFlow() {
-    var m = st.model; if (!m || st.tgUser || st.gunAsked) return;
-    var g = m.gun.id, a = App.acur; if (!g || !a) return;
+  // force：使用者在泡泡裡選的（v2.9.4）
+  function gunFlow(force) {
+    var m = st.model; if (!m || (!force && (st.tgUser || st.gunAsked))) return;
+    var g = force || m.gun.id, a = App.acur; if (!g || !a) return;
     st.gunAsked = true;
     if (a.targetId === g) return;
     var nm = function (id) { return T(id).name; };
@@ -144,7 +183,7 @@
       if (App.syncTargetSel) App.syncTargetSel();
       render();
     };
-    if (a.sheets.length) ask(wrT('sius.gun_switch_q', [nm(g), nm(a.targetId)]), doSwitch, function () { st.tgUser = a.targetId; m.targetId = a.targetId; m.gun.unverified = a.targetId === 'ap10'; recheck(); toast(wrT('sius.gun_kept', [nm(a.targetId)]), 3600); });
+    if (a.sheets.length) ask(wrT('sius.gun_switch_q', [nm(g), nm(a.targetId)]), doSwitch, function () { st.tgUser = a.targetId; if (force && st.passes.length) st.model = m = buildModel(st.passes); m.targetId = a.targetId; m.gun.unverified = a.targetId === 'ap10'; recheck(); toast(wrT('sius.gun_kept', [nm(a.targetId)]), 3600); });
     else doSwitch();
   }
 
@@ -325,7 +364,7 @@
     if (st.ck.bad) ask(wrT('sius.save_with_bad_q', [st.ck.bad]), go2); else go2();
   }
   // 測試用：addPasses 直接餵 OCR 文字（e2e 也會走真的照片 OCR）
-  App.sius = { open: open, close: close, get state() { return st; }, addFiles: function (fs) { addFiles(fs); }, addPasses: function (ps) { st.passes = st.passes.concat(ps); st.model = buildModel(st.passes); st.sel = null; recheck(); gunFlow(); }, save: save, recheck: recheck, pick: pick, step: step };
+  App.sius = { open: open, close: close, get state() { return st; }, addFiles: function (fs) { addFiles(fs); }, addPasses: function (ps) { st.passes = st.passes.concat(ps); st.model = buildModel(st.passes); st.sel = null; recheck(); if (!st.tgUser && !st.gunAsked && !(st.model.gun && st.model.gun.sure)) askGun(); else gunFlow(); }, pickGun: function (g) { var b = $('siusAsk'); if (b) b.remove(); pickGun(g); }, save: save, recheck: recheck, pick: pick, step: step };
 
   /* ---------- 分析頁：小白單核對卡＋射擊節奏卡（App.siusCards 由 app-analysis.js 的 anaExtraHTML 呼叫） ---------- */
   App.siusCards = function (t, set, single, sh) {

@@ -1423,7 +1423,22 @@
   "app.sh_has_locked_short": "有鎖定的靶紙，先解除鎖定",
   "app.sens_locked_note": "這張已鎖定，不能改偵測靈敏度",
   "mods.sius": "小白單（SIUS）匯入的紀錄：單子上印的分數、每組小計、總分，跟依 X/Y 用 ISSF 計分重算的結果並排核對。",
-  "mods.rhythm": "依每發的時間算出射擊間隔：平均、前後半段比較、最長停頓。"
+  "mods.rhythm": "依每發的時間算出射擊間隔：平均、前後半段比較、最長停頓。",
+  "coach.title": "教練版",
+  "coach.tab_n": "教練分頁 {0}",
+  "coach.wip": "施工中",
+  "coach.wip_head": "教練分頁 {0}・施工中",
+  "coach.wip_note": "教練版之後也會有預報、分析、紀錄、設定／說明，再加上教練專屬功能。",
+  "coach.to_player": "回選手",
+  "sius.gun_ask": "抱歉看不出來是什麼靶",
+  "sius.gun_like": "看起來像",
+  "sius.gun_r50": "50米步槍",
+  "sius.gun_r50_wip": "50米步槍施工中，還不能選",
+  "sius.gun_picked": "已照「{0}」的靶面重新核對",
+  "home.v294_1": "小白單支援手槍：整數分數、整數小計／總分都讀得到；看不出是什麼靶時，寶寶會問你是哪一種（手槍單據仍標尚未驗證）",
+  "home.v294_2": "小白單入口改到「拍下一張」旁邊；拍照按鈕收到邊緣時不再跳提示",
+  "home.v294_3": "首頁瞄準裁判／教練／新聞／社群時，十字線直接對到按鈕中心；「教練」先開兩個施工中的空白分頁",
+  "home.v294_4": "好友分享不再帶完整紀錄碼（不能拿去貼上還原）；以前「另存成我的」的副本保留並鎖住，不會自動刪除"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["zh-TW"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

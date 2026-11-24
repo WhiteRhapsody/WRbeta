@@ -1423,7 +1423,22 @@
   "app.sh_has_locked_short": "A target is locked; unlock it first",
   "app.sens_locked_note": "This target is locked; sensitivity can't change",
   "mods.sius": "For records imported from a SIUS slip: the printed scores, series and total side by side with the X/Y rescore (ISSF scoring).",
-  "mods.rhythm": "Time between shots from each shot's time: average, first vs second half, longest pause."
+  "mods.rhythm": "Time between shots from each shot's time: average, first vs second half, longest pause.",
+  "coach.title": "Coach",
+  "coach.tab_n": "Coach tab {0}",
+  "coach.wip": "Under construction",
+  "coach.wip_head": "Coach tab {0} · under construction",
+  "coach.wip_note": "The coach version will also get Call, Analysis, Records and Settings/Help, plus coach-only tools.",
+  "coach.to_player": "Back to athlete",
+  "sius.gun_ask": "Sorry, I can't tell which target this is",
+  "sius.gun_like": "Looks like",
+  "sius.gun_r50": "50m Rifle",
+  "sius.gun_r50_wip": "50m Rifle is under construction and can't be picked yet",
+  "sius.gun_picked": "Re-checked against the {0} target",
+  "home.v294_1": "SIUS slips now read pistol slips: whole-number scores, series and totals; if the target type is unclear, the buddy asks you which one (pistol slips still marked not verified)",
+  "home.v294_2": "The SIUS slip button moved next to Take photo; no more tip when the camera buttons tuck to an edge",
+  "home.v294_3": "On the home screen the crosshair snaps to the Judge/Coach/News/Community button you aim at; Coach opens two blank tabs under construction",
+  "home.v294_4": "Friend shares no longer carry the full record code (it can't be pasted back as your own); old “Save as mine” copies stay locked and are no longer deleted automatically"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["en"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

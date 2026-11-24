@@ -707,7 +707,25 @@
     return MARK + toDigits(body.length, 3) + toDigits(crc, 3) + body;
   }
 
+  /* ---------- v2.9.4 好友分享用的「檢視碼」（PROGRESS §7 第 14 項，White 2026-11-23 指定：分享文件不能讓收件人讀到完整紀錄碼） ----------
+   * 分享文件（Firestore shares/{sid}）改存 view＝'*S1'＋紀錄碼本體依分享 id 逐字位移（同一個 86 字元字母表）。
+   * 不是紀錄碼：沒有 '*A1' 標記（字母表裡沒有 *），貼到「貼上紀錄碼還原」會被當成無效、不會變成自己可編輯的紀錄；
+   * App 只用它畫唯讀檢視。這是混淆不是加密（免費方案沒有伺服器，收件人的 App 一定要能解開才看得到靶面），擋的是「複製貼上」這條路。 */
+  var SMARK = '*S1';
+  function shareKey(sid) { var h = 0x811C9DC5, s = String(sid || ''), i; for (i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h ^ 0x5EED5A1E) >>> 0; }
+  function shift(body, sid, dir) { var rng = mulberry32(shareKey(sid)), o = '', i, d; for (i = 0; i < body.length; i++) { d = AIDX[body[i]]; if (d == null) return null; o += ALPH[(d + dir * (rng() % BASE) + BASE * 2) % BASE]; } return o; }
+  function encodeShare(rec, sid) { var c = encode(rec); if (!c) return null; var b = shift(c.slice(MARK.length), sid, 1); return b ? SMARK + b : null; }
+  /* 檢視碼 → 一筆紀錄（解不開＝null）。舊的分享文件（v2.9.3 以前）存的是 code（紀錄碼），也接受 */
+  function decodeShare(view, sid) {
+    var s = strip(view), r;
+    if (s.indexOf(SMARK) === 0) { var b = shift(s.slice(SMARK.length), sid, -1); if (!b) return null; r = decode(MARK + b); }
+    else if (s.indexOf(MARK) === 0) r = decode(s);
+    else return null;
+    return r.records.length === 1 && !r.invalid ? r.records[0] : null;
+  }
+
   var api = {
+    SMARK: SMARK, encodeShare: encodeShare, decodeShare: decodeShare,
     FORMAT: FORMAT, MODEL_VER: MODEL_VER, MARK: MARK, ALPH: ALPH, MODELS: MODELS,
     FC_VER: FC_VER,
     encode: encode, encodeMany: encodeMany, decode: decode, merge: merge,

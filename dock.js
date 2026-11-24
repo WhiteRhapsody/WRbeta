@@ -57,8 +57,10 @@
   }
   // 每顆按鈕要移多遠才完全出畫面
   function curTr(el) { var m = String(el.style.translate || '').match(/(-?[\d.]+)px\s+(-?[\d.]+)px/); return m ? [+m[1], +m[2]] : [0, 0]; }
+  // v2.9.4：按鈕旁邊掛著的小按鈕（.dk-att，例如拍下一張寶寶旁的小白單）也要一起算進範圍，才會整個滑出畫面
+  function box(el) { var q = el.getBoundingClientRect(), r = { left: q.left, right: q.right, top: q.top, bottom: q.bottom }; [].forEach.call(el.querySelectorAll('.dk-att'), function (a) { var z0 = a.getBoundingClientRect(); if (!(z0.width > 0 && z0.height > 0) || getComputedStyle(a).display === 'none') return; /* 收起後整組 visibility:hidden，不能用 vis() */ var z = a.getBoundingClientRect(); r.left = Math.min(r.left, z.left); r.right = Math.max(r.right, z.right); r.top = Math.min(r.top, z.top); r.bottom = Math.max(r.bottom, z.bottom); }); return r; }
   function offFor(el, edge) { // 回傳「完全出畫面」時 translate 的值（扣掉目前已經有的位移）
-    var q = el.getBoundingClientRect(), c = curTr(el), g = 18, r = { left: q.left - c[0], right: q.right - c[0], top: q.top - c[1], bottom: q.bottom - c[1] };
+    var q = box(el), c = curTr(el), g = 18, r = { left: q.left - c[0], right: q.right - c[0], top: q.top - c[1], bottom: q.bottom - c[1] };
     if (edge === 'left') return [-(r.right + g), 0];
     if (edge === 'right') return [W() - r.left + g, 0];
     if (edge === 'top') return [0, -(r.bottom + g)];
@@ -200,7 +202,8 @@
     var after = l.map(function (el) { return el.getBoundingClientRect(); });
     l.forEach(function (el, i) { tr(el, before[i].left - after[i].left, before[i].top - after[i].top); });
     void D.offsetWidth;
-    if (opts.enabled) { hidden = false; hide(); opts.toast(wrT('dock.pull_it_out_from_the', [{ left: wrT('dock.camera_buttons_tucked_to_the'), right: wrT('dock.camera_buttons_tucked_to_the_2'), top: wrT('dock.camera_buttons_tucked_to_the_3'), bottom: wrT('dock.camera_buttons_tucked_to_the_4') }[edge]])); }
+    // v2.9.4 第 23 項（White 指定）：拿掉「拍照按鈕收到右邊（從眼睛那裡拉出來）」提示泡泡（四個邊都不再跳）
+    if (opts.enabled) { hidden = false; hide(); }
     else { var live = lively(); l.forEach(function (el, i) { el.style.transition = 'translate ' + (live ? 420 : 220) + 'ms ' + (live ? 'cubic-bezier(.2,1.3,.4,1)' : 'ease-out') + ' ' + (live ? i * 50 : 0) + 'ms'; tr(el, 0, 0); }); }
   }
   function home(quiet) {

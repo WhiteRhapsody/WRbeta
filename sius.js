@@ -1,4 +1,4 @@
-/* WRbeta v2.9.3 小白單（SIUS 列印成績單）匯入核心：PROGRESS.md §7 備註8。
+/* WRbeta v2.9.4 小白單（SIUS 列印成績單）匯入核心：PROGRESS.md §7 備註8。
  * 這個檔案只有「資料」與「計算」，沒有畫面（畫面在 app-sius.js、照片前處理在 sius-img.js、OCR 在 sius-ocr.js）；Node 也能直接 require 來測。
  *
  * 小白單格式（White 2026-11-24 提供的 5 張照片）：
@@ -86,7 +86,11 @@
       var im = pre.match(/(\d{1,2})\s+(\d{1,2})\s*(\*?)\s*([Pp]?)\s*$/);
       if (im && +im[2] >= 1 && +im[2] <= 10) { o.dec = +im[2]; o.decInt = true; o.star = !!im[3]; o.P = !!im[4]; head = pre.slice(0, im.index) + ' ' + im[1]; }
     }
-    if (o.partial && o.dec == null) return null;
+    // v2.9.4 手槍整數分數（寬鬆，PROGRESS 第 24 項）：時間前面最後一個 1–10，後面可有 *（OCR 讀成 s x % + 4 # ¢）與 P（可黏在時間前）；
+    //   中間的方向箭頭常被讀成 ~ # + » % w 等雜字，所以不要求「發序 空白 分數」。這個值只在手槍（ap10）時採用（o.iv）。
+    var iv = pre.match(/(?:^|[^\d])(10|[1-9])\s*([*sx%+¢4#]?)\s*([PpF]?)\s*$/);
+    if (iv) { o.iv = +iv[1]; o.istar = !!iv[2]; if (iv[3]) o.P = true; }
+    if (o.partial && o.dec == null && o.iv == null) return null;
     if (/(^|[^A-Za-z])P\s*$/.test(pre)) o.P = true;
     var re = /\d+/g, k; while ((k = re.exec(head))) { var tk = k[0]; if (tk.length > 3) continue; if (tk.length === 3) { if (+tk.slice(0, 2) >= 1) o.nc.push(+tk.slice(0, 2)); if (+tk.slice(1) >= 1) o.nc.push(+tk.slice(1)); } else if (+tk >= 1) o.nc.push(+tk); }
     o.n = o.nc.length ? o.nc[0] : null;
@@ -102,6 +106,8 @@
     if (!m && isTot) m = s.match(/(\d{3})(\d)\s*[-~=]\s*(\d{1,2})/); // 「6046-32」小數點沒讀到
     if (!m && isSub) { var m2 = s.match(/(\d{2,3})\s*[.,]\s*(\d)(\d)\b/); if (m2) m = m2; } // 「97.84」＝97.8-4
     if (m && (isSub || isTot)) { var v = +(m[1] + '.' + m[2]), n = +m[3]; if (isTot ? v <= 1100 : v <= 110) return { kind: isTot ? 'total' : 'sub', dec: v, inner: n }; }
+    // v2.9.4 手槍整數小計／總分「Subtota 89-1*」「Total 349-6*」
+    if (!m && (isSub || isTot)) { var mi = s.match(/(\d{2,3})\s*[-~=]\s*(\d{1,2})(?!\d)/); if (mi) { var vi = +mi[1], ni = +mi[2]; if (isTot ? vi <= 1090 : vi <= 109) return { kind: isTot ? 'total' : 'sub', dec: vi, inner: ni, int: true }; } }
     if (m && !isSub && !isTot && /^\s*\S{0,3}\s*\d{2,3}[.,]\d\s*-\s*\d{1,2}\s*\*?\s*$/.test(s)) { v = +(m[1] + '.' + m[2]); return { kind: v > 110 ? 'total' : 'sub', dec: v, inner: +m[3] }; }
     if (/\b[mhn]atch\b/i.test(s) && !/\d\.\d/.test(s)) return { kind: 'match' };
     var g = /air\s*rifle|rifle/i.test(s) ? 'ar10' : /air\s*pist|pistol/i.test(s) ? 'ap10' : null;
@@ -208,13 +214,20 @@
     var gv = vote(hdr.filter(function (h) { return h.kind === 'event'; }).map(function (h) { return { v: h.gun, w: 1 }; }));
     var cv = vote(hdr.filter(function (h) { return h.kind === 'event' && h.count; }).map(function (h) { return { v: h.count, w: 1 }; }));
     var dv = vote(hdr.filter(function (h) { return h.kind === 'date'; }).map(function (h) { return { v: h.text, w: 1 }; }));
+    // v2.9.4：表頭沒讀到（紙捲彎、手指擋住）時看格式猜：大多是整數分數＝手槍，大多是小數＝步槍。猜的不算確定（畫面會請使用者選，第 24 項）
+    var nInt = 0, nDec = 0; Object.keys(groups).forEach(function (k) { groups[k].reads.forEach(function (r) { if (r.p.dec != null && !r.p.decInt) nDec++; if (r.p.iv != null) nInt++; }); });
+    var fmtGuess = nInt >= 10 && nDec < nInt * 0.3 ? 'ap10' : nDec >= 10 && nDec >= nInt ? 'ar10' : null;
+    var hdrId = gv.length ? gv[0].v : null;
+    if (!gv.length && opt.fmtGuess !== false && fmtGuess === 'ap10') gv = [{ v: 'ap10', w: 0, fmt: true }];
     var autoId = gv.length ? gv[0].v : null, tid = opt.targetId || autoId || 'ar10', T = tgt(tid), C = core();
-    var model = { v: 2, targetId: tid, gun: { id: autoId, auto: !opt.targetId && !!autoId, conflict: gv.length > 1, unverified: tid === 'ap10' }, event: '', count: cv.length ? cv[0].v : null, date: dv.length ? dv[0].v : '', name: '', shots: [], subs: [], total: null, ocr: true };
-    var ev = hdr.filter(function (h) { return h.kind === 'event' && h.gun === autoId; })[0]; if (ev) model.event = ev.text.replace(/[^\w\s.\-()/]/g, '').trim();
+    var model = { v: 2, targetId: tid, gun: { id: autoId, auto: !opt.targetId && !!autoId, conflict: gv.length > 1, unverified: tid === 'ap10', header: hdrId, fmt: fmtGuess, guess: hdrId || fmtGuess, sure: !!hdrId && gv.length === 1 && (!fmtGuess || fmtGuess === hdrId) }, event: '', count: cv.length ? cv[0].v : null, date: dv.length ? dv[0].v : '', name: '', shots: [], subs: [], total: null, ocr: true };
+    var ev = hdr.filter(function (h) { return h.kind === 'event' && h.gun === autoId; })[0]; if (ev) { var et = ev.text.replace(/[^\w\s.\-()/]/g, ' '), em2 = et.match(/(?:air\s*)?(?:rifle|pistol)\b.*$/i); model.event = (em2 ? em2[0] : et).replace(/\s+/g, ' ').trim(); } // v2.9.4：項目名稱前的雜字（例「vie Air Pistol 40」）拿掉
     function pickShot(g) {
       var R = g.reads;
       // 有小數的讀法優先；全部都只讀到整數（手槍資格賽，尚未驗證）才用整數
-      var Rd = R.filter(function (r) { return r.p.dec != null && !r.p.decInt; }), intMode = !Rd.length && R.some(function (r) { return r.p.decInt; });
+      // v2.9.4 手槍：只採用整數讀法（小數規則常把時間誤撿成分數，例「03:41.3」→8.1）
+      if (tid === 'ap10') R = R.map(function (r) { if (r.p.iv == null) return r; var p2 = Object.assign({}, r.p, { dec: r.p.iv, decInt: true, star: r.p.istar }); return { p: p2, w: r.w, pi: r.pi, img: r.img }; });
+      var Rd = tid === 'ap10' ? [] : R.filter(function (r) { return r.p.dec != null && !r.p.decInt; }), intMode = !Rd.length && R.some(function (r) { return r.p.decInt; });
       var Rs = intMode ? R : Rd.length ? Rd : R;
       var xs = vote(R.map(function (r) { return { v: r.p.x, w: r.w }; })), ys = vote(R.map(function (r) { return { v: r.p.y, w: r.w }; }));
       var ds = vote(Rs.map(function (r) { return { v: r.p.dec, w: r.w }; })), ts = vote(R.map(function (r) { return { v: r.p.t, w: r.w }; }));
@@ -226,8 +239,14 @@
         if (!best || s2 > best.s) best = { s: s2, x: X, y: Y, d: D, sc: sc, dd: dd };
       }); }); });
       var conflict = [];
+      // v2.9.4：同一欄同時讀到 v 和 −v（OCR 常漏掉負號、幾乎不會多出負號）→ 選負的；負號那方票數沒比較多（＝改判）才標黃
+      var sgn = function (list, nm) { var hit = false; list.forEach(function (o) { if (o.v > 0) { var ng = list.filter(function (z) { return z.v === -o.v; })[0]; if (ng && ng.w <= o.w) hit = true; } }); if (hit) conflict.push(nm); };
+      sgn(xs, 'x'); sgn(ys, 'y');
+      if (best.x.v > 0 && xs.some(function (z) { return z.v === -best.x.v; })) best.x = xs.filter(function (z) { return z.v === -best.x.v; })[0];
+      if (best.y.v > 0 && ys.some(function (z) { return z.v === -best.y.v; })) best.y = ys.filter(function (z) { return z.v === -best.y.v; })[0];
       var cf = function (list, chosen, nm) { if (list.length > 1 && list.some(function (o) { return o !== chosen && o.w >= chosen.w * 0.5; })) conflict.push(nm); };
       cf(xs, best.x, 'x'); cf(ys, best.y, 'y'); cf(ds, best.d, 'dec');
+      conflict = conflict.filter(function (c, j) { return conflict.indexOf(c) === j; });
       if (ts.length > 1 && ts[1].w >= ts[0].w * 0.5) conflict.push('t');
       var stars = R.filter(function (r) { return r.p.star; }).length, P = R.filter(function (r) { return r.p.P; }).length;
       var q = { n: g.n, sighter: g.sec === 'Q', dec: best.d.v, inner: best.dd === 0 ? best.sc.inner : stars * 2 > R.length, t: ts.length ? ts[0].v : '', x: best.x.v, y: best.y.v,
@@ -264,6 +283,18 @@
   function check(model) {
     var C = core(), T = tgt(model.targetId), rows = [], series = [], mIdx = 0;
     var secs = model.shots.map(function (q) { return secOf(q.t); });
+    // v2.9.4 時間整串核對：同段（試射／比賽）找「時間一路往後走」最長的一串（相鄰兩發最多隔 10 分鐘×中間幾發）；不在這串裡的＝時間跟前後對不上
+    //   （例 2-43 捲起來的試射：讀到的一行被排到錯的序號，前後各一發看都正常，整串一比才露餡）。最長的一串不只一條時，只標「每一條都不在」的。
+    var offChain = {};
+    [true, false].forEach(function (sg) {
+      var L = []; model.shots.forEach(function (q, i) { if (!!q.sighter === sg && secs[i] != null) L.push(i); });
+      if (L.length < 3) return;
+      var n = L.length, f = new Array(n), b = new Array(n), a, c, ok = function (x, y) { var g = gapSec(secs[L[x]], secs[L[y]]); return g != null && g <= Math.min(600 * (y - x), 1799); };
+      for (a = 0; a < n; a++) { f[a] = 1; for (c = 0; c < a; c++) if (ok(c, a) && f[c] + 1 > f[a]) f[a] = f[c] + 1; }
+      for (a = n - 1; a >= 0; a--) { b[a] = 1; for (c = a + 1; c < n; c++) if (ok(a, c) && b[c] + 1 > b[a]) b[a] = b[c] + 1; }
+      var best = 0; for (a = 0; a < n; a++) best = Math.max(best, f[a] + b[a] - 1);
+      for (a = 0; a < n; a++) if (f[a] + b[a] - 1 < best) offChain[L[a]] = true;
+    });
     model.shots.forEach(function (q, i) {
       var okXY = q.x != null && q.y != null && isFinite(q.x) && isFinite(q.y), sc = okXY ? C.scoreShot(T, q.x, q.y) : null;
       var miss = [];
@@ -278,6 +309,13 @@
       // 時間：跟同一段（試射／比賽）前一發比，要往後走（跨整點 59→00 可以）
       var tw = false, prev = -1; for (var j = i - 1; j >= 0; j--) if (!!model.shots[j].sighter === !!q.sighter && secs[j] != null) { prev = j; break; }
       if (secs[i] != null && prev >= 0 && gapSec(secs[prev], secs[i]) == null) tw = true;
+      // v2.9.4 時間合理性：同段相鄰兩發隔超過 10 分鐘＝多半時間讀錯；再跟前後兩發一起比（前→後正常，夾在中間這發卻接不上＝這發讀錯，例 51:38 讀成 05:38）
+      var nxt = -1; for (j = i + 1; j < model.shots.length; j++) if (!!model.shots[j].sighter === !!q.sighter && secs[j] != null) { nxt = j; break; }
+      if (secs[i] != null && prev >= 0 && gapSec(secs[prev], secs[i]) > 600) tw = true;
+      if (secs[i] != null && prev >= 0 && nxt >= 0) { var gpn = gapSec(secs[prev], secs[nxt]), g1 = gapSec(secs[prev], secs[i]), g2 = gapSec(secs[i], secs[nxt]); if (gpn != null && gpn <= 600 && (g1 == null || g2 == null || g1 + g2 > gpn + 1)) tw = true; }
+      // 接不到下一發（倒退或隔超過 10 分鐘）也標黃：連兩發都讀錯時（例 51:14、51:38 都讀成 05:xx）前面那個規則抓不到第二發
+      if (secs[i] != null && nxt >= 0) { var gn = gapSec(secs[i], secs[nxt]); if (gn == null || gn > 600) tw = true; }
+      if (offChain[i]) tw = true;
       if (st === 'ok' && (miss.length || tw)) st = 'near';
       var cfl = q.ocr && q.ocr.conflict ? q.ocr.conflict.slice() : [];
       if (st === 'ok' && cfl.length) st = 'near';
