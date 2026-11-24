@@ -1981,3 +1981,119 @@ header .hleft{display:flex;align-items:center;gap:7px;min-width:0;flex:0 1 auto}
 .wr-homebtn:active{transform:scale(.92);background:color-mix(in srgb,currentColor 18%,transparent)}
 html.wr-lang-en .wr-homebtn{font-size:8.5px;letter-spacing:0}
 header .beta{white-space:nowrap} /* v2.9.1：「beta v2.9.1」不拆成兩行（窄畫面整顆換到 WRbeta 下面） */
+
+/* ===================== v2.9.2（White 2026-11-24 10:27「好 做吧」） ===================== */
+/* §7 第 19 項【White 指定】首頁上方深色區塊整個往下延伸到 2 環線（可以蓋到一點靶紙）：高度由 app-home.js draw() 設定；下緣 1px 邊＋陰影（APP製作仔照 19_*.png） */
+.wr-home .hm-band{position:absolute;left:0;right:0;top:0;z-index:3;pointer-events:auto;background:var(--w-page0,#ecebe6);background:var(--w-page);background-attachment:fixed;border-bottom:1px solid var(--w-cardBd);box-shadow:0 6px 14px -6px rgba(0,0,0,.35)}
+
+/* §7 第 20 項（White 選方案 B）標題列一排：首頁鈕＋頭像＋Pro／Lite＋槍種下拉；名字、WRbeta、版本收進頭像選單。只在登入會員（有頭像鈕）時改，登出時照舊。 */
+body.has-member header{gap:8px}
+body.has-member header .hleft{flex:none;gap:6px}
+body.has-member header .hright{flex:1 1 auto;min-width:0;justify-content:flex-end}
+body.has-member header #targetSel{flex:1 1 auto;min-width:0;max-width:none;width:auto}
+.mh-chip{max-width:none;gap:0;padding:0;min-height:40px;min-width:40px;justify-content:center}
+.mh-chip .mh-t{display:none}
+.mh-chip .mh-av{width:36px;height:36px}
+.mh-chip::before{content:"";position:absolute;inset:-4px -2px}
+.mh-ic{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,currentColor 16%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,currentColor 45%,transparent)}
+.mh-ic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mh-chip .mh-av~.mb-badge,.mh-chip .mh-ic~.mb-badge{left:22px;right:auto}
+.mm-dim{position:fixed;inset:0;z-index:4;background:rgba(0,0,0,.35)}
+.mm-menu{position:fixed;z-index:40;width:min(290px,calc(100vw - 24px));background:var(--w-popBg,var(--w-card,#fff));color:var(--w-popTx,var(--w-tx));border:1px solid var(--w-popBd,var(--w-cardBd));box-shadow:0 14px 34px rgba(0,0,0,.4);border-radius:16px;padding:12px;font-family:var(--w-sans);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-sizing:border-box}
+.mm-menu .mm-h{display:flex;align-items:center;gap:12px;padding:2px 2px 4px;min-width:0}
+.mm-menu .mm-av{width:48px;height:48px;flex:none}
+.mm-menu .mm-av svg{width:26px;height:26px}
+.mm-menu .mm-tx{min-width:0;flex:1}
+.mm-menu .mm-tx b{display:flex;align-items:center;gap:4px;font-size:17px;font-weight:800;line-height:1.2;word-break:break-all;min-width:0}
+.mm-menu .mm-id{min-width:0;overflow-wrap:anywhere}
+.mm-menu small{display:block;margin-top:2px;font-size:12px;font-weight:700;opacity:.85;white-space:nowrap}
+.mm-menu small i{font-style:normal;background:var(--w-verBg,#f2642a);color:var(--w-verTx,#fff);border-radius:4px;padding:0 5px;margin-left:5px}
+.mm-menu .mm-it{position:relative;display:flex;align-items:center;width:100%;min-height:48px;margin-top:8px;padding:0 14px;border:0;border-radius:12px;background:color-mix(in srgb,currentColor 9%,transparent);color:inherit;font:700 15px var(--w-sans);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mm-menu .mm-it:active{transform:scale(.98);background:color-mix(in srgb,currentColor 16%,transparent)}
+.mm-menu .mm-n{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#e5484d;color:#fff;font-size:12px;line-height:20px;text-align:center;box-sizing:border-box}
+
+/* §7 第 21 項【White 指定 03:15／03:24／03:31】靶紙上只留右下：添加彈孔（上）、消滅彈孔（下，原清除位置）、復原在消滅彈孔左邊；三顆有小圖示、比原本清除鈕小一點（50px／復原 46px）。
+   「雙指縮放」說明拿掉（只有放大時才出現「全靶」回復鈕）；紅色清除拿掉；靈敏度那一排拿掉（排隊張數有字才顯示）。 */
+#tab-analysis .ana-fit:not(.zoomed){display:none}
+#tab-analysis .ana-rbtns{display:grid;grid-template-columns:auto 50px;grid-template-areas:". add" "undo del";column-gap:8px;row-gap:9px;align-items:end;justify-items:end;flex-direction:initial}
+#tab-analysis .ana-rbtns .ana-rb{width:50px;height:50px;min-width:0;padding:0}
+#tab-analysis .ana-rbtns .ana-rb b{font-size:10px;white-space:nowrap;letter-spacing:-.3px}
+#tab-analysis .ana-rbtns .ana-rb .nv-ic{width:17px;height:17px}
+#tab-analysis #anaModeAdd{grid-area:add}
+#tab-analysis #anaModeDel{grid-area:del}
+#tab-analysis .ana-rbtns #anaUndo{grid-area:undo;width:46px;height:46px}
+html.wr-lang-en #tab-analysis .ana-rbtns .ana-rb b{font-size:11px;line-height:1;white-space:normal;text-align:center;letter-spacing:-.4px} /* v2.8.0 #15：英文 ≥11px，放不下就兩行 */
+#tab-analysis #anaModeDel.on{background:linear-gradient(180deg,#ff6b6b,#d92d2d);color:#fff}
+#tab-analysis .ana-modebar{left:8px;right:122px}
+/* 名稱列：名字（＋鎖＋筆）｜＋新分析｜校正（原圖示＋圓鈕，寶寶色；鋼琴主題＝銀色 --w-camBd） */
+.ana-acts{flex:none;display:flex;align-items:center;gap:8px}
+#tab-analysis #anaNew{position:relative;white-space:nowrap}
+#tab-analysis #anaNew::after{content:"";position:absolute;inset:-4px 0}
+#tab-analysis .ana-top #anaCalBtn{position:relative;width:46px;height:46px;min-width:0;padding:0;flex:none;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-radius:50%;
+  background:var(--w-camB);border:1px solid color-mix(in srgb,var(--w-camB) 60%,#fff);color:var(--w-camTx,#fff);box-shadow:0 4px 10px color-mix(in srgb,var(--w-camB) 35%,transparent)}
+#tab-analysis .ana-top #anaCalBtn .nv-ic{width:18px;height:18px}
+#tab-analysis .ana-top #anaCalBtn b{font-size:10px;color:inherit;letter-spacing:-.2px;line-height:1.1}
+html.wr-lang-en #tab-analysis .ana-top #anaCalBtn b{font-size:11px;letter-spacing:-.4px}
+#tab-analysis .ana-top #anaCalBtn.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--w-camB) 35%,transparent),0 4px 10px rgba(0,0,0,.25)}
+body.lt-piano #tab-analysis .ana-top #anaCalBtn{background:var(--w-camBd);border-color:var(--w-camBd);color:#0c0c0c;box-shadow:0 4px 10px rgba(0,0,0,.5)}
+body.lt-piano #tab-analysis .ana-top #anaCalBtn.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--w-camBd) 40%,transparent)}
+body.ana-ro #tab-analysis .ana-top #anaCalBtn,body.ana-ro #anaShMenu,body.ana-ro #anaLpTip{display:none!important}
+/* 校正選單：從靶紙右上往下開（箭頭朝上指校正鈕）；校正兩列 → 偵測靈敏度 → 清空／刪除（順序＝APP製作仔提議，照 21d 設計圖） */
+#tab-analysis #anaCalPop{top:6px;right:6px;bottom:auto;padding:8px;width:244px;max-width:calc(100% - 12px);box-sizing:border-box;max-height:calc(100dvh - 300px);overflow-y:auto;overscroll-behavior:contain}
+#tab-analysis #anaCalPop::after{top:-7px;bottom:auto;right:15px;border-right:0;border-top:1px solid var(--w-popBd);border-left:1px solid var(--w-popBd)}
+#anaCalPop .ana-sep{height:1px;background:var(--w-popBd);margin:4px 2px 6px}
+#tab-analysis #anaCalPop .ph{font-size:11.5px;margin:0 2px 4px;padding:2px 4px 2px}
+#tab-analysis #anaCalPop .pi{min-height:44px;padding:6px 10px;margin:0 0 5px;display:flex;flex-direction:row;align-items:center;gap:8px;box-sizing:border-box}
+#tab-analysis #anaCalPop .pi small{display:none}
+#tab-analysis #anaCalPop .pi b{font-size:13.5px}
+#tab-analysis #anaCalPop .pi .nv-ic{width:18px;height:18px;flex:none}
+#tab-analysis #anaCalPop .pi-row{margin:0 0 5px;display:grid;gap:6px}
+#tab-analysis #anaCalPop .pi-row.ana-cal2{grid-template-columns:1fr 1fr}
+#tab-analysis #anaCalPop .pi-row.ana-cal3{grid-template-columns:1.5fr 1fr 1fr}
+#tab-analysis #anaCalPop .pi-row .pi{margin:0;justify-content:center;align-items:center;padding:6px 4px;text-align:center}
+#tab-analysis #anaCalPop .pi-row .pi b{font-size:13px;white-space:nowrap}
+html.wr-lang-en #tab-analysis #anaCalPop .pi-row .pi b{font-size:12px}
+#tab-analysis #anaCalPop .pi.all,#tab-analysis #anaCalPop .pi.wipe{background:rgba(229,72,77,.10);color:#e5484d;border-color:rgba(229,72,77,.35)}
+#tab-analysis #anaCalPop .pf{font-size:10.5px;margin:2px 2px 0}
+#tab-analysis #anaCalPop .ana-sens{margin:0 0 4px}
+#tab-analysis #anaCalPop .ana-sens .wr-seg{display:flex;width:100%;box-sizing:border-box}
+#tab-analysis #anaCalPop .ana-sens .wr-seg button{flex:1;min-height:40px;padding:5px 4px;font-size:13px}
+html.wr-lang-en #tab-analysis #anaCalPop .ana-sens .wr-seg button{font-size:12px}
+#tab-analysis .ana-ctrl:has(#anaQueue:empty){display:none}
+/* §7 第 16 項：英文「Saved automatically」在 360 寬被裁 → 字改短（Auto-saved），放不下時整段換到第二行，不再用刪節號 */
+#tab-analysis .ana-meta{flex-wrap:wrap;overflow:visible;white-space:normal;row-gap:0}
+#tab-analysis .ana-meta>span{white-space:nowrap}
+
+/* §7 第 10 項【White 指定 01:07；03:42 同意】長按卡片選單＋試射＋鎖定（當頁） */
+#tab-analysis .ana-chip{position:relative;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#tab-analysis .ana-chip.sighter{background:color-mix(in srgb,var(--w-card) 70%,#8a8f98);border-style:dashed}
+#tab-analysis .ana-chip.sighter .cb{filter:grayscale(1);opacity:.7}
+#tab-analysis .ana-chip.sighter b,#tab-analysis .ana-chip.sighter small{opacity:.72}
+.ana-sgtag{display:inline-block;font:800 9.5px/15px var(--w-sans);padding:0 5px;border-radius:5px;background:#6b7079;color:#fff;letter-spacing:.2px;white-space:nowrap;vertical-align:middle}
+#tab-analysis .ana-chip .ana-sgtag{position:absolute;top:-6px;left:6px}
+#tab-analysis .ana-chip .ana-shlk{position:absolute;right:-4px;bottom:-5px;width:18px;height:18px;border-radius:50%;background:var(--w-camB);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+body.lt-piano #tab-analysis .ana-chip .ana-shlk{background:var(--w-camBd)}
+#tab-analysis .ana-chip .ana-shlk svg{width:11px;height:11px;fill:none;stroke:var(--w-camTx,#fff);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+body.lt-piano #tab-analysis .ana-chip .ana-shlk svg{stroke:#0c0c0c}
+#tab-analysis .ana-info .ana-sgtag{margin-right:6px}
+#tab-analysis .ana-info.sighter .s,#tab-analysis .ana-info.sighter .d{opacity:.6}
+#tab-analysis .ana-st tr.sighter td{opacity:.55}
+#tab-analysis .ana-st tr.sighter .ana-sgtag{margin-left:4px;font-size:8.5px;line-height:13px;padding:0 4px}
+#anaShMenu{position:fixed;z-index:40;width:250px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:8px}
+#anaShMenu[hidden],#anaLpTip[hidden]{display:none}
+#anaShMenu::after{content:"";position:absolute;left:calc(var(--ax,50%) - 6px);bottom:-7px;width:12px;height:12px;background:var(--w-popBg);border-right:1px solid var(--w-popBd);border-bottom:1px solid var(--w-popBd);transform:rotate(45deg)}
+#anaShMenu.below::after{bottom:auto;top:-7px;border:0;border-left:1px solid var(--w-popBd);border-top:1px solid var(--w-popBd)}
+#tab-analysis #anaShMenu .pi{flex-direction:row!important;align-items:center!important;gap:10px!important;margin:0 0 6px}
+#tab-analysis #anaShMenu .pi:last-child{margin-bottom:0}
+#tab-analysis #anaShMenu .pi .nv-ic{width:20px;height:20px;flex:none}
+#tab-analysis #anaShMenu .pi.on{background:color-mix(in srgb,var(--w-camB) 16%,transparent);border-color:color-mix(in srgb,var(--w-camB) 50%,transparent)}
+body.lt-piano #tab-analysis #anaShMenu .pi.on{background:color-mix(in srgb,var(--w-camBd) 20%,transparent);border-color:var(--w-camBd)}
+#tab-analysis #anaShMenu .pi.ana-locked-off{opacity:.5}
+.ana-lptip{position:fixed;z-index:39;max-width:min(280px,calc(100vw - 16px));padding:8px 12px;border-radius:12px;background:rgba(20,22,28,.92);color:#fff;font:700 12.5px/1.35 var(--w-sans);box-shadow:0 8px 20px rgba(0,0,0,.35);pointer-events:none;animation:wrLpTip .28s ease-out}
+.ana-lptip::after{content:"";position:absolute;left:calc(var(--ax,50%) - 6px);bottom:-6px;width:12px;height:12px;background:rgba(20,22,28,.92);transform:rotate(45deg)}
+@keyframes wrLpTip{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.ana-lptip{animation:none}}
+
+/* v2.9.2：數據標題（例如「第 1 張數據（試射）」）比較長時，右邊說明不要被擠成直排 */
+.ana-dh #anaStatsTitle{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ana-dh .ana-dh-sub{min-width:72px}

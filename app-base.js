@@ -5,7 +5,7 @@
   'use strict';
   // 給其他模組用（函式）
   App.saveSessions = saveSessions; App.savePrefs = savePrefs; App.isAna = isAna; App.isShared = isShared; App.newSession = newSession; App.newAnalysis = newAnalysis;
-  App.fmtTW = fmtTW; App.anaShots = anaShots; App.persist = persist; App.tgt = tgt; App.el = el; App.drawTarget = drawTarget;
+  App.fmtTW = fmtTW; App.anaShots = anaShots; App.isSighter = isSighter; App.persist = persist; App.tgt = tgt; App.el = el; App.drawTarget = drawTarget;
   App.labelSize = labelSize; App.drawShot = drawShot; App.previewMark = previewMark; App.stat = stat; App.offsetText = offsetText;
   App.renderStats = renderStats; App.shotTable = shotTable; App.attachZoom = attachZoom; App.ask = ask; App.toast = toast; App.toastAct = toastAct;
   App.showTab = showTab;
@@ -52,7 +52,8 @@
   /* 資料格式（v2）：sessions 陣列同時放兩種紀錄
    *   預報：{ v:2, kind:'forecast', id:'s…', created ISO(UTC), name, note, targetId, preds:[{x,y,t}], actuals:[{x,y,src,conf}], calib }
    *   分析：{ v:2, kind:'analysis', id:'a…', created, tz:'Asia/Taipei', name, note, targetId,
-   *           sheets:[{ id, created, shots:[{x,y,src:'auto'|'manual',conf}], calib:{mode,rms,rotDeg,at}, photo:{w,h,name} }] }
+   *           sheets:[{ id, created, shots:[{x,y,src:'auto'|'manual',conf}], calib:{mode,rms,rotDeg,at}, photo:{w,h,name}, sighter?:true, locked?:true }] }
+   *           （v2.9.2：sighter＝試射、locked＝鎖定（當頁），沒有就不留欄位）
    *   座標一律 mm、靶心為原點、x 右 y 上。舊資料沒有 kind/v 視為預報。日後上傳功能直接用這個格式。 */
   var SCHEMA_V = 2;
   function isAna(s) { return s && s.kind === 'analysis'; }
@@ -70,7 +71,10 @@
   }
   // v2.9.0（§7 第 6、11 項）好友分享、保存在自己這邊的紀錄（sharedFrom＝分享 id；v2.5–v2.8「另存成我的」留下的 copiedFrom 也算）：唯讀、一律絕對鎖定
   function isShared(s) { return !!(s && (s.sharedFrom || s.copiedFrom)); }
-  function anaShots(s) { var o = []; (s.sheets || []).forEach(function (sh) { o = o.concat(sh.shots); }); return o; }
+  // v2.9.2（§7 第 10 項，White 2026-11-24）設為「試射」的靶紙（sheet.sighter＝true）不算進總結：總分、平均、群、60發預估都排除。
+  //   all＝true 時連試射一起回傳（只用在「這筆有沒有彈孔」這類判斷）。舊紀錄沒有 sighter 欄位＝全部都算（向下相容）。
+  function isSighter(sh) { return !!(sh && sh.sighter); }
+  function anaShots(s, all) { var o = []; (s.sheets || []).forEach(function (sh) { if (all || !isSighter(sh)) o = o.concat(sh.shots || []); }); return o; }
   var sessions = loadSessions();
   var cur = null;
   (function initCur() {

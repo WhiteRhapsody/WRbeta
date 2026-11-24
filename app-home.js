@@ -1,5 +1,6 @@
 /* WRbeta v2.9.0 首頁（White 2026-11-23 定稿＝/workspace/home_concept/v3c）
  * - v2.9.1：開槍後在彈孔旁邊飄出分數（取代提示氣泡）；靶紙下移 4mm、右移 2mm；版本卡片不壓靶紙。
+ * - v2.9.2（§7 第 19 項，White 指定）：上方深色區（標語＋版本更新紀錄卡片）整個往下延伸到 2 環線，可以蓋到一點靶紙。
  * - 打開 App 先看到首頁：10 米空氣手槍靶紙（尺寸照 core.js TARGETS.ap10，ISSF 6.3.4.6），準心預設對準十環的「選手」。
  * - 按住靶紙瞄準、放開開槍：打出 4.5mm 彈孔（挖空靶紙，露出主題背景），打中十環 → 1.5 秒後從彈孔圓形展開進入「選手」（＝原本一打開的畫面：Pro 分析、Lite 預報第 1 步）。
  *   沒打中十環：顯示分數，準心回到十環。
@@ -18,6 +19,7 @@
   var ENTER_MS = 1500, REVEAL_MS = 420;
   // 版本更新紀錄：[版本, 日期, 條目 key…]
   var VLOG = [
+    ['v2.9.2', '2026/11/24', ['home.v292_1', 'home.v292_2', 'home.v292_3', 'home.v292_4']],
     ['v2.9.1', '2026/11/23', ['home.v291_1', 'home.v291_2', 'home.v291_3', 'home.v291_4']],
     ['v2.9.0', '2026/11/23', ['home.v290_1', 'home.v290_2', 'home.v290_3', 'home.v290_4']],
     ['v2.8.0', '2026/11/21', ['home.v280_1', 'home.v280_2', 'home.v280_3', 'home.v280_4']],
@@ -62,14 +64,14 @@
       '<div class="hm-plbl" aria-hidden="true">' + esc(wrT('home.player')) + '</div><div class="hm-ahint" aria-hidden="true">' + esc(wrT('home.aim_hint')) + '</div>' +
       RB.map(function (b) { return '<button type="button" class="hm-rb hm-jelly" data-k="' + b[0] + '" aria-label="' + esc(wrT(b[1]) + ' · ' + wrT('home.soon')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic(b[0]) + '<b>' + esc(wrT(b[1])) + '</b><span class="hm-soon">' + esc(wrT('home.soon')) + '</span></span></button>'; }).join('') +
       '</div>' +
-      '<div class="hm-top"><div class="hm-bar"><button type="button" class="hm-gear hm-jelly" data-k="set" aria-label="' + esc(wrT('home.settings')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic('gear') + '</span></button>' +
+      '<div class="hm-band" aria-hidden="true"></div><div class="hm-top"><div class="hm-bar"><button type="button" class="hm-gear hm-jelly" data-k="set" aria-label="' + esc(wrT('home.settings')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic('gear') + '</span></button>' +
       '<button type="button" class="hm-gear hm-jelly" data-k="help" aria-label="' + esc(wrT('home.help')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic('info') + '</span></button>' +
       '<span class="hm-beta">beta</span><span class="hm-vpill">' + esc(ver()) + '</span></div>' +
       '<div class="hm-brand" lang="en">White Rhapsody</div><div class="hm-tag" lang="en">' + esc(wrT('home.tagline')) + '</div>' +
       '<section class="hm-vlog" aria-label="' + esc(wrT('home.vlog')) + '"><div class="hm-vhd"><b>' + esc(wrT('home.vlog')) + '</b><span>' + esc(wrT('home.vlog_more')) + '</span></div><div class="hm-vsc" tabindex="0">' + vl + '</div></section></div>' +
       '<div class="hm-toast" role="status" aria-live="polite"></div>';
     els.svg = host.querySelector('.hm-tg'); els.hit = host.querySelector('.hm-hit'); els.lbl = host.querySelector('.hm-plbl'); els.hint = host.querySelector('.hm-ahint');
-    els.toast = host.querySelector('.hm-toast'); els.vlog = host.querySelector('.hm-vlog'); els.stage = host.querySelector('.hm-stage');
+    els.toast = host.querySelector('.hm-toast'); els.vlog = host.querySelector('.hm-vlog'); els.stage = host.querySelector('.hm-stage'); els.band = host.querySelector('.hm-band');
     bindJelly(); bindAim();
     built = true;
   }
@@ -126,19 +128,21 @@
       var a = RB[i][2] * Math.PI / 180, x = CX + Math.cos(a) * RB_MM * S, y = CY + Math.sin(a) * RB_MM * S;
       b.style.left = (x - d / 2) + 'px'; b.style.top = (y - d / 2) + 'px'; b.style.width = d + 'px'; b.style.height = d + 'px';
     });
-    // v2.9.1 #12：卡片底邊不跟靶紙重疊；與紙卡上緣（以及最外環）留出明顯間隔。
-    // 最上面那顆圓鈕本來就在白色環區內，清過紙卡上緣就一定清過圓鈕。
-    var paperTop = CY - C2, ringTop = CY - TG.ringDiam[1] / 2 * S;
-    var vt = els.vlog.getBoundingClientRect().top, maxB = Math.min(paperTop, ringTop) - 14;
-    els.vlog.style.height = Math.max(72, Math.min(226 * g.k, maxB - vt)) + 'px';
+    // v2.9.2【White 指定 2026-11-23 21:47，§7 第 19 項】上方深色區塊（標語＋版本更新紀錄卡片）整個往下延伸到靶紙 2 環線（可以蓋到一點靶紙）：
+    //   .hm-band 下緣＝2 環線（CY − 2 環外半徑）；卡片下緣＝2 環線上方 12px（APP製作仔照 19_*.png 設計圖）。原本「卡片不壓靶紙、最高 226k」（v2.9.1 #12）取消。
+    var bandB = Math.max(0, CY - TG.ringDiam[2] / 2 * S);
+    els.band.style.height = bandB + 'px';
+    // v2.9.2（Gemini PR #5 第 1 則）先全部量、最後只寫一次卡片高度（原本寫 → 量 → 再寫，會多一次強制排版）。
+    //   條目的位置跟卡片高度無關（由內容排版決定），所以可以先用「預計的高度」算出切線。getComputedStyle 回傳 null 時用預設值（Gemini 防呆建議）。
+    var vt = els.vlog.getBoundingClientRect().top, maxB = bandB - 12, h0 = Math.max(72, maxB - vt);
+    var csV = getComputedStyle(els.vlog), bd = csV ? (parseFloat(csV.borderBottomWidth) || 0) : 0, lim = vt + h0 - bd - 1, cut = 0;
     // 最後一行要完整：卡片底邊切在「最後一行完整的字」的行框底下（條目之間或同一條的兩行之間），下一行的字不會露出半截；淡出只剩 6px（themes.css .hm-vsc）。
-    var box = els.vlog.getBoundingClientRect(), bd = parseFloat(getComputedStyle(els.vlog).borderBottomWidth) || 0, lim = box.bottom - bd - 1, cut = 0;
     els.vlog.querySelectorAll('.hm-vt').forEach(function (v) { var y = v.getBoundingClientRect().bottom + 2; if (y <= lim) cut = Math.max(cut, y); }); // 很矮的畫面：至少切在版本列底下
     els.vlog.querySelectorAll('.hm-ve li').forEach(function (li) {
-      var r = li.getBoundingClientRect(), lh = parseFloat(getComputedStyle(li).lineHeight) || 19, n = Math.max(1, Math.round(r.height / lh));
+      var r = li.getBoundingClientRect(), csL = getComputedStyle(li), lh = (csL && parseFloat(csL.lineHeight)) || 19, n = Math.max(1, Math.round(r.height / lh));
       for (var i = 1; i <= n; i++) { var y = r.top + r.height * i / n; if (y <= lim) cut = Math.max(cut, y); }
     });
-    if (cut) els.vlog.style.height = Math.max(72, Math.min(maxB, cut + 1 + bd) - vt) + 'px';
+    els.vlog.style.height = (cut ? Math.max(72, Math.min(maxB, cut + 1 + bd) - vt) : h0) + 'px';
   }
   function aim(x, y) {
     var g = G || (G = geom()), C2 = g.Cpx / 2;
@@ -280,9 +284,10 @@
   }
 
   // v2.9.1【White 2026-11-23】各分頁左上角的小「首頁」按鈕（標題列最左邊；按了回靶紙首頁）
-  var hb = null, hdr = D.querySelector('header');
-  if (hdr && ttl) {
-    var hl = D.createElement('div'); hl.className = 'hleft'; hdr.insertBefore(hl, ttl); hl.appendChild(ttl);
+  // v2.9.2（Gemini PR #5 第 2、6 則）用 ttl.parentNode 插入（不假設 .title 一定是 header 的直接子元素）
+  var hb = null;
+  if (ttl && ttl.parentNode) {
+    var hl = D.createElement('div'); hl.className = 'hleft'; ttl.parentNode.insertBefore(hl, ttl); hl.appendChild(ttl);
     hb = D.createElement('button'); hb.type = 'button'; hb.id = 'wrHomeBtn'; hb.className = 'wr-homebtn'; hb.setAttribute('aria-label', wrT('home.go_home'));
     hb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.2L12 4l8.5 7.2"/><path d="M6 9.6V20h4.6v-5.6h2.8V20H18V9.6"/></svg><span>' + esc(wrT('home.home_btn')) + '</span>';
     hl.insertBefore(hb, ttl);

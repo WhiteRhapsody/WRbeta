@@ -29,7 +29,7 @@
     if (!s) return out;
     function put(list) { list.forEach(function (p, i) { if (i < TOTAL) out[i] = p; }); }
     if (isAna(s)) {
-      var sh = s.sheets || [];
+      var sh = (s.sheets || []).filter(function (x) { return !(x && x.sighter); }); // v2.9.2：試射的靶紙不算
       if (sh.length > 1 && sh.every(function (x) { return (x.shots || []).length <= PER; })) sh.forEach(function (x, k) { (x.shots || []).forEach(function (p, i) { if (k < ROUNDS) out[k * PER + i] = p; }); });
       else { var all = []; sh.forEach(function (x) { all = all.concat(x.shots || []); }); put(all); }
       return out;

@@ -509,12 +509,16 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   function renderHeader() {
     var hdr = D.querySelector('header'), title = hdr && hdr.querySelector('.title'); if (!title) return;
     var chip = $('mhChip'), p = hasProfile() ? S.profile : null;
-    if (!p) { if (chip) chip.remove(); title.hidden = false; B.classList.remove('has-member'); return; }
+    if (!p) { if (chip) chip.remove(); closeMenu(); title.hidden = false; B.classList.remove('has-member'); return; }
     if (!chip) { chip = D.createElement('button'); chip.type = 'button'; chip.id = 'mhChip'; chip.className = 'mh-chip'; chip.setAttribute('data-me', ''); title.parentNode.insertBefore(chip, title); }
     var label = app().label || ('beta ' + String(app().version || '').replace(/^v(\d+)\.(\d+)\.0$/, 'v$1.$2'));
-    chip.innerHTML = avHTML(p, 'mh-av', true) + '<span class="mh-t"><b><span class="mh-id">' + esc(p.mid) + '</span>' + idPin(p) + ICON.hchev + '</b><small>WRbeta<i>' + esc(label) + '</i></small></span><span class="mb-badge" hidden></span>';
-    chip.setAttribute('aria-label', wrT('member.member_double_tap_for_settings', [p.mid]));
+    // v2.9.2（§7 第 20 項，White 2026-11-23 23:02 選方案 B）標題列只放頭像（沒開頭像＝人形小圖示）；名字、WRbeta、版本膠囊收進點頭像打開的選單（.mh-t 留在 DOM 給報讀與舊測試，畫面上不顯示）
+    var av = avHTML(p, 'mh-av', true);
+    chip.classList.toggle('no-av', !av);
+    chip.innerHTML = (av || '<span class="mh-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.6" r="3.8"/><path d="M4.8 20c.8-4 3.6-6.2 7.2-6.2s6.4 2.2 7.2 6.2"/></svg></span>') + '<span class="mh-t"><b><span class="mh-id">' + esc(p.mid) + '</span>' + idPin(p) + ICON.hchev + '</b><small>WRbeta<i>' + esc(label) + '</i></small></span><span class="mb-badge" hidden></span>';
+    chip.setAttribute('aria-label', wrT('member.menu_aria', [p.mid])); chip.setAttribute('aria-haspopup', 'menu'); chip.setAttribute('aria-expanded', menu ? 'true' : 'false');
     title.hidden = true; B.classList.add('has-member');
+    if (menu) fillMenu();
   }
 
   // ---------- 3) 帳號頁：身分卡、會員資料、好友、分享、管理員 ----------
@@ -584,10 +588,50 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     changeAvatar();
   }
 
+  // ---------- 2b) v2.9.2（§7 第 20 項）頭像選單：名字＋WRbeta＋版本膠囊；帳號與個人資料／好友／版本更新紀錄（選單項目＝APP製作仔提議，待 White 確認） ----------
+  var menu = null, dim = null;
+  function fillMenu() {
+    var p = hasProfile() ? S.profile : null; if (!menu || !p) return;
+    var label = app().label || ('beta ' + String(app().version || ''));
+    var av = avHTML(p, 'mh-av mm-av', true) || '<span class="mh-ic mm-av" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.6" r="3.8"/><path d="M4.8 20c.8-4 3.6-6.2 7.2-6.2s6.4 2.2 7.2 6.2"/></svg></span>';
+    var c = counts(), n = c.req + c.sh;
+    menu.innerHTML = '<div class="mm-h" data-me role="button" tabindex="0">' + av + '<div class="mm-tx"><b><span class="mm-id">' + esc(p.mid) + '</span>' + idPin(p) + '</b><small>WRbeta<i>' + esc(label) + '</i></small></div></div>' +
+      '<button type="button" role="menuitem" class="mm-it" data-go="acct">' + esc(wrT('member.menu_account')) + '</button>' +
+      '<button type="button" role="menuitem" class="mm-it" data-go="friends">' + esc(wrT('member.menu_friends')) + (n ? '<span class="mm-n">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</button>' +
+      '<button type="button" role="menuitem" class="mm-it" data-go="vlog">' + esc(wrT('member.menu_vlog')) + '</button>';
+  }
+  function openMenu(anchor) {
+    if (!hasProfile()) return;
+    hideBubble(true);
+    if (!dim) { dim = D.createElement('div'); dim.className = 'mm-dim'; dim.addEventListener('pointerdown', function (e) { e.preventDefault(); closeMenu(); }); }
+    if (!menu) {
+      menu = D.createElement('div'); menu.id = 'mhMenu'; menu.className = 'mm-menu'; menu.setAttribute('role', 'menu');
+      menu.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-go]'); if (!b) return;
+        var go = b.dataset.go; closeMenu();
+        if (go === 'acct') goAcct();
+        else if (go === 'friends') { goAcct(); setTimeout(function () { var f = $('mbFriends'); if (f && !f.hidden && f.scrollIntoView) try { f.scrollIntoView({ block: 'start' }); } catch (x) {} }, 60); }
+        else if (go === 'vlog') { try { var W = root.WRApp; if (W && W.home) W.home.show(); } catch (x) {} }
+      });
+    }
+    D.body.appendChild(dim); D.body.appendChild(menu); fillMenu(); B.classList.add('mm-open');
+    var r = anchor.getBoundingClientRect(); menu.style.top = Math.round(r.bottom + 8) + 'px'; menu.style.left = Math.max(8, Math.round(r.left - 4)) + 'px';
+    anchor.setAttribute('aria-expanded', 'true');
+    try { var W = root.WRApp; if (W && W.back) W.back.push('mhmenu', closeMenu); } catch (x) {}
+  }
+  function closeMenu() {
+    if (!menu || !menu.parentNode) { menu && menu.remove(); dim && dim.remove(); return; }
+    menu.remove(); if (dim) dim.remove(); B.classList.remove('mm-open');
+    var c = $('mhChip'); if (c) c.setAttribute('aria-expanded', 'false');
+    try { var W = root.WRApp; if (W && W.back) W.back.drop('mhmenu'); } catch (x) {}
+  }
+  D.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menu && menu.parentNode) closeMenu(); });
+  D.addEventListener('pointerdown', function (e) { if (menu && menu.parentNode && !e.target.closest('#mhMenu,#mhChip')) closeMenu(); }, true);
+
   // ---------- 5) 漫畫框：點一下出現、點兩下到帳號；可以拖到「設定/說明」 ----------
   var bub = null, bubT = 0, lastTap = 0, lastEl = null, drag = null;
   function goAcct() {
-    hideBubble(true); var A = app();
+    hideBubble(true); closeMenu(); var A = app();
     try { A.showTab('about'); if (A.stSub) A.stSub.set('acct'); root.scrollTo(0, 0); } catch (e) {}
   }
   function ensureBubble() {
@@ -620,8 +664,11 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     var t = e.target.closest && e.target.closest('[data-me]'); if (!t || (e.target.closest('[data-act]'))) return;
     e.preventDefault(); e.stopPropagation();
     var now = Date.now();
-    if (now - lastTap < 450 && lastEl === t) { lastTap = 0; goAcct(); return; }
-    lastTap = now; lastEl = t; showBubble(t);
+    if (now - lastTap < 450 && lastEl === t) { lastTap = 0; closeMenu(); goAcct(); return; }
+    lastTap = now; lastEl = t;
+    if (t.id === 'mhChip') { if (menu && menu.parentNode) closeMenu(); else openMenu(t); return; } // v2.9.2：標題列頭像＝打開選單（點兩下仍直接到帳號）
+    if (t.closest('#mhMenu') && $('mhChip')) { closeMenu(); lastEl = t = $('mhChip'); } // v2.9.2：選單裡點名字＝原本的漫畫框（在頭像下面；可以拖到「設定/說明」）
+    showBubble(t);
   }, true);
   D.addEventListener('dblclick', function (e) { var t = e.target.closest && e.target.closest('[data-me]'); if (t) { e.preventDefault(); goAcct(); } }, true);
   D.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-me][role=button]')) e.target.click(); });
@@ -785,7 +832,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     openOwner: function () { if (ownerMe() && !S.adm) { S.adm = { codes: [], pending: [], granted: [], roles: [] }; return loadAdmin(); } return Promise.resolve(); },
     identityHTML: identityHTML, bindIdentity: bindIdentity, renderCards: renderCards, renderHeader: renderHeader, refresh: function () { return loadAll(false); }, refreshSocial: refreshSocial,
     shareRecord: shareRecord, sharesOf: sharesOf, recordDeleted: function (id) { return MP.recordDeleted(id); }, checkShared: function (sid) { return MP.checkShared(sid); }, canShare: function () { return hasProfile(); }, syncPf: syncPf, openPrivacy: openPrivacy, openCheat: openCheat, openSignup: openSignup,
-    showBubble: showBubble, hideBubble: hideBubble, goAcct: goAcct, purge: purge, redeem: redeem, counts: counts, addFriend: addFriend, isHeld: function () { return BE.isHeld(); }, _pure: pure,
+    showBubble: showBubble, hideBubble: hideBubble, goAcct: goAcct, openMenu: function () { var c = $('mhChip'); if (c) openMenu(c); }, closeMenu: closeMenu, purge: purge, redeem: redeem, counts: counts, addFriend: addFriend, isHeld: function () { return BE.isHeld(); }, _pure: pure,
     /* e2e：換成假後端並模擬登入（user＝{uid,name,email}；null＝登出）；pick＝回傳 Promise<File> 的函式（代替檔案選擇器） */
     _mock: function (be, user, pick) { mocked = true; BE = be; if (pick) pickHook = pick; var was = uid(); S.status = user ? 'signed-in' : 'signed-out'; S.user = user || null; if (user) { if (user.uid !== was) S.profs = {}; return loadAll(true); } reset(); return Promise.resolve(); }
   };

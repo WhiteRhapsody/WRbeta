@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v2.9.1">
-<link rel="icon" href="icon.svg?v=v2.9.1">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.9.1">
+<link rel="manifest" href="manifest.webmanifest?v=v2.9.2">
+<link rel="icon" href="icon.svg?v=v2.9.2">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.9.2">
 <script>/* v2.9.0 首頁：同一個分頁第一次打開才顯示（app-home.js） */try{if(!sessionStorage.getItem('wr_home_seen'))document.documentElement.classList.add('wr-home');}catch(e){document.documentElement.classList.add('wr-home');}</script>
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.9.1"><link rel="stylesheet" href="themes.css?v=v2.9.1"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.9.2"><link rel="stylesheet" href="themes.css?v=v2.9.2"><!--/STYLE-->
 </head>
 <body>
 <!-- v2.5.0 分析模塊圖示（White 2026-11-20「超讚」；24×24 單線條，顏色跟著 currentColor，所有主題通用） -->
@@ -231,10 +231,11 @@
       <label class="ana-nmrow"><input id="anaName" class="ana-name" placeholder="自訂名稱（例：週二早上練習）" maxlength="60" aria-label="分析名稱"><button type="button" id="anaNameLock" class="ana-name-lock" aria-pressed="false" hidden><span class="lk-ripple" aria-hidden="true"></span><svg viewBox="0 0 24 24" aria-hidden="true"><g class="lk-shackle"><path d="M8 11V7.2a4 4 0 0 1 8 0V11"/></g><g class="lk-body"><rect x="6" y="11" width="12" height="10.2" rx="2"/><path d="M12 14.4v3"/></g></svg></button><svg class="ana-pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></label>
       <div class="ana-meta"><span id="anaWhen"></span><span class="ana-dotsep" aria-hidden="true">・</span><span id="anaSaved"></span></div>
     </div>
-    <button id="anaNew" type="button" class="wr-pill"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>新分析</button>
+    <!-- v2.9.2（§7 第 21 項，White 2026-11-24 03:24）「＋新分析」往左移，校正鈕（原圖示＋圓鈕，寶寶色）放在它右邊；校正選單另含偵測靈敏度、清空／刪除 -->
+    <div class="ana-acts"><button id="anaNew" type="button" class="wr-pill" aria-label="開始新分析"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="ana-new-tx">新分析</span></button><button type="button" id="anaCalBtn" class="pf-btn ana-rb" aria-haspopup="true" aria-expanded="false" aria-controls="anaCalPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><b>校正</b></button></div>
   </div>
   <div class="pf-wrap ana-stage" id="anaWrap">
-    <div class="svgwrap pf-box ana-box" id="anaBox"><svg id="anaSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="分析靶面（先選「添加彈孔」或「消滅單孔」再點靶面；雙指縮放）"></svg>
+    <div class="svgwrap pf-box ana-box" id="anaBox"><svg id="anaSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="分析靶面（先選「添加彈孔」或「消滅彈孔」再點靶面；雙指縮放）"></svg>
       <div id="anaPhotoCard" class="ana-photo" hidden><div id="anaPhotoBox" class="ana-photobox"><div id="anaPhotoInner" class="photoinner"><img id="anaImg" alt="" draggable="false"><svg id="anaPhotoSvg" xmlns="http://www.w3.org/2000/svg"></svg></div></div></div>
       <div id="anaBusy" class="lite-busy ana-busy" hidden><i></i>分析照片中…</div>
     </div>
@@ -247,28 +248,29 @@
       <button type="button" id="anaTgSpread" class="wr-tg" role="switch" aria-checked="false"><i class="dotp" aria-hidden="true"></i>散布圈</button>
       <input type="checkbox" id="anaShowCenter" checked hidden><input type="checkbox" id="anaShowOut" checked hidden><input type="checkbox" id="anaShowSpread" hidden>
     </div>
-    <div class="ana-rbtns" role="toolbar" aria-label="分析操作">
-      <button type="button" id="anaCalBtn" class="pf-btn ana-rb" aria-haspopup="true" aria-expanded="false" aria-controls="anaCalPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><b>校正</b></button>
-      <button type="button" id="anaUndo" class="pf-btn ana-rb" aria-label="復原"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><b>復原</b></button>
-      <button type="button" id="anaClearBtn" class="pf-btn ana-rb danger" aria-haspopup="true" aria-expanded="false" aria-controls="anaClearPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></svg><b>清除</b></button>
-    </div>
-    <!-- v2.5.0【White 指定】添加彈孔／消滅單孔：沒選模式時點靶面不做任何事（方便捲動畫面）；再按一次亮著的按鈕＝結束模式 -->
-    <div class="ana-lbtns" id="anaModeBtns" role="group" aria-label="修正彈孔">
+    <!-- v2.9.2（§7 第 21 項，White 2026-11-24 03:15）靶紙右下：添加彈孔（原復原位置）、消滅彈孔（原清除位置），復原在消滅彈孔左邊一點；紅色「清除」拿掉（清除單張＝長按卡片選單「刪除」）。
+         v2.5.0【White 指定】添加彈孔／消滅彈孔：沒選模式時點靶面不做任何事（方便捲動畫面）；再按一次亮著的按鈕＝結束模式 -->
+    <div class="ana-rbtns" id="anaModeBtns" role="toolbar" aria-label="修正彈孔">
       <button type="button" id="anaModeAdd" class="pf-btn ana-rb ana-mode" aria-pressed="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 8.5v7M8.5 12h7"/></svg><b>添加彈孔</b></button>
-      <button type="button" id="anaModeDel" class="pf-btn ana-rb ana-mode" aria-pressed="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M8.5 12h7"/></svg><b>消滅單孔</b></button>
+      <button type="button" id="anaUndo" class="pf-btn ana-rb" aria-label="復原"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><b>復原</b></button>
+      <button type="button" id="anaModeDel" class="pf-btn ana-rb ana-mode" aria-pressed="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M8.5 12h7"/></svg><b>消滅彈孔</b></button>
     </div>
     <div id="anaModeBar" class="ana-modebar" role="status" aria-live="polite" hidden></div>
     <div id="anaCalPop" class="wr-pop ana-pop" role="menu" aria-label="校正" hidden>
       <div class="ph">校正這張照片</div>
-      <button type="button" id="anaAutoCal" role="menuitem" class="pi"><b>自動校正</b><small>重新找靶面與環</small></button>
-      <button type="button" id="anaRedetect" role="menuitem" class="pi"><b>重新偵測</b><small>重找彈孔（依靈敏度）</small></button>
-      <button type="button" id="anaManual" role="menuitem" class="pi"><b>手動校正</b><small>在照片上點靶心與四個邊</small></button>
-      <div class="pi-row"><button type="button" id="anaRotL" class="pi sm" aria-label="照片轉正，逆時針 1 度">⟲ 1°</button><button type="button" id="anaRotR" class="pi sm" aria-label="照片轉正，順時針 1 度">⟳ 1°</button></div>
+      <div class="pi-row ana-cal2"><button type="button" id="anaAutoCal" role="menuitem" class="pi"><b>自動校正</b><small>重新找靶面與環</small></button><button type="button" id="anaRedetect" role="menuitem" class="pi"><b>重新偵測</b><small>重找彈孔（依靈敏度）</small></button></div>
+      <div class="pi-row ana-cal3"><button type="button" id="anaManual" role="menuitem" class="pi"><b>手動校正</b><small>在照片上點靶心與四個邊</small></button><button type="button" id="anaRotL" class="pi sm" aria-label="照片轉正，逆時針 1 度">⟲ 1°</button><button type="button" id="anaRotR" class="pi sm" aria-label="照片轉正，順時針 1 度">⟳ 1°</button></div>
       <div class="pf" id="anaCalNote">要先選一張照片（下方晶片）</div>
-    </div>
-    <div id="anaClearPop" class="wr-pop ana-pop" role="menu" aria-label="清除哪些" hidden>
-      <div class="ph">清除哪些？</div>
-      <button type="button" id="anaDelSheet" role="menuitem" class="pi del"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 10l6 6M15 10l-6 6"/></svg><span><b>清除這張紀錄</b><small id="anaDelSub">先在下方選一張</small></span></button>
+      <!-- v2.9.2（§7 第 21 項，White 2026-11-24 03:31）偵測靈敏度收進校正選單 -->
+      <div class="ana-sep" aria-hidden="true"></div>
+      <div class="ph">偵測靈敏度</div>
+      <div class="ana-sens">
+        <div class="wr-seg" id="anaSensSeg" role="radiogroup" aria-label="偵測靈敏度"><button type="button" role="radio" data-v="1.3" aria-checked="false">保守</button><button type="button" role="radio" data-v="1" aria-checked="true" class="on">標準</button><button type="button" role="radio" data-v="0.75" aria-checked="false">靈敏</button></div>
+        <select id="anaSens" hidden aria-hidden="true" tabindex="-1"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
+      </div>
+      <div class="pf">改了會重找這張的彈孔，新照片也照這個</div>
+      <div class="ana-sep" aria-hidden="true"></div>
+      <div class="ph">清空／刪除</div>
       <button type="button" id="anaClearAll" role="menuitem" class="pi all"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="13" height="15" rx="2"/><path d="M4 6.5v13a2 2 0 0 0 2 2h10"/><path d="M11 7l5 5M16 7l-5 5"/></svg><span><b>清空全部靶紙</b><small id="anaAllSub">這次分析的全部照片</small></span></button>
       <button type="button" id="anaDelAna" role="menuitem" class="pi wipe"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/><path d="M10 11l4 5M14 11l-4 5"/></svg><span><b>刪除目前分析</b><small id="anaDelAnaSub">連名稱、日期整筆從紀錄刪掉</small></span></button>
       <div class="pf">⚠ 按下後會再跳確認視窗</div>
@@ -278,12 +280,15 @@
   <div id="anaHint" class="ana-hint" hidden></div>
   <div id="anaReadout" class="ana-readout" aria-live="polite"></div>
   <div id="anaChips" class="ana-strip" role="tablist" aria-label="靶紙"></div>
-  <div class="ana-ctrl">
-    <span class="lbl">偵測靈敏度</span>
-    <div class="wr-seg" id="anaSensSeg" role="radiogroup" aria-label="偵測靈敏度"><button type="button" role="radio" data-v="1.3" aria-checked="false">保守</button><button type="button" role="radio" data-v="1" aria-checked="true" class="on">標準</button><button type="button" role="radio" data-v="0.75" aria-checked="false">靈敏</button></div>
-    <select id="anaSens" hidden aria-hidden="true" tabindex="-1"><option value="1.3">保守</option><option value="1" selected>標準</option><option value="0.75">靈敏</option></select>
-    <span class="lbl" id="anaQueue"></span>
+  <!-- v2.9.2（§7 第 10 項，White 2026-11-24 01:07）點一下卡片再按住＝這張的選單：刪除／鎖定（當頁）／試射（試射不算進總結） -->
+  <div id="anaLpTip" class="ana-lptip" role="status" aria-live="polite" hidden>長按卡片有更多功能：刪除、鎖定、試射</div>
+  <div id="anaShMenu" class="wr-pop ana-shmenu" role="menu" aria-label="這張靶紙" hidden>
+    <div class="ph" id="anaShHd"></div>
+    <button type="button" id="anaShSighter" role="menuitemcheckbox" aria-checked="false" class="pi"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.6"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg><span><b id="anaShSighterTx">試射</b><small id="anaShSighterSub">不算進總分、平均、群、60發預估</small></span></button>
+    <button type="button" id="anaShLock" role="menuitemcheckbox" aria-checked="false" class="pi"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V7.2a4 4 0 0 1 8 0V11"/><rect x="6" y="11" width="12" height="10.2" rx="2"/></svg><span><b id="anaShLockTx">鎖定（當頁）</b><small id="anaShLockSub">只鎖這張：不能改彈孔、校正、刪除</small></span></button>
+    <button type="button" id="anaShDel" role="menuitem" class="pi del"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></svg><span><b>刪除</b><small id="anaShDelSub">刪掉這張（會再跳確認視窗）</small></span></button>
   </div>
+  <div class="ana-ctrl" id="anaCtrl"><span class="lbl" id="anaQueue"></span></div>
   <div class="ana-dh lay-head"><span id="anaStatsTitle">數據</span><small class="ana-dh-sub">往下捲：每張小計・逐發<span class="rc-only">・紀錄碼</span></small><button type="button" class="lay-btn" data-lay-page="analysis" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button></div>
   <div id="anaMods" class="stats lay-grid" data-lay="analysis" data-lay-page="analysis">
     <div id="anaStats" class="lay-contents"></div>
@@ -489,22 +494,22 @@
 </div>
 <div id="toast"></div>
 <div id="wrHome" hidden></div>
-<!--I18N--><script src="i18n/zh-TW.js?v=v2.9.1"></script><script src="i18n/en.js?v=v2.9.1"></script><script src="i18n/i18n.js?v=v2.9.1"></script><!--/I18N-->
-<!--CORE--><script src="core.js?v=v2.9.1"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v2.9.1"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v2.9.1"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v2.9.1"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v2.9.1"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v2.9.1"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v2.9.1"></script><script src="member-friends.js?v=v2.9.1"></script><script src="member-admin.js?v=v2.9.1"></script><!--/MEMBER-->
-<!--GHOST--><script src="ghost.js?v=v2.9.1"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v2.9.1"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v2.9.1"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v2.9.1"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v2.9.1"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v2.9.1"></script><!--/DOCK-->
-<!--APP--><script src="app-base.js?v=v2.9.1"></script><script src="app-forecast.js?v=v2.9.1"></script><script src="app-lite.js?v=v2.9.1"></script><script src="app-ghost.js?v=v2.9.1"></script><script src="app-photo.js?v=v2.9.1"></script><script src="app-mods.js?v=v2.9.1"></script>
-<script src="app-analysis.js?v=v2.9.1"></script><script src="app-records.js?v=v2.9.1"></script><script src="app-nav.js?v=v2.9.1"></script><script src="app.js?v=v2.9.1"></script><script src="app-account.js?v=v2.9.1"></script><script src="app-back.js?v=v2.9.1"></script><script src="app-home.js?v=v2.9.1"></script><script src="pdf-report.js?v=v2.9.1"></script><script src="pdf-export.js?v=v2.9.1"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v2.9.2"></script><script src="i18n/en.js?v=v2.9.2"></script><script src="i18n/i18n.js?v=v2.9.2"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v2.9.2"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v2.9.2"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v2.9.2"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v2.9.2"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v2.9.2"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v2.9.2"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v2.9.2"></script><script src="member-friends.js?v=v2.9.2"></script><script src="member-admin.js?v=v2.9.2"></script><!--/MEMBER-->
+<!--GHOST--><script src="ghost.js?v=v2.9.2"></script><!--/GHOST-->
+<!--PRESS--><script src="press.js?v=v2.9.2"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v2.9.2"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v2.9.2"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v2.9.2"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v2.9.2"></script><!--/DOCK-->
+<!--APP--><script src="app-base.js?v=v2.9.2"></script><script src="app-forecast.js?v=v2.9.2"></script><script src="app-lite.js?v=v2.9.2"></script><script src="app-ghost.js?v=v2.9.2"></script><script src="app-photo.js?v=v2.9.2"></script><script src="app-mods.js?v=v2.9.2"></script>
+<script src="app-analysis.js?v=v2.9.2"></script><script src="app-records.js?v=v2.9.2"></script><script src="app-nav.js?v=v2.9.2"></script><script src="app.js?v=v2.9.2"></script><script src="app-account.js?v=v2.9.2"></script><script src="app-back.js?v=v2.9.2"></script><script src="app-home.js?v=v2.9.2"></script><script src="pdf-report.js?v=v2.9.2"></script><script src="pdf-export.js?v=v2.9.2"></script><!--/APP-->
 <script>
 (function () {
   var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['BMGhost','ghost.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];

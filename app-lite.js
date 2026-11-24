@@ -173,7 +173,7 @@
     ks.forEach(function (k) { k.style.fontSize = ''; k.style.letterSpacing = ''; });                       // 寫
     var m = ks.map(function (k) { var a = k.clientWidth; return { k: k, a: a, over: !!a && k.scrollWidth > a }; }); // 讀
     m = m.filter(function (x) { return x.over; }); if (!m.length) return;
-    m.forEach(function (x) { x.fs = parseFloat(getComputedStyle(x.k).fontSize) || 12; });                     // 讀（同一次版面）
+    m.forEach(function (x) { var cs = getComputedStyle(x.k); x.fs = (cs && parseFloat(cs.fontSize)) || 12; }); // 讀（同一次版面）；v2.9.2（Gemini PR #5）getComputedStyle 回傳 null 防呆
     m.forEach(function (x) { x.k.style.letterSpacing = '0px'; });                                            // 寫
     m.forEach(function (x) { x.sw = x.k.scrollWidth; });                                                     // 讀
     m.forEach(function (x) { if (x.sw <= x.a) return; x.k.style.fontSize = Math.max(x.fs * 0.7, x.fs * x.a / x.sw * 0.97).toFixed(2) + 'px'; }); // 寫

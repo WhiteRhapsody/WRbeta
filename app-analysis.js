@@ -8,7 +8,7 @@
     isAna = App.isAna, newAnalysis = App.newAnalysis, fmtTW = App.fmtTW, anaShots = App.anaShots, el = App.el, drawTarget = App.drawTarget,
     labelSize = App.labelSize, previewMark = App.previewMark, renderStats = App.renderStats, shotTable = App.shotTable, mkView = App.mkView,
     attachZoom = App.attachZoom, liftPx = App.liftPx, visRun = App.visRun, pickIsImage = App.pickIsImage, pickError = App.pickError,
-    projCircle = App.projCircle, projLine = App.projLine, ask = App.ask, toast = App.toast, toastAct = App.toastAct;
+    projCircle = App.projCircle, projLine = App.projLine, ask = App.ask, toast = App.toast, toastAct = App.toastAct, isSighter = App.isSighter;
   // 給其他模組用（函式）
   App.requestPersist = requestPersist; App.fillAnaCalRing = fillAnaCalRing; App.anaSetView = anaSetView; App.anaChangeTarget = anaChangeTarget;
   App.trTag = trTag; App.esc = esc; App.lineChart = lineChart; App.renderAnalysis = renderAnalysis;
@@ -166,7 +166,7 @@
   var anaMode = null;
   function anaSetMode(m, quiet) {
     if (App.anaRO) m = null;
-    if (m && m !== anaMode && isLocked()) { lockToast(); return; }
+    if (m && m !== anaMode && lockedBlock(selSheet())) return; // v2.9.2：選的那張鎖定（當頁）也擋
     var was = anaMode; anaMode = m === anaMode ? null : m;
     [['anaModeAdd', 'add'], ['anaModeDel', 'del']].forEach(function (x) { var b = $(x[0]), on = anaMode === x[1]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     var box = $('anaBox'); box.classList.toggle('mode-add', anaMode === 'add'); box.classList.toggle('mode-del', anaMode === 'del'); $('anaWrap').classList.toggle('ana-moding', !!anaMode);
@@ -177,7 +177,7 @@
   App.anaSetMode = anaSetMode;
   Object.defineProperty(App, 'anaMode', { get: function () { return anaMode; }, enumerable: true, configurable: true });
   function anaTapHole(sh, m, tol) { // 依目前模式加一發或刪最近的一發；tol＝刪除時可接受的距離（mm）
-    if (lockedBlock()) return;
+    if (lockedBlock(sh)) return;
     var t = atgt();
     if (anaMode === 'add') { var q = { x: C.round(m.x, 3), y: C.round(m.y, 3), src: 'manual' }; sh.shots.push(q); sh._undo = { op: 'add', q: q }; toast(wrT('app.shot_hole_added')); }
     else if (anaMode === 'del') {
@@ -213,7 +213,8 @@
   function anaFitLabel() {
     var fb = $('anaFit'), sp = fb.querySelector('span'), z;
     if (anaView === 'photo' && selSheet() && anaPhotos[selSheet().id]) z = anaPZ.s; else z = atgt().cardSize / ((AV.v && AV.v.E) || atgt().cardSize);
-    var zoomed = z > 1.05; fb.classList.toggle('zoomed', zoomed); sp.textContent = zoomed ? wrT('app.full_target', [Math.round(z * 10) / 10]) : wrT('app.pinch_to_zoom');
+    var zoomed = z > 1.05, was = fb.classList.contains('zoomed'); fb.classList.toggle('zoomed', zoomed); sp.textContent = zoomed ? wrT('app.full_target', [Math.round(z * 10) / 10]) : wrT('app.pinch_to_zoom');
+    if (was !== zoomed) anaInfoFit(); // v2.9.2（第 21 項）「雙指縮放」說明拿掉：這顆只在放大時出現（按了回全靶），出現／消失時重算總分氣泡寬度
   }
   (function () {
     var box = $('anaPhotoBox'), ptrs = {}, pin = null, pan = null;
@@ -248,7 +249,7 @@
   $('anaImg').addEventListener('click', function (ev) {
     var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (!P || P.busy) return;
     if (Date.now() - anaPZ.moved < 350) return;
-    if ((anaMode || (P.mode === 'manual' && P.calPts.length < 5)) && lockedBlock()) return; // 剛縮放／平移完的那一下不算點選
+    if ((anaMode || (P.mode === 'manual' && P.calPts.length < 5)) && lockedBlock(sh)) return; // 剛縮放／平移完的那一下不算點選
     var r = this.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * P.w, py = (ev.clientY - r.top) / r.height * P.h;
     if (P.mode === 'manual' && P.calPts.length < 5) {
       var tt = C.calibTargets(atgt(), anaCalRing())[P.calPts.length];
@@ -272,42 +273,43 @@
   // --- 右下玻璃圓鈕的彈出選單（校正／清除）：同時只開一個；點外面或按 Esc 關閉 ---
   var anaPopOpen = null;
   function anaPop(id, open) {
-    ['anaCalPop', 'anaClearPop'].forEach(function (k) {
-      var on = open && k === id, btn = $(k === 'anaCalPop' ? 'anaCalBtn' : 'anaClearBtn');
+    ['anaCalPop'].forEach(function (k) { // v2.9.2：紅色「清除」與它的選單拿掉（清空全部、刪除目前分析收進校正選單；清除單張＝長按卡片「刪除」）
+      var on = open && k === id, btn = $('anaCalBtn');
       $(k).hidden = !on; btn.setAttribute('aria-expanded', on ? 'true' : 'false'); btn.classList.toggle('on', on);
     });
+    if (open) anaShMenu(null);
     anaPopOpen = open ? id : null;
     if (open) anaPopSync();
   }
   function anaPopSync() {
-    var sh = selSheet(), P = sh && anaPhotos[sh.id], tot = anaShots(acur).length;
-    $('anaDelSheet').disabled = !sh; $('anaClearAll').disabled = !acur.sheets.length;
+    var sh = selSheet(), P = sh && anaPhotos[sh.id], tot = anaShots(acur, true).length;
+    $('anaClearAll').disabled = !acur.sheets.length;
     $('anaDelAna').disabled = !!App.anaRO || (!anaInRecords() && !acur.sheets.length && !acur.name);
     $('anaDelAnaSub').textContent = anaInRecords() || acur.sheets.length || acur.name ? wrT('h.delete_whole_record_incl_name') : wrT('app.not_saved_yet');
-    $('anaDelSub').textContent = sh ? wrT('app.target_shots', [sheetNo(sh), sh.shots.length]) : wrT('app.pick_one_below_first');
     $('anaAllSub').textContent = acur.sheets.length ? wrT('app.this_analysis_targets_shots', [acur.sheets.length, tot]) : wrT('app.no_records_yet');
-    ['anaAutoCal', 'anaManual'].forEach(function (k) { $(k).disabled = !P || P.busy; });
-    ['anaRedetect', 'anaRotL', 'anaRotR'].forEach(function (k) { $(k).disabled = !P || !P.T || P.busy; });
-    $('anaCalNote').textContent = !sh ? wrT('app.pick_a_photo_below_first') : !P ? wrT('app.this_targets_photo_wasnt_kept_2') : P.T ? wrT('app.green_circles_should_match_the_2') : wrT('app.auto_calibration_failed_tap_manual_4');
+    var shl = !!(sh && sh.locked); // v2.9.2：鎖定（當頁）的那張不能校正
+    ['anaAutoCal', 'anaManual'].forEach(function (k) { $(k).disabled = !P || P.busy || shl; });
+    ['anaRedetect', 'anaRotL', 'anaRotR'].forEach(function (k) { $(k).disabled = !P || !P.T || P.busy || shl; });
+    $('anaCalNote').textContent = !sh ? wrT('app.pick_a_photo_below_first') : shl ? wrT('app.sh_lock_blocked') : !P ? wrT('app.this_targets_photo_wasnt_kept_2') : P.T ? wrT('app.green_circles_should_match_the_2') : wrT('app.auto_calibration_failed_tap_manual_4');
   }
+  (function () { var b = $('anaCalBtn').querySelector('b'); if (b && wrT.isEn && wrT.isEn()) b.textContent = wrT('app.cal_btn_short'); })(); // v2.9.2：46px 圓鈕放不下 11px 的「Calibrate」
   $('anaCalBtn').onclick = function (e) { e.stopPropagation(); if (lockedBlock()) return; anaPop('anaCalPop', anaPopOpen !== 'anaCalPop'); };
-  $('anaClearBtn').onclick = function (e) { e.stopPropagation(); if (lockedBlock()) return; anaPop('anaClearPop', anaPopOpen !== 'anaClearPop'); };
-  document.addEventListener('pointerdown', function (e) { if (anaPopOpen && !e.target.closest('.ana-pop,#anaCalBtn,#anaClearBtn')) anaPop(null, false); if (!$('anaPickHint').hidden && !e.target.closest('#anaPickHint,#anaPickInfo')) anaPickHint(false); }, true);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (anaPopOpen) anaPop(null, false); anaPickHint(false); } });
-  App.anaPopClose = function () { anaPop(null, false); anaPickHint(false); }; // v2.5.0 返回鍵
+  document.addEventListener('pointerdown', function (e) { if (anaPopOpen && !e.target.closest('.ana-pop,#anaCalBtn')) anaPop(null, false); if (shMenuId && !e.target.closest('#anaShMenu')) anaShMenu(null); if (!$('anaPickHint').hidden && !e.target.closest('#anaPickHint,#anaPickInfo')) anaPickHint(false); }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (anaPopOpen) anaPop(null, false); anaShMenu(null); anaPickHint(false); } });
+  App.anaPopClose = function () { anaPop(null, false); anaShMenu(null); anaPickHint(false); }; // v2.5.0 返回鍵
   function anaPickHint(on) { $('anaPickHint').hidden = !on; $('anaPickInfo').setAttribute('aria-expanded', on ? 'true' : 'false'); }
   $('anaPickInfo').onclick = function (e) { e.stopPropagation(); anaPickHint($('anaPickHint').hidden); };
-  $('anaAutoCal').onclick = function () { if (lockedBlock()) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P) { P.mode = 'auto'; P.calPts = []; $('anaCalRingRow').style.display = 'none'; anaProcess(sh); } };
-  $('anaRedetect').onclick = function () { if (lockedBlock()) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P && P.T) anaProcess(sh); };
+  $('anaAutoCal').onclick = function () { if (lockedBlock(selSheet())) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P) { P.mode = 'auto'; P.calPts = []; $('anaCalRingRow').style.display = 'none'; anaProcess(sh); } };
+  $('anaRedetect').onclick = function () { if (lockedBlock(selSheet())) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P && P.T) anaProcess(sh); };
   var anaSens0 = $('anaSens').value;
-  $('anaSens').onchange = function () { if (isLocked() && selSheet() && anaPhotos[selSheet().id]) { lockToast(); $('anaSens').value = anaSens0; anaSensSync(); return; } anaSens0 = $('anaSens').value; anaSensSync(); var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.T) anaProcess(sh); };
+  $('anaSens').onchange = function () { var s0 = selSheet(); if (s0 && anaPhotos[s0.id] && (isLocked() || s0.locked)) { lockedBlock(s0); $('anaSens').value = anaSens0; anaSensSync(); return; } anaSens0 = $('anaSens').value; anaSensSync(); var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.T) anaProcess(sh); };
   function anaSensSync() { var v = $('anaSens').value; $('anaSensSeg').querySelectorAll('button').forEach(function (b) { var on = b.dataset.v === v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); }); }
   $('anaSensSeg').querySelectorAll('button').forEach(function (b) { b.onclick = function () { if ($('anaSens').value === b.dataset.v) return; $('anaSens').value = b.dataset.v; $('anaSens').onchange(); }; });
-  $('anaManual').onclick = function () { if (lockedBlock()) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (!P) return; P.mode = 'manual'; P.calPts = []; P.T = null; P.Tinv = null; $('anaCalRingRow').style.display = ''; anaView = 'photo'; renderAnalysis(); anaPZLayout(true); };
-  $('anaCalRing').onchange = function () { if (lockedBlock()) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.mode === 'manual') { P.calPts = []; P.T = null; P.Tinv = null; renderAnalysis(); } };
+  $('anaManual').onclick = function () { if (lockedBlock(selSheet())) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (!P) return; P.mode = 'manual'; P.calPts = []; P.T = null; P.Tinv = null; $('anaCalRingRow').style.display = ''; anaView = 'photo'; renderAnalysis(); anaPZLayout(true); };
+  $('anaCalRing').onchange = function () { if (lockedBlock(selSheet())) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.mode === 'manual') { P.calPts = []; P.T = null; P.Tinv = null; renderAnalysis(); } };
   function anaRotate(deg) {
     var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (!P || !P.T) return;
-    if (lockedBlock()) return;
+    if (lockedBlock(sh)) return;
     var th = deg * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th), rms = P.T.rms;
     P.T = window.BMVision.rotateAffine(P.T, th); P.T.rms = rms; P.Tinv = C.invertAffine(P.T); P.rotDeg = (P.rotDeg || 0) + deg;
     sh.shots = sh.shots.map(function (q) { return Object.assign({}, q, { x: C.round(c * q.x - sn * q.y, 3), y: C.round(sn * q.x + c * q.y, 3) }); });
@@ -338,23 +340,112 @@
   function anaTg(btn, cb) { btn.onclick = function () { cb.checked = !cb.checked; btn.classList.toggle('on', cb.checked); btn.setAttribute('aria-checked', cb.checked ? 'true' : 'false'); renderAnalysis(); }; }
   anaTg($('anaTgCenter'), $('anaShowCenter')); anaTg($('anaTgOut'), $('anaShowOut')); anaTg($('anaTgSpread'), $('anaShowSpread')); // v2.5.0 散布圈（預設關）
   $('anaUndo').onclick = function () {
-    if (lockedBlock()) return;
+    if (lockedBlock(selSheet())) return;
     var sh = selSheet(); if (!sh || !sh._undo) { toast(sh ? wrT('app.nothing_to_undo_for_this') : wrT('app.pick_one_below_first_to')); return; }
     var u = sh._undo; if (u.op === 'add') { var i = sh.shots.indexOf(u.q); if (i >= 0) sh.shots.splice(i, 1); } else sh.shots.splice(Math.min(u.i, sh.shots.length), 0, u.q);
     sh._undo = null; persistA(); renderAnalysis(); toast(wrT('app.undone'));
   };
-  $('anaDelSheet').onclick = function () {
-    if (lockedBlock()) { anaPop(null, false); return; }
-    var sh = selSheet(); anaPop(null, false); if (!sh) return;
-    ask(wrT('app.clear_this_target_target_shots', [sheetNo(sh), sh.shots.length]), function () {
-      acur.sheets = acur.sheets.filter(function (x) { return x !== sh; }); revokePhotoUrl(anaPhotos[sh.id]); delete anaPhotos[sh.id]; anaSel = 'all'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.target_cleared'));
+  // v2.9.2（§7 第 10 項）刪除單張：原本紅色「清除」選單的「清除這張紀錄」改成長按卡片選單的「刪除」（一樣會跳確認視窗）
+  function anaDelSheet(sh) {
+    if (!sh || acur.sheets.indexOf(sh) < 0 || lockedBlock(sh)) return;
+    ask(wrT('app.sh_del_q', [sheetNo(sh), sh.shots.length]), function () {
+      acur.sheets = acur.sheets.filter(function (x) { return x !== sh; }); revokePhotoUrl(anaPhotos[sh.id]); delete anaPhotos[sh.id]; if (anaSel === sh.id) anaSel = 'all'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.target_cleared'));
+    }, null, { yes: wrT('app.delete'), danger: true });
+  }
+  /* ---------- v2.9.2（§7 第 10 項）長按卡片選單：刪除／鎖定（當頁）／試射 ----------
+   * 【White 指定 2026-11-24 01:07】點一下某張卡片（第1張、第2張…）再按住 → 跳出選單；設為試射的那張不算進總結。
+   * 【White 03:42 同意】試射卡片變灰＋「試射」小標、總分／平均／群／60發預估排除、卡片自己仍顯示分數；第一次進分析頁提示長按；選單「試射」再點一次＝取消。
+   * 資料：sheet.sighter＝true（試射）、sheet.locked＝true（鎖定當頁）；沒有就不留欄位，舊紀錄＝都沒有（向下相容）。雲端同步走原本的 data 欄位，Firestore 規則不用改。
+   * 整筆紀錄的鎖頭（名字旁）照舊、範圍比較大：整筆鎖住時長按只提示已鎖定。 */
+  function nCounted() { return acur.sheets.filter(function (x) { return !isSighter(x); }).length; }
+  var shMenuId = null, lpFired = 0, LP_MS = 480, LP_TIP = 'wr_ana_lp_tip_v1';
+  function shById(id) { return acur.sheets.filter(function (x) { return x.id === id; })[0] || null; }
+  function anaShMenu(id) {
+    var m = $('anaShMenu'); if (!m) return;
+    if (!id) { if (shMenuId || !m.hidden) { m.hidden = true; shMenuId = null; } return; }
+    var sh = shById(id), chip = $('anaChips').querySelector('.ana-chip[data-id="' + id + '"]'); if (!sh || !chip) return;
+    if (anaPopOpen) anaPop(null, false);
+    anaLpTip(false);
+    shMenuId = id; m.hidden = false; anaShMenuSync();
+    m.style.left = '0px'; m.style.top = '0px';
+    var r = chip.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight, vw = document.documentElement.clientWidth || innerWidth;
+    var left = Math.max(8, Math.min(vw - mw - 8, r.left + r.width / 2 - mw / 2)), top = r.top - mh - 10, below = top < 8;
+    if (below) top = r.bottom + 10;
+    m.style.left = left + 'px'; m.style.top = top + 'px'; m.classList.toggle('below', below);
+    m.style.setProperty('--ax', Math.max(18, Math.min(mw - 18, r.left + r.width / 2 - left)) + 'px');
+    try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
+  }
+  function anaShMenuSync() {
+    var sh = shById(shMenuId); if (!sh) { anaShMenu(null); return; }
+    var sg = isSighter(sh), lk = !!sh.locked;
+    $('anaShHd').textContent = wrT('app.sh_menu_hd', [sheetNo(sh), sh.shots.length]);
+    $('anaShSighterTx').textContent = sg ? wrT('app.sh_sighter_off') : wrT('app.sh_sighter_on');
+    $('anaShSighterSub').textContent = sg ? wrT('app.sh_sighter_off_sub') : wrT('app.sh_sighter_on_sub');
+    $('anaShSighter').setAttribute('aria-checked', sg ? 'true' : 'false'); $('anaShSighter').classList.toggle('on', sg);
+    $('anaShLockTx').textContent = lk ? wrT('app.sh_lock_off') : wrT('app.sh_lock_on');
+    $('anaShLockSub').textContent = lk ? wrT('app.sh_lock_off_sub') : wrT('app.sh_lock_on_sub');
+    $('anaShLock').setAttribute('aria-checked', lk ? 'true' : 'false'); $('anaShLock').classList.toggle('on', lk);
+    $('anaShSighter').classList.toggle('ana-locked-off', lk); $('anaShDel').classList.toggle('ana-locked-off', lk);
+    $('anaShDelSub').textContent = lk ? wrT('app.sh_del_locked_sub') : wrT('app.sh_del_sub');
+  }
+  function anaShOpen(id) {
+    if (ro || !shById(id)) return;
+    lpFired = Date.now();
+    if (isLocked()) { lockToast(); return; }
+    if (anaSel !== id) { anaSel = id; renderAnalysis(); }
+    anaShMenu(id);
+  }
+  App.anaShOpen = anaShOpen; App.anaShClose = function () { anaShMenu(null); };
+  (function () { // 長按偵測：按住 480ms、手指移動不超過 8px（超過＝在橫向捲動卡片，不算）
+    var box = $('anaChips'), lp = null;
+    function chipOf(e) { var b = e.target.closest && e.target.closest('.ana-chip'); return b && b.dataset.id && b.dataset.id !== 'all' && b.dataset.id !== 'add' ? b : null; }
+    function clear() { if (lp) { clearTimeout(lp.t); lp = null; } }
+    box.addEventListener('pointerdown', function (e) {
+      clear(); if (e.button > 0) return; var b = chipOf(e); if (!b) return;
+      var id = b.dataset.id; lp = { id: id, x: e.clientX, y: e.clientY, t: setTimeout(function () { lp = null; anaShOpen(id); }, LP_MS) };
     });
+    box.addEventListener('pointermove', function (e) { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) clear(); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (k) { box.addEventListener(k, clear); });
+    box.addEventListener('scroll', clear, { passive: true });
+    // 桌機右鍵、Android 長按時瀏覽器送的 contextmenu：不要出系統選單，改開我們的選單
+    box.addEventListener('contextmenu', function (e) { var b = chipOf(e); if (!b) return; e.preventDefault(); clear(); if (shMenuId !== b.dataset.id) anaShOpen(b.dataset.id); });
+  })();
+  $('anaShSighter').onclick = function () {
+    if (lockedBlock()) return; var sh = shById(shMenuId); if (!sh || lockedBlock(sh)) return;
+    var on = !isSighter(sh); if (on) sh.sighter = true; else delete sh.sighter;
+    anaShMenu(null); persistA(); renderAnalysis(); try { App.renderRecords(); } catch (e) {}
+    toast(wrT(on ? 'app.sh_sighter_set' : 'app.sh_sighter_unset', [sheetNo(sh)]), 3000);
   };
+  $('anaShLock').onclick = function () {
+    if (lockedBlock()) return; var sh = shById(shMenuId); if (!sh) return;
+    var on = !sh.locked; if (on) { sh.locked = true; if (anaSel === sh.id) anaSetMode(null, true); } else delete sh.locked;
+    anaShMenu(null); persistA(); renderAnalysis();
+    toast(wrT(on ? 'app.sh_locked_set' : 'app.sh_unlocked', [sheetNo(sh)]), 3000);
+  };
+  $('anaShDel').onclick = function () { if (lockedBlock()) return; var sh = shById(shMenuId); if (!sh || lockedBlock(sh)) return; anaShMenu(null); anaDelSheet(sh); };
+  // 第一次進分析頁（有卡片時）提示一次「長按卡片有更多功能」；看過就不再出現（這台裝置）
+  var lpTipT = 0;
+  function anaLpTip(on) {
+    var tip = $('anaLpTip'); if (!tip) return; clearTimeout(lpTipT);
+    if (!on) { tip.hidden = true; return; }
+    var chip = $('anaChips').querySelector('.ana-chip[data-id]:not([data-id="all"]):not([data-id="add"])'); if (!chip) return;
+    tip.hidden = false; tip.style.left = '0px'; tip.style.top = '0px';
+    var r = chip.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight, vw = document.documentElement.clientWidth || innerWidth;
+    var left = Math.max(8, Math.min(vw - tw - 8, r.left + r.width / 2 - tw / 2));
+    tip.style.left = left + 'px'; tip.style.top = Math.max(8, r.top - th - 8) + 'px'; tip.style.setProperty('--ax', Math.max(16, Math.min(tw - 16, r.left + r.width / 2 - left)) + 'px');
+    lpTipT = setTimeout(function () { tip.hidden = true; }, 5000);
+  }
+  function anaLpTipMaybe() {
+    if (ro || App.curTab !== 'analysis' || !acur.sheets.length || store.get(LP_TIP)) return;
+    store.set(LP_TIP, '1'); setTimeout(function () { if (App.curTab === 'analysis' && !shMenuId) anaLpTip(true); }, 350);
+  }
+  window.addEventListener('scroll', function () { if (!$('anaLpTip').hidden) anaLpTip(false); if (shMenuId) anaShMenu(null); }, { passive: true });
   // v1.6.0 清除所有紀錄：清掉這次分析的全部照片與每張紀錄（名稱、日期保留；沒有名稱就從「紀錄」移除這筆空分析）
   $('anaClearAll').onclick = function () {
     if (lockedBlock()) { anaPop(null, false); return; }
     anaPop(null, false); if (!acur.sheets.length) return;
-    ask(wrT('app.clear_everything_all_photos_and', [acur.sheets.length, anaShots(acur).length]), function () {
+    if (anaHasLockedSheet()) return;
+    ask(wrT('app.clear_everything_all_photos_and', [acur.sheets.length, anaShots(acur, true).length]), function () {
       revokeAllPhotos();
       acur.sheets = []; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; anaSaveOrDrop(); renderAnalysis(); toast(wrT('app.everything_in_this_analysis_cleared'));
     });
@@ -364,8 +455,9 @@
   $('anaDelAna').onclick = function () {
     if (lockedBlock()) { anaPop(null, false); return; }
     anaPop(null, false); if (App.anaRO || (!anaInRecords() && !acur.sheets.length && !acur.name)) return;
+    if (anaHasLockedSheet()) return;
     var nm = (acur.name && acur.name.trim()) || App.recTitle(acur);
-    ask(wrT('app.delete_current_analysis_q', [nm, acur.sheets.length, anaShots(acur).length]), function () {
+    ask(wrT('app.delete_current_analysis_q', [nm, acur.sheets.length, anaShots(acur, true).length]), function () {
       var id = acur.id;
       try { if (window.WRMember && WRMember.recordDeleted) WRMember.recordDeleted(id); } catch (e) {} // v2.9.0：分享出去的一起收回
       App.sessions = App.sessions.filter(function (x) { return x.id !== id; }); saveSessions(App.sessions);
@@ -380,7 +472,7 @@
     if (App.sessions.length !== n) saveSessions(App.sessions);
     store.set(LS_ACUR, acur.id);
   }
-  $('anaName').oninput = function () { if (ro) return; if (isLocked()) { this.value = acur.name || ''; lockToast(); return; } acur.name = this.value; persistA(); $('anaClearBtn').disabled = !acur.sheets.length && !anaInRecords() && !acur.name; };
+  $('anaName').oninput = function () { if (ro) return; if (isLocked()) { this.value = acur.name || ''; lockToast(); return; } acur.name = this.value; persistA(); };
   function anaStartNew(tid, msg) { anaSetMode(null, true); revokeAllPhotos(); acur = newAnalysis(tid || acur.targetId); anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset(); store.set(LS_ACUR, acur.id); fillAnaCalRing(); renderAnalysis(); if (App.curTab === 'analysis') App.syncTargetSel(); toast(msg || wrT('app.new_analysis_started')); }
   $('anaNew').onclick = function () {
     if (acur.sheets.length) ask(wrT('app.the_current_analysis_is_saved'), function () { anaStartNew(); }); else anaStartNew();
@@ -401,9 +493,11 @@
   function isLocked(s) { s = s || acur; return !(s === acur && ro) && !!(s && (s.locked || App.isShared(s))); }
   function isAbs(s) { s = s || acur; return (s === acur && ro && ro.kind === 'friend') || App.isShared(s); }
   function lockToast(s) { toast(isAbs(s) ? wrT('app.lock_abs') : wrT('app.lock_blocked'), 4000); }
-  function lockedBlock() { if (!isLocked()) return false; lockToast(); return true; }
+  // v2.9.2：sh＝要改的那張靶紙；那張「鎖定（當頁）」也擋（整筆鎖頭照舊優先）
+  function lockedBlock(sh) { if (isLocked()) { lockToast(); return true; } if (sh && sh.locked && !ro) { toast(wrT('app.sh_lock_blocked'), 3200); return true; } return false; }
+  function anaHasLockedSheet() { if (!acur.sheets.some(function (x) { return x.locked; })) return false; toast(wrT('app.sh_has_locked'), 3600); return true; }
   App.isLocked = isLocked; App.lockedBlock = lockedBlock; App.lockToast = lockToast; App.isAbsLocked = isAbs;
-  var LOCK_EDIT_IDS = ['anaModeAdd', 'anaModeDel', 'anaCalBtn', 'anaUndo', 'anaClearBtn', 'anaCamBtn', 'anaPickBtn', 'anaFileBtn'];
+  var LOCK_EDIT_IDS = ['anaModeAdd', 'anaModeDel', 'anaCalBtn', 'anaUndo', 'anaCamBtn', 'anaPickBtn', 'anaFileBtn'];
   function lockSync() {
     var b = $('anaNameLock'), abs = isAbs(), locked = isLocked() || abs, show = (!ro && anaInRecords()) || !!(ro && ro.kind === 'friend');
     b.hidden = !show; b.parentNode.classList.toggle('has-lock', show);
@@ -442,7 +536,7 @@
   function setLocked(on) {
     if (ro || !anaInRecords()) return false;
     acur.locked = !!on; if (!on) delete acur.locked; // 沒鎖就不留欄位（舊紀錄、紀錄碼還原的紀錄都一樣）
-    if (on) { anaSetMode(null, true); anaPop(null, false); }
+    if (on) { anaSetMode(null, true); anaPop(null, false); anaShMenu(null); }
     persistA();
     return !!on;
   }
@@ -469,7 +563,7 @@
     var next = !s.locked; lockBusy = true;
     if (next) s.locked = true; else delete s.locked;
     if (acur && acur.id === s.id && acur !== s) { if (next) acur.locked = true; else delete acur.locked; }
-    if (next && acur && acur.id === s.id) { anaSetMode(null, true); anaPop(null, false); }
+    if (next && acur && acur.id === s.id) { anaSetMode(null, true); anaPop(null, false); anaShMenu(null); }
     s.updated = new Date().toISOString(); saveSessions(App.sessions);
     var dur = btn ? lockAnimate(next, btn) : 0;
     toast(next ? wrT('app.lock_on') : wrT('app.lock_off'));
@@ -515,7 +609,7 @@
     else v = forecastView(JSON.parse(JSON.stringify(rec)), o.sel);
     v.view.id = 'ro_' + String(rec.id || 'x'); if (!T[v.view.targetId]) v.view.targetId = 'ap10';
     if (ro) anaCloseRO(true);
-    anaSetMode(null, true); anaPop(null, false); anaPrevClear();
+    anaSetMode(null, true); anaPop(null, false); anaShMenu(null); anaPrevClear();
     roSaved = { acur: acur, anaPhotos: anaPhotos, anaSel: anaSel, anaView: anaView, tab: App.curTab, y: window.scrollY };
     ro = { kind: o.kind || 'friend', rec: rec, sel: o.sel, fc: v.fc || null, title: o.title || v.view.name || '', sub: o.sub || '', pairs: v.pairs, onSave: o.onSave || null, onClose: o.onClose || null, saved: false };
     acur = v.view; acur.name = ro.title; anaPhotos = {}; anaSel = 'all'; anaView = 'target'; AV.reset();
@@ -579,11 +673,13 @@
   /* v2.7.0 匯出 PDF 的資料來源：s 省略＝分析頁目前看的（自己的分析、好友分享的唯讀、預報對照唯讀）；給 s＝紀錄頁那一筆。
    * 回傳 { rec:分析格式, fc:預報對照或 null }；只用紀錄本身的資料。 */
   App.pdfSource = function (s) {
+    // v2.9.2（§7 第 10 項）試射的靶紙不放進 PDF（PDF＝總結；APP製作仔決定，待 White 確認）
+    var noSg = function (r) { if (r && r.sheets) r.sheets = r.sheets.filter(function (x) { return !isSighter(x); }); return r; };
     if (!s) {
-      if (ro) return { rec: JSON.parse(JSON.stringify(acur)), fc: ro.fc || null };
-      var a = JSON.parse(JSON.stringify(acur)); if (!(a.name && a.name.trim())) a.name = App.recTitle(acur); return { rec: a, fc: null };
+      if (ro) return { rec: noSg(JSON.parse(JSON.stringify(acur))), fc: ro.fc || null };
+      var a = noSg(JSON.parse(JSON.stringify(acur))); if (!(a.name && a.name.trim())) a.name = App.recTitle(acur); return { rec: a, fc: null };
     }
-    if (isAna(s)) { var c = JSON.parse(JSON.stringify(s)); if (!(c.name && c.name.trim())) c.name = App.recTitle(s); return { rec: c, fc: null }; }
+    if (isAna(s)) { var c = noSg(JSON.parse(JSON.stringify(s))); if (!(c.name && c.name.trim())) c.name = App.recTitle(s); return { rec: c, fc: null }; }
     var v = forecastView(JSON.parse(JSON.stringify(s))); v.view.name = App.recTitle(s);
     return { rec: v.view, fc: v.fc };
   };
@@ -641,7 +737,7 @@
   function anaShotSet() { // 目前檢視的彈著與來源（第幾張）
     var sh = selSheet(), out = [];
     if (sh) sh.shots.forEach(function (q, i) { out.push({ q: q, sheet: sheetNo(sh), i: i + 1, color: SHEET_COLORS[(sheetNo(sh) - 1) % SHEET_COLORS.length] }); });
-    else acur.sheets.forEach(function (s2, k) { s2.shots.forEach(function (q, i) { out.push({ q: q, sheet: k + 1, i: i + 1, color: SHEET_COLORS[k % SHEET_COLORS.length] }); }); });
+    else acur.sheets.forEach(function (s2, k) { if (isSighter(s2)) return; s2.shots.forEach(function (q, i) { out.push({ q: q, sheet: k + 1, i: i + 1, color: SHEET_COLORS[k % SHEET_COLORS.length] }); }); }); // v2.9.2：合併不含試射
     return out;
   }
   function anaExtraHTML(t, st, set, single) {
@@ -659,7 +755,7 @@
     // 6 穩定度
     h += card(wrT('app.consistency'), wrT('app.std_dev_decimal_integer_avg', [f2(st.sdDec), f2(st.sdRing), f2(st.avgDecExWorst), f2(st.avgExWorst), st.worstIdx >= 0 ? wrT('app.worst', [set[st.worstIdx].sheet && !single ? wrT('app.target', [set[st.worstIdx].sheet]) : '', set[st.worstIdx].i, f1(st.shots[st.worstIdx].dec)]) : '']), '', 'stab');
     // v2.5.0 散布圈、Teiler、每發方向箭頭
-    var one = single || acur.sheets.length <= 1; // 只有一張：發號不用加「第幾張-」
+    var one = single || nCounted() <= 1; // 只有一張：發號不用加「第幾張-」
     h += M.spreadCard(t, shots) + M.teilerCard(t, shots, set, one) + M.dirCard(t, st, set, one);
     // 7 離群發
     var o = st.outliers;
@@ -667,8 +763,8 @@
     h += card(wrT('app.outliers'), wrT('app.rule_distance_to_the_group', [o.threshold == null ? wrT('app.fewer_than_shots_not_evaluated', [C.OUTLIER_RULE.minN]) : wrT('app.shots_6', [o.idx.length, ol ? '<ul class="ana-ol">' + ol + '</ul>' : wrT('app.no_clear_outliers')]), o.threshold != null ? ' ' + f1(o.threshold) + 'mm' : '']), 'out', 'out');
     // 5 趨勢
     var tb = '';
-    if (!single && acur.sheets.length >= 2) {
-      var sv = acur.sheets.filter(function (x) { return x.shots.length; }).map(function (x) { return C.computeStats(t, x.shots).avgDec; });
+    if (!single && nCounted() >= 2) {
+      var sv = acur.sheets.filter(function (x) { return x.shots.length && !isSighter(x); }).map(function (x) { return C.computeStats(t, x.shots).avgDec; });
       var tr = C.trend(sv);
       tb += wrT('app.average_per_target_decimal_trend', [trTag(tr, true, tr.dir === '上升' || tr.dir === '下降' ? ' ' + (tr.change > 0 ? '+' : '') + f2(tr.change) : ''), lineChart(sv, sv.map(function (_, i) { return wrT('app.trend_x_target', [i + 1]); }), { trend: true, title: wrT('app.average_per_target'), short: sv.map(function (_, i) { return String(i + 1); }) })]);
     }
@@ -682,13 +778,14 @@
     return h;
   }
   function anaInfo(t, sh, st) { // 左上資訊框：第N張 總分(小數) X發／合併 N 張・M 發・平均
-    var box = $('anaInfo'), all = C.computeStats(t, anaShots(acur)), n = acur.sheets.length, h;
-    box.classList.toggle('empty', !n);
-    if (!n) h = wrT('app.analysis_take_the_first_photo');
+    var box = $('anaInfo'), all = C.computeStats(t, anaShots(acur)), n = nCounted(), h;
+    box.classList.toggle('empty', !acur.sheets.length); box.classList.toggle('sighter', !!(sh && isSighter(sh)));
+    if (!acur.sheets.length) h = wrT('app.analysis_take_the_first_photo');
     else if (sh) {
       var s1 = C.computeStats(t, sh.shots), busy = anaPhotos[sh.id] && anaPhotos[sh.id].busy;
       h = wrT('app.target_shots_combined_targets_shots', [sheetNo(sh), busy ? '…' : s1.total, busy ? '' : '<span class="d">(' + f1(s1.totalDec) + ')</span>', sh.shots.length, n, all.n, all.n ? f2(all.avgDec) : '—']);
     } else h = wrT('app.combined_shots_targets_avg', [all.total, f1(all.totalDec), all.n, n, all.n ? f2(all.avgDec) : '—', all.n > 1 ? wrT('app.group_mm', [f1(all.groupSize)]) : '']);
+    if (sh && isSighter(sh)) h = h.replace('<div class="r1">', '<div class="r1"><span class="ana-sgtag">' + esc(wrT('app.sighter_tag')) + '</span>'); // v2.9.2：試射＝卡片自己的分數照樣顯示、標「試射」
     box.innerHTML = h;
     anaInfoFit();
   }
@@ -707,7 +804,7 @@
     if (!isFinite(lim)) { var host = box.offsetParent.getBoundingClientRect(); lim = host.right - bl - 8; }
     lim = Math.max(120, Math.floor(lim));
     var r1 = box.querySelector('.r1'), inner = 0, w0 = 0;
-    if (r1) { var cs = getComputedStyle(box); inner = lim - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0); w0 = r1.scrollWidth; } // 第一行不換行，內容寬跟 max-width 無關
+    if (r1) { var cs = getComputedStyle(box); inner = cs ? lim - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0) : lim; w0 = r1.scrollWidth; } // v2.9.2（Gemini PR #5）null 防呆 // 第一行不換行，內容寬跟 max-width 無關
     // ---- 寫 ----
     box.style.maxWidth = lim + 'px';
     if (!r1 || w0 <= inner) return;
@@ -719,13 +816,29 @@
   App.anaInfoFit = anaInfoFit;
   window.addEventListener('resize', function () { if (App.curTab === 'analysis') anaInfoFit(); });
   try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { anaInfoFit(); }); } catch (e) {}
+  /* v2.9.2：名稱列多了校正鈕，名稱欄變窄（360 寬尤其明顯）→ 完整的提示字（例：週二早上練習）放不下時改用短的「自訂名稱」，不會被截一半（v2.8.0 #2：placeholder 要完整） */
+  var nameFitW = -1;
+  function anaNameFit(force) {
+    var n = $('anaName'); if (!n || !n.offsetParent) return;
+    var w = n.clientWidth; if (!force && w === nameFitW) return; nameFitW = w;
+    var full = wrT('h.custom_name_e_g_tuesday');
+    try {
+      var cs = getComputedStyle(n), c = document.createElement('canvas').getContext('2d'), pl = cs ? (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) : 0;
+      if (cs) c.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      n.placeholder = c.measureText(full).width <= w - pl + 1 ? full : wrT('app.name_ph_short');
+    } catch (e) {}
+  }
+  window.addEventListener('resize', function () { if (App.curTab === 'analysis') anaNameFit(); });
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { anaNameFit(true); }); } catch (e) {}
   function anaChipsHTML(t) {
     var ch = '', n = acur.sheets.length;
-    if (n) ch += wrT('app.all_shots', [anaSel === 'all' ? ' on' : '', anaSel === 'all', n, anaShots(acur).length]);
+    if (n) ch += wrT('app.all_shots', [anaSel === 'all' ? ' on' : '', anaSel === 'all', nCounted(), anaShots(acur).length]);
     acur.sheets.forEach(function (x, k) {
       var un = x.shots.filter(isUnsure).length, bad = x.calib && x.calib.mode === 'failed', busy = anaPhotos[x.id] && anaPhotos[x.id].busy, on = anaSel === x.id;
-      var s1 = busy ? null : C.computeStats(t, x.shots);
-      ch += wrT('app.x_4', [on ? ' on' : '', x.id, on, SHEET_COLORS[k % SHEET_COLORS.length], k + 1, k + 1, busy ? '…' : wrT('app.chip_shots', [x.shots.length]), busy ? wrT('app.analyzing') : bad ? wrT('app.calibration_failed') : wrT('app.x', [s1.total, f1(s1.totalDec)]), un ? wrT('app.x_5', [un]) : '', bad ? '<em>!</em>' : '']);
+      var s1 = busy ? null : C.computeStats(t, x.shots), sg = isSighter(x);
+      // v2.9.2（§7 第 10 項）試射＝卡片變灰＋「試射」小標（分數照樣顯示）；鎖定（當頁）＝小鎖頭
+      var tags = (sg ? '<span class="ana-sgtag">' + esc(wrT('app.sighter_tag')) + '</span>' : '') + (x.locked ? '<span class="ana-shlk" role="img" aria-label="' + esc(wrT('app.sh_locked_aria')) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V7.2a4 4 0 0 1 8 0V11"/><rect x="6" y="11" width="12" height="10.2" rx="2"/></svg></span>' : '');
+      ch += wrT('app.x_4', [(on ? ' on' : '') + (sg ? ' sighter' : '') + (x.locked ? ' sh-locked' : ''), x.id, on, SHEET_COLORS[k % SHEET_COLORS.length], k + 1, k + 1, busy ? '…' : wrT('app.chip_shots', [x.shots.length]), busy ? wrT('app.analyzing') : bad ? wrT('app.calibration_failed') : wrT('app.x', [s1.total, f1(s1.totalDec)]), un ? wrT('app.x_5', [un]) : '', (bad ? '<em>!</em>' : '') + tags]);
     });
     ch += wrT('app.x_6');
     return ch;
@@ -748,7 +861,7 @@
     // 靶紙晶片（可橫向捲動）
     var chips = $('anaChips'), sl = chips.scrollLeft;
     chips.innerHTML = anaChipsHTML(t); chips.scrollLeft = sl;
-    chips.querySelectorAll('.ana-chip').forEach(function (b) { b.onclick = function () { if (b.dataset.id === 'add') { $('anaPick').click(); return; } anaSel = b.dataset.id; renderAnalysis(); var on = chips.querySelector('.ana-chip.on'); if (on && on.scrollIntoView) try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }; });
+    chips.querySelectorAll('.ana-chip').forEach(function (b) { b.onclick = function () { if (b.dataset.id === 'add') { $('anaPick').click(); return; } if (Date.now() - lpFired < 600) return; anaSel = b.dataset.id; renderAnalysis(); var on = chips.querySelector('.ana-chip.on'); if (on && on.scrollIntoView) try { on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }; });
     // 照片
     if (P) {
       var img = $('anaImg'); if (img.dataset.sid !== sh.id) { img.src = P.url; img.dataset.sid = sh.id; }
@@ -783,15 +896,17 @@
       el('circle', { cx: sp.mpi.x, cy: -sp.mpi.y, r: sp.meanRadius, fill: 'none', stroke: '#2fd36b', 'stroke-width': sw2, 'stroke-dasharray': (E * 0.012) + ' ' + (E * 0.007), 'class': 'ana-spr' }, lines);
       el('circle', { cx: sp.mec.x, cy: -sp.mec.y, r: sp.mec.r, fill: 'none', stroke: '#ae3ec9', 'stroke-width': sw2, 'class': 'ana-spr' }, lines);
     }
-    anaInfo(t, sh, st); anaFitLabel(); lockSync();
-    $('anaUndo').disabled = !(sh && sh._undo); $('anaClearBtn').disabled = !acur.sheets.length && !anaInRecords() && !acur.name; $('anaCalBtn').disabled = !acur.sheets.length;
+    anaInfo(t, sh, st); anaFitLabel(); lockSync(); anaNameFit();
+    $('anaUndo').disabled = !(sh && sh._undo); $('anaCalBtn').disabled = false; // v2.9.2：沒有靶紙也能開校正選單（先選靈敏度、刪除只有名稱的分析）
     if (anaPopOpen) anaPopSync();
+    if (shMenuId) anaShMenuSync();
+    anaLpTipMaybe();
     anaSensSync();
     $('anaReadout').classList.toggle('sr', !!acur.sheets.length);
     $('anaReadout').innerHTML = !acur.sheets.length ? wrT('app.tap_next_photo_below_to') :
       sh ? wrT('app.target_shots_tap_the_target', [sheetNo(sh), sh.shots.length]) :
       wrT('app.combined_targets_shots_color_number', [acur.sheets.length, st.n]);
-    $('anaStatsTitle').textContent = sh ? wrT('app.target_stats', [sheetNo(sh)]) : (acur.sheets.length > 1 ? wrT('app.combined_stats_targets', [acur.sheets.length]) : wrT('app.stats'));
+    $('anaStatsTitle').textContent = sh ? wrT('app.target_stats', [sheetNo(sh)]) + (isSighter(sh) ? wrT('app.sighter_paren') : '') : (nCounted() > 1 ? wrT('app.combined_stats_targets', [nCounted()]) : wrT('app.stats'));
     renderStats($('anaStats'), t, st);
     $('anaExtra').innerHTML = anaExtraHTML(t, st, set, !!sh);
     // 每張小計
@@ -800,7 +915,8 @@
       tb = wrT('app.target_shots_total_decimal_avg');
       acur.sheets.forEach(function (x, k) {
         var s2 = C.computeStats(t, x.shots), un = x.shots.filter(isUnsure).length;
-        tb += '<tr data-id="' + x.id + '"' + (anaSel === x.id ? ' class="on"' : '') + '><td><i class="dot" style="background:' + SHEET_COLORS[k % SHEET_COLORS.length] + '"></i>' + (k + 1) + '</td><td>' + s2.n + '</td><td>' + s2.total + '</td><td>' + f1(s2.totalDec) + '</td><td>' + (s2.n ? f2(s2.avgDec) : '—') + '</td><td>' + (s2.n > 1 ? f1(s2.groupSize) + 'mm' : '—') + '</td><td>' + (un ? '<b style="color:#b26a00">' + un + '</b>' : (x.calib && x.calib.mode === 'failed' ? wrT('app.calibration_failed') : '0')) + '</td></tr>';
+        var cls = (anaSel === x.id ? 'on' : '') + (isSighter(x) ? ' sighter' : '');
+        tb += '<tr data-id="' + x.id + '"' + (cls ? ' class="' + cls.trim() + '"' : '') + '><td><i class="dot" style="background:' + SHEET_COLORS[k % SHEET_COLORS.length] + '"></i>' + (k + 1) + (isSighter(x) ? '<small class="ana-sgtag">' + esc(wrT('app.sighter_tag')) + '</small>' : '') + '</td><td>' + s2.n + '</td><td>' + s2.total + '</td><td>' + f1(s2.totalDec) + '</td><td>' + (s2.n ? f2(s2.avgDec) : '—') + '</td><td>' + (s2.n > 1 ? f1(s2.groupSize) + 'mm' : '—') + '</td><td>' + (un ? '<b style="color:#b26a00">' + un + '</b>' : (x.calib && x.calib.mode === 'failed' ? wrT('app.calibration_failed') : '0')) + '</td></tr>';
       });
       var all = C.computeStats(t, anaShots(acur));
       tb += wrT('app.total_2', [all.n, all.total, f1(all.totalDec), all.n ? f2(all.avgDec) : '—', all.n > 1 ? f1(all.groupSize) + 'mm' : '—']);
