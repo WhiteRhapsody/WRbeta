@@ -19,6 +19,7 @@
   var ENTER_MS = 1500, REVEAL_MS = 420;
   // 版本更新紀錄：[版本, 日期, 條目 key…]
   var VLOG = [
+    ['v2.9.3', '2026/11/24', ['home.v293_1', 'home.v293_2', 'home.v293_3', 'home.v293_4']],
     ['v2.9.2', '2026/11/24', ['home.v292_1', 'home.v292_2', 'home.v292_3', 'home.v292_4']],
     ['v2.9.1', '2026/11/23', ['home.v291_1', 'home.v291_2', 'home.v291_3', 'home.v291_4']],
     ['v2.9.0', '2026/11/23', ['home.v290_1', 'home.v290_2', 'home.v290_3', 'home.v290_4']],
@@ -213,10 +214,12 @@
   function reveal(x, y) {
     if (!onNow) return;
     host.style.setProperty('--hm-x', x + 'px'); host.style.setProperty('--hm-y', y + 'px');
-    if (reduced()) { hide(); return; }
+    if (reduced()) { hide(goAna); return; }
     host.classList.add('hm-reveal');
-    clearTimeout(revealT); revealT = setTimeout(hide, REVEAL_MS + 60);
+    clearTimeout(revealT); revealT = setTimeout(function () { hide(goAna); }, REVEAL_MS + 60);
   }
+  // v2.9.3【White 指定 2026-11-24】首頁點選手（打中十環進入）後一律到「分析」頁：不管之前停在哪一頁、什麼時候回首頁都一樣（Pro、Lite 都是）
+  function goAna() { try { App.showTab('analysis'); window.scrollTo(0, 0); } catch (e) {} }
   function hide(go) {
     clearTimeout(enterT); clearTimeout(revealT);
     seenSet(); onNow = false; busy = false;

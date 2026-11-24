@@ -9,7 +9,7 @@
   // 模塊 id（data-mod）→ 圖示
   var ICON = { n: 'ic-n', total: 'ic-total', avg: 'ic-avg', p60: 'ic-p60', inner: 'ic-inner', offset: 'ic-offset', group: 'ic-group', rings: 'ic-rings', series: 'ic-series',
     adv: 'ic-adv', stab: 'ic-stab', out: 'ic-out', trend: 'ic-trend', hist: 'ic-hist', sheets: 'ic-sheets', list: 'ic-list',
-    heat: 'ic-heat', teiler: 'ic-teiler', dir: 'ic-dir', spread: 'ic-spread', callact: 'ic-callact', centers: 'ic-centers', calltrend: 'ic-calltrend' };
+    heat: 'ic-heat', teiler: 'ic-teiler', dir: 'ic-dir', spread: 'ic-spread', callact: 'ic-callact', centers: 'ic-centers', calltrend: 'ic-calltrend', sius: 'ic-list', rhythm: 'ic-series' };
   function icon(id, cls) { return '<svg class="' + (cls || 'mod-svg') + '" viewBox="0 0 24 24" aria-hidden="true"><use href="#' + ICON[id] + '"/></svg>'; }
   // 去掉標題前面的 emoji（v2.5.0 起由左上圖示取代）
   function plain(title) { return String(title).replace(/^[^\p{L}\p{N}<]+/u, ''); }

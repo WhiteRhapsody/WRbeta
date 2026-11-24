@@ -2097,3 +2097,145 @@ body.lt-piano #tab-analysis #anaShMenu .pi.on{background:color-mix(in srgb,var(-
 /* v2.9.2：數據標題（例如「第 1 張數據（試射）」）比較長時，右邊說明不要被擠成直排 */
 .ana-dh #anaStatsTitle{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ana-dh .ana-dh-sub{min-width:72px}
+
+/* ===== v2.9.3 ===== */
+/* 【White 指定「整合」(a)(b)】有鎖定時：靈敏度整排變灰；清空全部／刪除目前分析變灰（仍可按，按了跳原本的提示） */
+#anaSensSeg.off{opacity:.45;filter:grayscale(1)}
+#anaSensSeg.off button{cursor:not-allowed}
+#tab-analysis .ana-pop .pi.ana-lk-off{opacity:.45;filter:grayscale(1)}
+/* 【White 指定「整合」(c)】試射數據標題：「（試射）」不斷行，放不下整段換到第二行（不截斷、字級不變） */
+.ana-dh #anaStatsTitle.sg{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.2;flex:0 1 auto}
+.ana-dh #anaStatsTitle .ana-sgp{white-space:nowrap;display:inline-block}
+
+/* 小白單（SIUS）：入口在拍照按鈕列（檔案下面的小顆）；面板固定紙色（跟 PDF 面板一樣，不隨主題），上緣讓出動態島、下緣讓出 home 橫條 */
+.wr-sidecol{display:flex;flex-direction:column;align-items:stretch;gap:5px}
+.wr-sidecol .wr-sidewrap{display:flex}
+.wr-sidecol .wr-sidewrap .wr-side{flex:1}
+.wr-sidecol .wr-side{height:42px}
+.wr-side.mini{height:38px;padding:0 12px 0 11px;font:inherit;color:inherit;gap:6px}
+.wr-side.mini .nv-ic{width:19px;height:19px}
+.wr-side.mini b{font-size:13px}
+.wr-side.mini small{font-size:9.5px}
+@media (max-width:380px){.wr-side.mini small{display:none}}
+.ana-dock.dk-col .wr-sidecol{width:122px}
+body.sius-open{overflow:hidden}
+.sius-bg{position:fixed;inset:0;z-index:200;background:rgba(10,14,20,.5);display:flex;align-items:flex-end;justify-content:center}
+.sius-bg[hidden]{display:none}
+.sius-card{width:100%;max-width:560px;height:calc(100dvh - 10px - env(safe-area-inset-top));display:flex;flex-direction:column;background:#fbf9f4;color:#1a1a18;border-radius:22px 22px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.25);font-family:inherit;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);box-sizing:border-box}
+.sius-top{flex:none;display:flex;align-items:center;gap:8px;padding:8px 6px 4px 16px}
+.sius-h{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.sius-h b{font-size:18px;font-weight:900}
+.sius-x{flex:none;width:44px;height:44px;border:0;border-radius:22px;background:transparent;color:#1a1a18;font-size:20px;cursor:pointer}
+.sius-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 12px 14px;-webkit-overflow-scrolling:touch}
+.sius-src{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:4px 0 10px}
+.sius-src[hidden]{display:none}
+.sius-sb svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;flex:none}
+.sius-sb > span{display:flex;flex-direction:column;align-items:center}
+.sius-photos{display:flex;align-items:center;gap:6px;overflow-x:auto;margin:2px 0 8px;padding:2px 0}
+.sius-photos[hidden]{display:none}
+.sius-photos img{flex:none;width:44px;height:58px;object-fit:cover;border-radius:6px;border:1px solid rgba(46,46,44,.2)}
+.sius-pn{flex:none;font-size:12.5px;font-weight:800;color:#3d3c38;margin-right:2px}
+.sius-add{flex:none;min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:22px;border:1px dashed rgba(46,46,44,.4);background:#fff;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+.sius-prog{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:6px 0 12px;font-size:13.5px;font-weight:700;color:#3d3c38}
+.sius-prog[hidden]{display:none}
+.sius-pbar{flex:1 0 100%;height:8px;border-radius:4px;background:#e4e0d4;overflow:hidden}
+.sius-pbar i{display:block;height:100%;width:0;background:#1f6feb;border-radius:4px;transition:width .3s}
+.sius-prog span{flex:1;min-width:0}
+.sius-prog .wr-pill{min-height:44px;padding:0 18px}
+.sius-gun[hidden]{display:none}
+.sius-gnote{font-size:12px;color:#55544f;margin:-4px 2px 8px;line-height:1.4}
+.sius-gnote[hidden]{display:none}
+.sius-warn{font-size:13px;font-weight:800;line-height:1.4;color:#8a4b00;background:#ffe0b2;border-radius:10px;padding:8px 10px;margin:0 0 8px}
+.sius-warn[hidden]{display:none}
+.sius-bar[hidden]{display:none}
+.sius-row .cf{text-decoration:underline wavy #d98a00;text-underline-offset:3px}
+.sius-row.miss .no::after{content:'?';color:#c62828;margin-left:1px}
+.sius-f.bad input{border-color:#e5192b;box-shadow:0 0 0 1.5px #e5192b inset;background:#fff5f5}
+.sius-alts{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 0}
+.sius-alts small{flex:1 0 100%;font-size:11.5px;color:#6a6965;font-weight:700}
+.sius-alt{min-height:40px;padding:0 12px;border-radius:20px;border:1px solid rgba(217,138,0,.6);background:#fff8e1;color:#5c3b00;font:800 13.5px/1 var(--w-sans,inherit);font-variant-numeric:tabular-nums;cursor:pointer}
+.sius-sb{min-height:56px;border:1px solid rgba(46,46,44,.18);border-radius:14px;background:#fff;color:#1a1a18;padding:6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font:inherit}
+.sius-sb b{font-size:14px;font-weight:800;line-height:1.2;text-align:center}
+.sius-sb small{font-size:11.5px;color:#6a6965;line-height:1.2;text-align:center}
+.sius-card .sius-tg{display:flex;gap:6px;margin:2px 0 10px;background:none;border:0;padding:0}
+.sius-card .sius-tg button{flex:1;min-height:40px;border:1px solid rgba(46,46,44,.22);border-radius:12px;background:#fff;color:#1a1a18;font:700 13px/1.2 var(--w-sans,inherit);padding:4px 6px;cursor:pointer}
+.sius-card .sius-tg button.on{background:#16202b;border-color:#16202b;color:#fff}
+.sius-empty{font-size:13.5px;line-height:1.55;color:#3d3c38;margin:6px 2px}
+.sius-sum{font-size:14.5px;font-weight:800;margin:2px 2px 6px;line-height:1.4}
+.sius-bad{color:#c62828}
+.sius-ok{color:#2e7d32}
+.sius-samplenote{font-size:12.5px;line-height:1.4;color:#8a4b00;background:#fff3e0;border-radius:10px;padding:7px 10px;margin:6px 0}
+.sius-tgtbox{display:flex;flex-direction:column;align-items:center;gap:6px;margin:6px 0 4px}
+.sius-tgt{width:min(100%,300px);aspect-ratio:1;height:auto;border-radius:12px;background:#e9e4d6}
+.sius-lg{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;font-size:12px;color:#4a4945}
+.sius-lg i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.sius-lg .lg-s{border:1.5px dashed #8a8a8a;background:rgba(150,150,150,.35)}
+.sius-lg .lg-m{border:1.5px solid #1f6feb;background:rgba(31,111,235,.55)}
+.sius-lg .lg-b{border:2.5px solid #e5192b;background:rgba(31,111,235,.55)}
+.sius-list{margin-top:8px}
+.sius-colh,.sius-row{display:grid;grid-template-columns:2.3em minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.35fr);gap:4px;align-items:center;font-variant-numeric:tabular-nums}
+.sius-colh{font-size:11.5px;font-weight:800;color:#6a6965;padding:4px 8px}
+.sius-colh span:not(:first-child),.sius-row span:not(:first-child){text-align:right}
+.sius-row{width:100%;min-height:44px;border:0;border-top:1px solid rgba(46,46,44,.08);background:transparent;color:#1a1a18;font:600 13.5px/1.2 var(--w-sans,inherit);padding:0 8px;cursor:pointer;text-align:left;border-radius:0}
+.sius-row .no{font-weight:800;color:#55544f}
+.sius-row .sc i{font-style:normal;color:#c77700;font-weight:900}
+.sius-row .tm{color:#55544f;font-size:12.5px}
+.sius-row .cc em{font-style:normal;margin-left:4px;font-weight:900}
+.sius-row.ok .cc em{color:#2e7d32}
+.sius-row.near{background:#fff8e1}
+.sius-row.near .cc em{color:#b26a00}
+.sius-row.bad{background:#ffebee;color:#b71c1c}
+.sius-row.bad .cc em{color:#c62828}
+.sius-row.sg{color:#6f6e69}
+.sius-row.sel{box-shadow:inset 0 0 0 2.5px #ffb300;border-radius:8px}
+.sius-gh{display:block;width:100%;text-align:left;margin:10px 0 2px;padding:8px 10px;border:0;border-radius:10px;background:#eef0ec;color:#1a1a18;font:inherit;position:relative;cursor:pointer;min-height:44px;box-sizing:border-box}
+.sius-gh.sg{cursor:default}
+.sius-gh b{display:block;font-size:13.5px;font-weight:900;padding-right:24px}
+.sius-gh small{display:block;font-size:12px;color:#55544f;margin-top:2px;line-height:1.35;font-variant-numeric:tabular-nums}
+.sius-gh em{position:absolute;right:10px;top:8px;font-style:normal;font-weight:900}
+.sius-gh.ok em{color:#2e7d32}
+.sius-gh.bad{background:#ffcdd2;box-shadow:inset 4px 0 0 #e5192b}
+.sius-gh.bad em{color:#c62828}
+.sius-gh.sel{box-shadow:inset 0 0 0 2.5px #ffb300}
+.sius-foot{font-size:11.5px;line-height:1.45;color:#6a6965;margin:12px 2px 4px}
+.sius-edit{flex:none;max-height:56dvh;overflow-y:auto;border-top:1px solid rgba(46,46,44,.15);background:#fff;padding:10px 12px 8px;box-shadow:0 -6px 18px rgba(0,0,0,.08)}
+.sius-edit[hidden]{display:none}
+.sius-eh b{font-size:15.5px;font-weight:900}
+.sius-eh small{display:block;font-size:12.5px;line-height:1.4;margin:2px 0 6px}
+.sius-eh small.bad{color:#c62828}.sius-eh small.near{color:#9a5b00}.sius-eh small.ok{color:#2e7d32}
+.sius-fs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
+.sius-f{display:flex;flex-direction:column;gap:2px}
+.sius-f span{font-size:11.5px;font-weight:800;color:#6a6965}
+.sius-f input{width:100%;box-sizing:border-box;height:44px;border:1px solid rgba(46,46,44,.3);border-radius:10px;padding:0 10px;font:700 18px/1 var(--w-sans,inherit);font-variant-numeric:tabular-nums;background:#fbf9f4;color:#1a1a18}
+.sius-ea{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.sius-ea button,.sius-eb button{min-height:44px;border-radius:22px;padding:0 14px;font:800 13.5px/1.2 var(--w-sans,inherit);border:1px solid rgba(46,46,44,.25);background:#fff;color:#1a1a18;cursor:pointer}
+.sius-tglb.on{background:#16202b;border-color:#16202b;color:#fff}
+.sius-use{background:#1f6feb!important;border-color:#1f6feb!important;color:#fff!important}
+.sius-del{color:#c62828!important;border-color:rgba(198,40,40,.4)!important}
+.sius-eb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sius-eb .sius-done{background:#16202b;border-color:#16202b;color:#fff}
+.sius-bar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid rgba(46,46,44,.12);background:#fbf9f4}
+.sius-nav{flex:none;width:48px;height:48px;border-radius:24px;border:1px solid rgba(46,46,44,.25);background:#fff;color:#1a1a18;font-size:24px;line-height:1;cursor:pointer}
+.sius-nav:disabled{opacity:.35}
+.sius-cnt{flex:1;min-width:0;text-align:center;font-size:13px;font-weight:800;color:#3d3c38;line-height:1.25}
+.sius-save{flex:none;min-height:48px;padding:0 20px;border:0;border-radius:24px;background:var(--w-camB,#1f6feb);color:#fff;font:900 15px/1.2 var(--w-sans,inherit);cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.18)}
+body.lt-piano .sius-save{background:var(--w-camBd,#1f6feb)}
+.sius-save:disabled{opacity:.4;box-shadow:none}
+/* 分析頁：小白單核對卡、射擊節奏卡（跟主題） */
+.sius-card-ana p,.sius-rh-card p{margin:4px 0;line-height:1.45}
+.sius-card-ana .sius-ok{color:#2fb46a}.sius-card-ana .sius-bad{color:#ff4d4f}
+.sius-ctab{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px;margin:4px 0}
+.sius-ctab th,.sius-ctab td{padding:4px 6px;text-align:right;border-bottom:1px solid color-mix(in srgb,var(--w-tx,#888) 15%,transparent)}
+.sius-ctab th:first-child,.sius-ctab td:first-child{text-align:left}
+.sius-ctab tr.bad td{color:#ff4d4f;font-weight:800}
+.sius-cnote{font-size:11.5px;color:var(--w-tx2,#777)}
+.sius-card-ana .wr-pill{min-height:44px;margin-top:4px}
+.sius-rh.faster{color:#2fb46a}.sius-rh.slower{color:#ff8a00}
+.sius-chl{font-size:12px;font-weight:800;color:var(--w-tx2,#777);margin:8px 0 2px}
+/* 小白單面板打開時：確認視窗、提示要在面板上面 */
+body.sius-open .modal-bg{z-index:210}
+body.sius-open #toast{z-index:220}
+/* v2.9.3 小白單：時間印到 1/100 秒（mm:ss.ss）比較長 → 窄螢幕（130% 字級、360 以下）表格縮緊 */
+.sius-row .tm{white-space:nowrap}
+@media (max-width:380px){.sius-colh,.sius-row{grid-template-columns:1.9em minmax(0,.95fr) minmax(0,1.45fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.25fr);gap:3px}.sius-row{padding:0 5px;font-size:12.5px}.sius-colh{padding:4px 5px}.sius-row .tm{font-size:11px;letter-spacing:-.2px}.sius-row .cc em{margin-left:2px}}
+@media (max-width:300px){.sius-scroll{padding:0 8px 14px}.sius-row{font-size:11.5px;padding:0 3px}.sius-colh,.sius-row{gap:2px}}

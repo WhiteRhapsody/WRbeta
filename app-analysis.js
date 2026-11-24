@@ -10,7 +10,7 @@
     attachZoom = App.attachZoom, liftPx = App.liftPx, visRun = App.visRun, pickIsImage = App.pickIsImage, pickError = App.pickError,
     projCircle = App.projCircle, projLine = App.projLine, ask = App.ask, toast = App.toast, toastAct = App.toastAct, isSighter = App.isSighter;
   // 給其他模組用（函式）
-  App.requestPersist = requestPersist; App.fillAnaCalRing = fillAnaCalRing; App.anaSetView = anaSetView; App.anaChangeTarget = anaChangeTarget;
+  App.requestPersist = requestPersist; App.fillAnaCalRing = fillAnaCalRing; App.anaSetView = anaSetView; App.anaChangeTarget = anaChangeTarget; App.anaStartNew = anaStartNew;
   App.trTag = trTag; App.esc = esc; App.lineChart = lineChart; App.renderAnalysis = renderAnalysis;
   // 給其他模組用（變數：一律讀寫同一份）
   Object.defineProperty(App, 'LS_ACUR', { get: function () { return LS_ACUR; }, set: function (v) { LS_ACUR = v; }, enumerable: true, configurable: true });
@@ -287,9 +287,16 @@
     $('anaDelAna').disabled = !!App.anaRO || (!anaInRecords() && !acur.sheets.length && !acur.name);
     $('anaDelAnaSub').textContent = anaInRecords() || acur.sheets.length || acur.name ? wrT('h.delete_whole_record_incl_name') : wrT('app.not_saved_yet');
     $('anaAllSub').textContent = acur.sheets.length ? wrT('app.this_analysis_targets_shots', [acur.sheets.length, tot]) : wrT('app.no_records_yet');
+    // v2.9.3【White 指定 2026-11-24 13:3x「整合」(b)】有鎖定（當頁）的靶紙：清空全部／刪除目前分析直接變灰（aria-disabled；按了照樣跳原本的提示），小字改成原因
+    var hasLk = acur.sheets.some(function (x) { return x.locked; });
+    ['anaClearAll', 'anaDelAna'].forEach(function (k) { var b = $(k); b.classList.toggle('ana-lk-off', hasLk && !b.disabled); if (hasLk && !b.disabled) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled'); });
+    if (hasLk) { if (!$('anaClearAll').disabled) $('anaAllSub').textContent = wrT('app.sh_has_locked_short'); if (!$('anaDelAna').disabled) $('anaDelAnaSub').textContent = wrT('app.sh_has_locked_short'); }
     var shl = !!(sh && sh.locked); // v2.9.2：鎖定（當頁）的那張不能校正
     ['anaAutoCal', 'anaManual'].forEach(function (k) { $(k).disabled = !P || P.busy || shl; });
     ['anaRedetect', 'anaRotL', 'anaRotR'].forEach(function (k) { $(k).disabled = !P || !P.T || P.busy || shl; });
+    // v2.9.3【White 指定「整合」(a)】鎖定（當頁）的那張：沒有照片也不能改偵測靈敏度 → 靈敏度整排變灰
+    var sensOff = !!(shl || isLocked()); $('anaSensSeg').classList.toggle('off', sensOff); $('anaSensSeg').querySelectorAll('button').forEach(function (b) { b.disabled = sensOff; });
+    $('anaSensNote').textContent = sensOff ? wrT('app.sens_locked_note') : wrT('h.refit_this_target_note');
     $('anaCalNote').textContent = !sh ? wrT('app.pick_a_photo_below_first') : shl ? wrT('app.sh_lock_blocked') : !P ? wrT('app.this_targets_photo_wasnt_kept_2') : P.T ? wrT('app.green_circles_should_match_the_2') : wrT('app.auto_calibration_failed_tap_manual_4');
   }
   (function () { var b = $('anaCalBtn').querySelector('b'); if (b && wrT.isEn && wrT.isEn()) b.textContent = wrT('app.cal_btn_short'); })(); // v2.9.2：46px 圓鈕放不下 11px 的「Calibrate」
@@ -302,7 +309,8 @@
   $('anaAutoCal').onclick = function () { if (lockedBlock(selSheet())) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P) { P.mode = 'auto'; P.calPts = []; $('anaCalRingRow').style.display = 'none'; anaProcess(sh); } };
   $('anaRedetect').onclick = function () { if (lockedBlock(selSheet())) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (P && P.T) anaProcess(sh); };
   var anaSens0 = $('anaSens').value;
-  $('anaSens').onchange = function () { var s0 = selSheet(); if (s0 && anaPhotos[s0.id] && (isLocked() || s0.locked)) { lockedBlock(s0); $('anaSens').value = anaSens0; anaSensSync(); return; } anaSens0 = $('anaSens').value; anaSensSync(); var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.T) anaProcess(sh); };
+  $('anaSens').onchange = function () { var s0 = selSheet(); if (isLocked() || (s0 && s0.locked)) { // v2.9.3（White「整合」(a)）沒有照片也擋
+     lockedBlock(s0); $('anaSens').value = anaSens0; anaSensSync(); return; } anaSens0 = $('anaSens').value; anaSensSync(); var sh = selSheet(), P = sh && anaPhotos[sh.id]; if (P && P.T) anaProcess(sh); };
   function anaSensSync() { var v = $('anaSens').value; $('anaSensSeg').querySelectorAll('button').forEach(function (b) { var on = b.dataset.v === v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); }); }
   $('anaSensSeg').querySelectorAll('button').forEach(function (b) { b.onclick = function () { if ($('anaSens').value === b.dataset.v) return; $('anaSens').value = b.dataset.v; $('anaSens').onchange(); }; });
   $('anaManual').onclick = function () { if (lockedBlock(selSheet())) return; var sh = selSheet(), P = sh && anaPhotos[sh.id]; anaPop(null, false); if (!P) return; P.mode = 'manual'; P.calPts = []; P.T = null; P.Tinv = null; $('anaCalRingRow').style.display = ''; anaView = 'photo'; renderAnalysis(); anaPZLayout(true); };
@@ -773,6 +781,8 @@
       tb += wrT('app.average_per_10_shots_decimal', [trTag(st.trend10, true), lineChart(pv, st.per10.map(function (x) { return x.from + '–' + x.to; }), { trend: true, title: wrT('app.average_per_10_shots') })]);
     }
     h += card(wrT('app.trend'), tb || wrT('app.a_trend_needs_2_targets'), 'trend', 'trend');
+    // v2.9.3 小白單（SIUS）：核對卡（印的分數 vs 依 X/Y 重算）＋射擊節奏卡（有時間的彈著才出現）；畫面在 app-sius.js
+    if (App.siusCards) try { h += App.siusCards(t, set, single, selSheet()); } catch (e) {}
     // 8 小數分分布
     h += card(wrT('app.decimal_score_distribution'), wrT('app.one_bar_per_0_1', [histChart(st.hist)]), 'hist', 'hist');
     return h;
@@ -906,7 +916,10 @@
     $('anaReadout').innerHTML = !acur.sheets.length ? wrT('app.tap_next_photo_below_to') :
       sh ? wrT('app.target_shots_tap_the_target', [sheetNo(sh), sh.shots.length]) :
       wrT('app.combined_targets_shots_color_number', [acur.sheets.length, st.n]);
-    $('anaStatsTitle').textContent = sh ? wrT('app.target_stats', [sheetNo(sh)]) + (isSighter(sh) ? wrT('app.sighter_paren') : '') : (nCounted() > 1 ? wrT('app.combined_stats_targets', [nCounted()]) : wrT('app.stats'));
+    // v2.9.3【White 指定「整合」(c)】英文「Target 1 stats (sighter)」在 360 寬被截斷 →「（試射）」放在不斷行的小段，放不下就整段換到第二行（字級不變，≥11px）
+    var stT = $('anaStatsTitle'); stT.textContent = sh ? wrT('app.target_stats', [sheetNo(sh)]) : (nCounted() > 1 ? wrT('app.combined_stats_targets', [nCounted()]) : wrT('app.stats'));
+    stT.classList.toggle('sg', !!(sh && isSighter(sh)));
+    if (sh && isSighter(sh)) { var sgp = document.createElement('span'); sgp.className = 'ana-sgp'; var pt = wrT('app.sighter_paren'); sgp.textContent = pt.trim(); if (/^\s/.test(pt)) stT.appendChild(document.createTextNode(' ')); stT.appendChild(sgp); }
     renderStats($('anaStats'), t, st);
     $('anaExtra').innerHTML = anaExtraHTML(t, st, set, !!sh);
     // 每張小計
