@@ -606,7 +606,7 @@ body.lt-appliance #wrNav button.active{box-shadow:inset 0 0 0 1px rgba(143,211,2
 
 /* ---------- 頁面材質：Pro 全部頁面、Lite 的非預報頁（Lite 預報與 Lite 鬼影維持各自的 --lt-page） ---------- */
 html{background:#0b0f16}
-body:not(.lite),body.lite:not(.on-predict):not(.on-ghost){background:var(--w-page);background-color:var(--w-page0);color:var(--w-tx);min-height:100vh;min-height:100dvh}
+body:not(.lite),body.lite:not(.on-predict){background:var(--w-page);background-color:var(--w-page0);color:var(--w-tx);min-height:100vh;min-height:100dvh}
 body.lt-light:not(.lite){color:var(--w-tx)}
 header{background:var(--w-bar);color:var(--w-barTx);border-bottom:1px solid var(--w-barBd);box-shadow:0 2px 10px rgba(0,0,0,.18)}
 header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:var(--w-deco-h);background:var(--w-deco);pointer-events:none}
@@ -643,7 +643,7 @@ details>summary{color:var(--w-tx)}
 .svgwrap{background:var(--w-tgBg)}
 .photobox{background:#0d0f12}
 .rec.cur{outline:3px solid var(--w-accTxt);outline-offset:-1px}
-.rec .rec-name,.ana-name,.gh-name{background:var(--w-inBg);color:var(--w-tx);border:1px solid var(--w-inBd)}
+.rec .rec-name,.ana-name{background:var(--w-inBg);color:var(--w-tx);border:1px solid var(--w-inBd)}
 .b-ana{background:rgba(95,224,143,.16);color:var(--w-good)}.b-fc{background:rgba(127,182,255,.16);color:var(--w-blue)}
 body.lt-light .b-ana{background:#e6f4ea}body.lt-light .b-fc{background:#e7f0fd}
 
@@ -677,13 +677,6 @@ table.ana-st tr.on td{background:var(--w-sel)}table.ana-st tr.sum td{background:
 .ns-a s:nth-child(1),.ns-c s:nth-child(1),.ns-b s{background:var(--w-accTxt)}
 .cloud-card button{min-height:42px}
 
-/* 鬼影（Pro）：拿掉 v1.4.0 固定的 Gulf 面板，改用目前主題 */
-body:not(.lite) #ghostView{background:none;box-shadow:none;padding:0;color:var(--w-tx);
-  --lt-hint:var(--w-tx2);--card-bg:var(--w-card);--card-fg:var(--w-tx);--card-sub:var(--w-tx2);--card-bd:var(--w-cardBd);--card-line:var(--w-line);
-  --gc-a:var(--w-rbA);--gc-b:var(--w-rbB);--gc-bd:var(--w-rbBd);--gc-fg:var(--w-rbTx);--gc-sh:rgba(0,0,0,.3);
-  --g-a:var(--w-camA);--g-b:var(--w-camB);--g-bd:var(--w-camBd);--g-fg:var(--w-camTx);--g-sh:var(--w-camSh);--g-ts:none;
-  --acc-good:var(--w-good);--acc-bad:var(--w-bad);--st-on-bg:var(--w-acc);--st-on-fg:var(--w-accTx)}
-body:not(.lite) #ghostView .gh-rb .v{font-family:var(--w-num);font-style:var(--w-vstyle)}
 
 /* ---------- Lite：新 6 款的變數（Lite 預報三步驟、鬼影、底部步驟列、四個資訊方塊） ---------- */
 body.lite:is(.lt-cyberpunk,.lt-tron,.lt-piano,.lt-racing,.lt-appliance,.lt-luxury){
@@ -1013,7 +1006,7 @@ svg.target .tr-ripple{fill:none;stroke:#46d2ff;opacity:0;transform-box:view-box;
 /* 電子世界：透視地板網格 */
 .fx-floor{left:-60%;right:-60%;bottom:-6%;height:62%;background:linear-gradient(rgba(70,210,255,.5) 1.2px,transparent 1.2px) 0 0/34px 34px,linear-gradient(90deg,rgba(70,210,255,.5) 1.2px,transparent 1.2px) 0 0/34px 34px;
   transform:perspective(260px) rotateX(64deg);transform-origin:50% 100%;-webkit-mask:linear-gradient(180deg,transparent,#000 70%);mask:linear-gradient(180deg,transparent,#000 70%);opacity:.6}
-body.lt-tron .svgwrap.fx-host,body.lt-tron .lite-tg.fx-host,body.lt-tron .gh-tg.fx-host{background:radial-gradient(60% 50% at 50% 48%,rgba(10,40,70,.6),transparent 75%),#00040a}
+body.lt-tron .svgwrap.fx-host,body.lt-tron .lite-tg.fx-host{background:radial-gradient(60% 50% at 50% 48%,rgba(10,40,70,.6),transparent 75%),#00040a}
 
 /* ---------- 動畫（只在 body.fx-anim；暫停＝body.fx-paused） ---------- */
 @property --wr-a{syntax:"<angle>";inherits:false;initial-value:0deg}
@@ -1074,7 +1067,6 @@ body.fx-anim.lt-tron .wr-cam,body.fx-anim.lt-tron .lite-cam{animation:trCam 2.4s
 .lay-col > [data-mod]{margin-bottom:10px}
 .lay-hid{display:none!important}
 .lite-detail.lay-on{display:flex;flex-direction:column}
-.gh-cards.lay-on{display:grid}
 .lay-head{display:flex;align-items:center;gap:8px}
 .lay-tophead{display:flex;justify-content:flex-end;margin:-2px 0 6px}
 .lay-btn{flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:4px 10px 4px 7px;border-radius:999px;font-size:11.5px;font-weight:800;line-height:1;font-family:var(--w-sans);
@@ -1083,8 +1075,6 @@ body.fx-anim.lt-tron .wr-cam,body.fx-anim.lt-tron .lite-cam{animation:trCam 2.4s
 .lay-btn:is(:active,.pz-down){transform:scale(.93)}
 body.lay-editing .lay-btn{color:var(--w-accTx);background:var(--w-acc);border-color:transparent}
 .ana-dh .lay-btn{margin-left:0}
-.gh-laybtn{position:absolute;right:6px;top:4px;z-index:3}
-#ghostView{position:relative}
 .lite-laybtn{display:flex;margin:6px 0 0 auto}
 #liteDetail:empty + .lite-laybtn{display:none}
 /* 編輯中 */
@@ -1705,7 +1695,8 @@ body.can-back.on-analysis #tab-analysis .ana-info{left:58px;max-width:calc(100% 
 /* v2.6.1 「‹ 上一頁」不能蓋住各頁最上方的字：設定/說明子標籤整排往下讓位、預報靶面資訊框右移、鬼影提示左右讓位 */
 body.can-back #tab-about .st-tabs{margin-top:46px}
 body.can-back #tab-predict .pf-info{left:58px;max-width:calc(100% - 170px)}
-body.can-back #tab-ghost .gh-hint{padding-left:52px;padding-right:52px}
+/* v3.0 beta 小白單：標題往右讓位給「‹ 上一頁」（40px 圓鈕＋左 8px） */
+body.can-back #siusRoot .x-head{padding-left:52px}
 header .title{min-width:0}
 
 /* ---------- v2.6.0 統計卡圖示改到卡片左上角（White 2026-11-20 核准 a2＋a3 樣張）----------
@@ -1827,11 +1818,6 @@ html.wr-lang-en .lite-hint{white-space:normal;line-height:1.25;display:-webkit-b
 html.wr-lang-en #tab-analysis .ana-info .r1{gap:4px}                                                        /* #1 總分氣泡 */
 html.wr-lang-en #tab-analysis .ana-info .x{padding:1px 6px}
 html.wr-lang-en .ana-st th{white-space:nowrap}                                                              /* #5 小計表欄名 */
-html.wr-lang-en .gh-big .bk{white-space:normal}                                                              /* #16 鬼影底部提示不撐寬頁面 */
-html.wr-lang-en .gh-big{min-width:0}
-body:not(.lite) #tab-ghost .gh-hint{padding-right:96px}                                                     /* #7 鬼影提示讓出右上「編輯版面」（中文原本也會壓到最後幾個字） */
-html.wr-lang-en body:not(.lite) #tab-ghost .gh-hint{padding-right:112px}
-body:not(.lite):not(.can-back) #tab-ghost .gh-hint{padding-left:8px;text-align:left}
 
 /* =====================================================================================
  * v2.9.0 首頁（app-home.js；White 2026-11-23 定稿 v3c）：靶紙＋開槍進入選手；顏色全部用主題變數
@@ -1880,8 +1866,8 @@ html.wr-home,html.wr-home body{overflow:hidden}
 .wr-home .hm-top{position:absolute;left:0;right:0;top:0;z-index:4;padding:calc(14px + env(safe-area-inset-top)) 14px 0 12px;pointer-events:none}
 .wr-home .hm-top>*{pointer-events:auto}
 .wr-home .hm-bar{display:flex;align-items:center;gap:10px;height:48px}
-.wr-home .hm-beta{margin-left:auto;font:600 11px/1.2 var(--w-sans);color:var(--w-tx2)}
-.wr-home .hm-vpill{display:inline-block;background:var(--w-verBg);color:var(--w-verTx);font:800 11.5px/1 var(--w-sans);padding:4px 7px;border-radius:6px;letter-spacing:.2px;margin-right:2px}
+.wr-home .hm-beta{margin-left:4px;font:600 11px/1.2 var(--w-sans);color:var(--w-tx2)} /* v3.0：「v3.0 beta」版號在前 */
+.wr-home .hm-vpill{display:inline-block;background:var(--w-verBg);color:var(--w-verTx);font:800 11.5px/1 var(--w-sans);padding:4px 7px;border-radius:6px;letter-spacing:.2px;margin-left:auto}
 .wr-home .hm-brand{margin:-6px 0 0 8px;font:400 min(66px,16vw)/1.15 "WR Script",cursive;color:var(--w-tx);white-space:nowrap;pointer-events:none}
 .wr-home .hm-tag{margin:4px 0 0 12px;font-family:"Times New Roman","WR Tinos",Tinos,"Liberation Serif",serif;font-style:normal;font-weight:700;font-size:14px;line-height:1.25;letter-spacing:-.3px;color:var(--hm-tagC,var(--w-camB));white-space:nowrap;pointer-events:none}
 .wr-home .hm-vlog{position:relative;margin:14px 2px 0;height:226px;display:flex;flex-direction:column;background:var(--w-page0,#ecebe6);border:1px solid var(--w-cardBd);box-shadow:var(--w-cardSh);border-radius:14px;overflow:hidden;touch-action:pan-y}
@@ -2290,3 +2276,293 @@ body.coach-open{overflow:hidden}
   background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.35),transparent 55%),linear-gradient(180deg,var(--w-camA,#ff8a3d),var(--w-camB,#f26b1d));border:1.5px solid var(--w-camBd,rgba(0,0,0,.2));box-shadow:0 4px 12px rgba(0,0,0,.3),0 0 0 3px #fff}
 .sius-baby i{width:6px;height:9px;border-radius:50%;background:#111}
 @media (prefers-reduced-motion:no-preference){.sius-bub{animation:siusBub .32s cubic-bezier(.2,1.4,.4,1) both;transform-origin:20px 100%}@keyframes siusBub{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}}
+/* v2.9.6 小白單實驗引擎入口（跟現有那排分開）：顏色跟著佈景主題的拍照鈕變數 --w-camB */
+.sius-card{--sx-tx:color-mix(in srgb,var(--w-camB,#1f6feb) 62%,#1a1a18)} /* 白紙面板上看得清楚的主題色（亮綠／淺藍主題也不會太淡） */
+.sius-xsrc{margin:2px 0 10px;padding:8px 8px 0;border-radius:16px;border:1.5px dashed color-mix(in srgb,var(--w-camB,#1f6feb) 55%,transparent);background:color-mix(in srgb,var(--w-camB,#1f6feb) 6%,#fff)}
+.sius-xsrc[hidden]{display:none}
+.sius-xh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:0 2px 6px}
+.sius-xh b{font-size:13.5px;font-weight:900;color:var(--sx-tx)}
+.sius-xh small{font-size:11.5px;color:#55544f;line-height:1.3}
+.sius-xrow{margin:0 0 8px}
+.sius-sb.x{border-color:color-mix(in srgb,var(--w-camB,#1f6feb) 45%,transparent)}
+.sius-sb.x svg{color:var(--sx-tx)}
+.sius-sb.x small{color:var(--sx-tx);font-weight:800}
+.sius-xtime{font-size:12.5px;line-height:1.45;color:#3d3c38;background:color-mix(in srgb,var(--w-camB,#1f6feb) 8%,#fff);border-radius:10px;padding:7px 10px;margin:0 0 8px;font-variant-numeric:tabular-nums}
+.sius-xtime[hidden]{display:none}
+.sius-xtime b{color:var(--sx-tx);margin-right:4px}
+.sius-xmiss{font-size:13px;line-height:1.4;color:#8a4b00;background:#fff3e0;border-radius:10px;padding:8px 10px;margin:4px 0 6px;display:flex;flex-direction:column;gap:2px}
+.sius-xmiss small{font-size:12px;color:#6a4a1a}
+
+/* ======================================================================
+   v3.0 beta 小白單畫面（取代鬼影；White 2026-11-27 指定；設計稿 v296_design/v3 design3.css）
+   只用主題變數（--w-card／--w-tx／--w-acc…），深淺主題都對；靶紙本身固定紙色。
+   ====================================================================== */
+#tab-sius{padding-bottom:8px}
+#siusRoot{min-height:calc(100dvh - 230px);margin:2px 0 6px;color:var(--w-tx)}
+#siusRoot .x-head{display:flex;align-items:center;gap:8px;margin:0 2px 8px}
+#siusRoot .x-title{display:flex;align-items:center;gap:8px;min-width:0}
+#siusRoot .x-title .nv-ic{width:26px;height:26px;flex:none;fill:none;stroke:var(--w-acc);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+#siusRoot .x-title b{display:block;font-weight:900;font-size:17px;line-height:1.2}
+#siusRoot .x-title small{display:block;font-weight:700;font-size:11.5px;color:var(--w-tx2)}
+#siusRoot .x-head .wr-pill{margin-left:auto;min-height:40px}
+#siusRoot .x-head .wr-pill[hidden]{display:none}
+#siusRoot .sius-prog,#siusRoot .sius-gnote,#siusRoot .sius-pn{color:var(--w-tx)}
+#siusRoot .sius-gnote{color:var(--w-tx2)}
+#siusRoot .sius-pbar{background:var(--w-th)}
+#siusRoot .sius-pbar i{background:var(--w-acc)}
+#siusRoot .sius-add{background:var(--w-th);color:var(--w-tx);border-color:var(--w-line)}
+#siusRoot .sius-tg{display:flex;gap:6px;margin:2px 0 8px}
+#siusRoot .sius-tg button{flex:1;min-height:40px}
+#siusRoot .x-empty{margin:18px 6px;padding:22px 16px;text-align:center;border-radius:calc(var(--w-r) + 6px);background:var(--w-card);border:1px dashed var(--w-cardBd);box-shadow:var(--w-cardSh)}
+#siusRoot .x-empty b{display:block;font-size:17px;margin:6px 0 4px}
+#siusRoot .x-empty p{margin:4px 0;font-size:13.5px;line-height:1.5;color:var(--w-tx2)}
+#siusRoot .x-empty p.s{font-size:12px}
+#siusRoot .x-empty .wrx-hat.lg{position:relative;display:inline-block;width:36px;height:44px;left:auto;top:auto;margin:0;opacity:1;visibility:visible}
+/* 表頭（選手、項目、日期、靶位、總分）：每格都能點來改 */
+#siusRoot .x-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0 0 8px}
+#siusRoot .x-f{display:block;text-align:left;font:inherit;cursor:pointer;background:var(--w-card);border:1px solid var(--w-cardBd);box-shadow:var(--w-cardSh);border-radius:var(--w-r);padding:5px 32px 5px 10px;position:relative;min-width:0;min-height:44px;color:var(--w-tx)}
+#siusRoot .x-f small{display:block;font-size:11px;color:var(--w-tx2);font-weight:700}
+#siusRoot .x-f b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+#siusRoot .x-f.wide{grid-column:1/-1}
+#siusRoot .x-f .ok{color:var(--w-good);font-weight:800;font-size:12px}
+#siusRoot .x-f .w{color:var(--w-warn);font-weight:800;font-size:12px}
+#siusRoot .x-f.bad{border-color:var(--w-bad);box-shadow:0 0 0 1.5px var(--w-bad) inset}
+#siusRoot .x-f.sel{box-shadow:0 0 0 2.5px #ffb300 inset}
+#siusRoot .pen{position:absolute;right:6px;top:50%;translate:0 -50%;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:var(--w-tx2);background:var(--w-th)}
+#siusRoot .pen svg,#siusRoot .x-r .pe svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#siusRoot .na{display:inline-block;font-size:11px;font-weight:800;color:#a35a00;background:#fff4e0;border:1px dashed #d79a3a;border-radius:6px;padding:0 5px;line-height:1.5;white-space:nowrap}
+#siusRoot .sius-sum{color:var(--w-tx);background:var(--w-card);border:1px solid var(--w-cardBd);border-radius:var(--w-r);padding:7px 10px;margin:0 0 8px;font-size:13px;line-height:1.45}
+#siusRoot .sius-sum .sius-near{color:var(--w-warn)}
+/* 排法／方向欄 */
+#siusRoot .x-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0 2px 8px;font-size:11.5px;font-weight:800;color:var(--w-tx2)}
+#siusRoot .x-tools .x-dirl{margin-left:auto}
+#siusRoot .x-tools .wr-seg button,#siusRoot .x-ana .wr-seg button{font-size:12px;padding:0 10px;min-height:36px}
+/* 進度 */
+#siusRoot .x-prog{display:flex;align-items:center;gap:8px;margin:0 2px 8px}
+#siusRoot .x-prog .bar{flex:1;display:flex;gap:3px}
+#siusRoot .x-prog .bar i{flex:1;height:8px;border-radius:4px;background:var(--w-th);border:1px solid var(--w-line);cursor:pointer;position:relative}
+#siusRoot .x-prog .bar i::after{content:"";position:absolute;inset:-14px 0}
+#siusRoot .x-prog .bar i.sg{background:repeating-linear-gradient(135deg,var(--w-th) 0 3px,var(--w-line) 3px 6px)}
+#siusRoot .x-prog .bar i.done{background:color-mix(in srgb,var(--w-acc) 45%,transparent);border-color:transparent}
+#siusRoot .x-prog .bar i.on{background:var(--w-acc);border-color:var(--w-acc)}
+#siusRoot .x-prog .bar i.bad{box-shadow:0 0 0 1.5px var(--w-bad)}
+#siusRoot .x-prog b{font-family:var(--w-num);font-size:15px;font-variant-numeric:tabular-nums;min-width:42px;text-align:right}
+#siusRoot .x-dh{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin:4px 2px 6px;font-weight:900;font-size:16px}
+#siusRoot .x-dh small{font-size:11.5px;color:var(--w-tx2);font-weight:700}
+/* 卡片：橫式＝左右滑（scroll-snap），直式＝往下排；兩種卡片一樣大（White pt586u） */
+#siusRoot .x-rail{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 22px 6px;margin:0 -12px;scrollbar-width:none;overscroll-behavior-x:contain}
+#siusRoot .x-rail::-webkit-scrollbar{display:none}
+#siusRoot .x-rail .x-card{flex:0 0 100%;max-width:520px;scroll-snap-align:center} /* 橫式卡寬＝直式卡寬（容器 − 20px）；左右各露出旁邊卡片約 12px */
+#siusRoot.v .x-rail{display:block;overflow:visible;padding:0;margin:0}
+#siusRoot.v .x-rail .x-card{width:calc(100% - 20px);max-width:520px;margin:0 auto 12px}
+#siusRoot .x-card{background:var(--w-card);border:1px solid var(--w-cardBd);box-shadow:var(--w-cardSh);border-radius:calc(var(--w-r) + 4px);padding:8px;position:relative;box-sizing:border-box;min-width:0}
+#siusRoot .x-card.sg{border-style:dashed}
+#siusRoot .x-ch{display:flex;align-items:center;gap:6px;margin:0 2px 6px;font-size:12px;color:var(--w-tx2);font-weight:700;white-space:nowrap;overflow:hidden}
+#siusRoot .x-ch .no{margin-left:auto;font-family:var(--w-num);color:var(--w-tx);font-size:13px}
+#siusRoot .x-tg{position:relative;border-radius:var(--w-r);overflow:hidden;background:#f4f1e8}
+#siusRoot .x-tg svg{display:block;width:100%;height:auto;aspect-ratio:1/1}
+#siusRoot .x-cat{position:absolute;left:8px;top:8px;padding:4px 9px 4px 8px;border-radius:9px;background:rgba(255,255,255,.93);box-shadow:0 1px 4px rgba(0,0,0,.18);font-size:12px;line-height:1.15;color:#1d1d1b;pointer-events:none}
+#siusRoot .x-cat b{display:block;font-size:13.5px;letter-spacing:.2px}
+#siusRoot .x-cat.sg b{color:#6b6b66}#siusRoot .x-cat.mt b{color:#1f55c4}
+#siusRoot .x-sub{position:absolute;right:8px;bottom:8px;text-align:right;padding:5px 10px;border-radius:10px;background:rgba(255,255,255,.94);box-shadow:0 1px 4px rgba(0,0,0,.2);color:#1d1d1b;font:inherit;border:0;min-height:44px;max-width:62%}
+#siusRoot button.x-sub{cursor:pointer}
+#siusRoot .x-sub.bad{box-shadow:0 0 0 2px #e5192b}
+#siusRoot .x-sub.sel{box-shadow:0 0 0 2.5px #ffb300}
+#siusRoot .x-sub small{display:block;font-size:11px;color:#7a7a74;font-weight:700}
+#siusRoot .x-sub b{font-family:var(--w-num);font-style:var(--w-vstyle);font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+#siusRoot .x-sub b.na2{font-size:13px;color:#a35a00}
+#siusRoot .x-sub i{font-style:normal;font-size:12px;color:#7a7a74;margin-left:3px}
+#siusRoot .x-sub .wr{color:#1f55c4}
+#siusRoot .x-sub .chk{display:block;font-size:10.5px;color:#3d8a4f;font-weight:800}
+#siusRoot .x-sub .chk.w{color:#a35a00}
+#siusRoot .x-miss{position:absolute;left:8px;bottom:8px;font-size:11.5px;font-weight:800;color:#a35a00;background:#fff4e0;border:1px dashed #d79a3a;border-radius:9px;padding:4px 8px;pointer-events:none}
+/* 逐發表（每一列＝一發；點任一格開編輯、游標放在那一格） */
+#siusRoot .x-t{margin-top:6px;font-size:12.5px;font-variant-numeric:tabular-nums}
+#siusRoot .x-th,#siusRoot .x-r{display:grid;grid-template-columns:18px 2.1em minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.05fr) 20px;gap:2px;align-items:center;text-align:center}
+#siusRoot .x-th{font-size:10.5px;color:var(--w-tx2);font-weight:800;padding:3px 0;border-bottom:1px solid var(--w-line)}
+#siusRoot .x-r{min-height:34px;border-bottom:1px solid var(--w-line);color:var(--w-tx);background:transparent;padding:0;cursor:pointer;font:inherit;border-radius:0;width:auto}
+#siusRoot .x-r:focus-visible{outline:2px solid var(--w-acc);outline-offset:-2px}
+#siusRoot .x-r .n{font-weight:900;font-family:var(--w-num)}
+#siusRoot .x-r .e{display:inline-block;padding:1px 2px;border-bottom:1px dashed color-mix(in srgb,var(--w-tx2) 55%,transparent);border-radius:2px;white-space:nowrap}
+#siusRoot .x-r .sc .e{font-weight:900}
+#siusRoot .x-r .tm{white-space:nowrap;font-size:12px}
+#siusRoot .x-r .ar{font-size:15px;line-height:1}
+#siusRoot .x-r .ar .ck{display:inline-flex;align-items:center;gap:1px;font-size:11px;font-weight:800;white-space:nowrap}
+#siusRoot .x-r .ar .ck svg{width:14px;height:14px}
+#siusRoot .x-r .ar .ck .ar-ln{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#siusRoot .x-r .pe{color:var(--w-tx2)}
+#siusRoot .x-r .lt i{display:inline-block;width:8px;height:8px;border-radius:50%}
+#siusRoot .x-r .lt i.g{background:var(--w-good)}#siusRoot .x-r .lt i.r{background:var(--w-bad)}
+/* 黃燈：可以點的小記號（不擋存檔、分數照算） */
+#siusRoot .x-ym{position:relative;width:16px;height:16px;min-height:0;padding:0;border-radius:50%;border:0;background:var(--w-warn);color:#1a1200;font:900 11px/16px var(--w-sans,inherit);cursor:pointer;display:inline-block}
+#siusRoot .x-ym::after{content:"";position:absolute;inset:-12px}
+#siusRoot .x-r.near{background:color-mix(in srgb,var(--w-warn) 12%,transparent)}
+#siusRoot .x-r.bad{background:color-mix(in srgb,var(--w-bad) 16%,transparent)}
+#siusRoot .x-r.miss{background:color-mix(in srgb,#ffb340 10%,transparent)}
+#siusRoot .x-r.sel{box-shadow:inset 0 0 0 2.5px #ffb300;border-radius:6px}
+#siusRoot .x-r .cf .e{text-decoration:underline wavy #d98a00;text-underline-offset:3px}
+#siusRoot .x-cf{display:flex;justify-content:space-between;gap:6px;margin:6px 2px 0;font-size:11px;color:var(--w-tx2)}
+#siusRoot .x-cf b{color:var(--w-tx)}
+#siusRoot .x-sw{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--w-tx2);margin:2px 0 10px}
+#siusRoot .x-note{font-size:11.5px;color:var(--w-tx2);margin:2px 4px 10px;line-height:1.45}
+#siusRoot .x-ana{margin:4px 0 10px}
+#siusRoot .x-anah{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px}
+#siusRoot .x-anah b{font-size:15px}
+#siusRoot .x-anah .wr-seg{margin-left:auto}
+#siusRoot .sius-time{font-size:11.5px;line-height:1.45;color:var(--w-tx2);margin:4px 4px 6px;font-variant-numeric:tabular-nums}
+#siusRoot .sius-foot{font-size:11.5px;color:var(--w-tx2);line-height:1.45;margin:4px 4px 10px}
+#siusRoot .sius-xmiss{margin:0 0 8px}
+.wrx-dirtag{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;color:var(--w-acc);border:1px solid color-mix(in srgb,var(--w-acc) 45%,transparent);border-radius:999px;padding:1px 7px;vertical-align:middle}
+@media (max-width:360px){#siusRoot .x-th,#siusRoot .x-r{grid-template-columns:16px 1.8em minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 16px;font-size:11.5px}#siusRoot .x-rail{padding:0 14px 6px}#siusRoot .x-rail .x-card{flex-basis:calc(100% - 16px)}}
+/* 存檔列：黏在下方（三隻寶寶在它上面）；編輯面板＝從下方升起（主題的彈出色） */
+#siusRoot .sius-bar{position:sticky;z-index:21;bottom:var(--dock-b,calc(80px + env(safe-area-inset-bottom)));margin:6px -4px 0;padding:8px 10px;border-radius:16px;border:1px solid var(--w-barBd,var(--w-line));background:var(--w-popBg,#fbf9f4);color:var(--w-popTx,#1a1a18);box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#siusRoot .sius-bar[hidden]{display:none}
+#siusRoot .sius-cnt{color:inherit}
+#siusRoot .sius-save.blocked{filter:grayscale(.75);opacity:.75}
+body.sius-has #xbDock:not(.dk-free){bottom:calc(var(--dock-b,calc(80px + env(safe-area-inset-bottom))) + 66px)}
+#siusEdit.sius-edit{position:fixed;left:0;right:0;bottom:0;z-index:230;max-width:560px;margin:0 auto;max-height:62dvh;border-radius:18px 18px 0 0;background:var(--w-popBg,#fff);color:var(--w-popTx,#1a1a18);padding:12px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(0,0,0,.3)}
+#siusEdit .sius-fs.one{grid-template-columns:1fr}
+#siusEdit .sius-use.ok{border-color:var(--w-good)}
+body.sius-editing #siusRoot{padding-bottom:46dvh}
+/* ---------- 三隻寶寶（拍照／相簿／檔案）：同一個大小、同一個框；毛玻璃底板比寶寶低一點，沒有地面線 ---------- */
+#xbDock.xb-dock{gap:38px;padding:24px 22px 18px;margin-top:10px}
+#xbDock.xb-dock::before{display:none}
+#xbDock .tr-base{position:absolute;left:4px;right:4px;bottom:2px;height:50px;border-radius:26px;pointer-events:none;z-index:0;
+  background:color-mix(in srgb,var(--w-card,#fff) 35%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
+  border:1px solid color-mix(in srgb,var(--w-camB) 26%,transparent);box-shadow:0 8px 22px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.35)}
+#xbDock.dk-col{padding:22px 24px 22px 18px;gap:30px}
+#xbDock.dk-col[data-edge="left"] .tr-base{left:2px;right:auto;top:4px;bottom:4px;width:50px;height:auto}
+#xbDock.dk-col[data-edge="right"] .tr-base{right:2px;left:auto;top:4px;bottom:4px;width:50px;height:auto}
+#xbDock.dk-col[data-edge="right"]{padding:22px 18px 22px 24px}
+#xbDock .tr-b{position:relative;z-index:1;flex:none;width:66px;height:66px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none}
+#xbDock .tr-body{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.35),transparent 55%),linear-gradient(180deg,var(--w-camA),var(--w-camB));
+  border:1.5px solid var(--w-camBd);box-shadow:0 4px 14px var(--w-camSh),0 0 0 4px var(--w-camRing)}
+#xbDock .tr-b:active .tr-body{filter:brightness(1.12)}
+.tr-face{position:absolute;left:50%;top:44%;display:flex;gap:7px;margin-left:-11px;margin-top:-6px;pointer-events:none;--lx:2px;--ly:0px}
+.tr-face .dk-e{width:8px;height:11px}
+#xbDock .tr-pic .tr-face{top:36%}
+body.fx-anim .tr-face{animation:dkLook 9.3s ease-in-out 1.2s infinite}
+#xbDock .tr-prop{position:absolute;pointer-events:none;z-index:2}
+#xbDock .tr-prop svg{display:block;width:100%;height:100%;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+#xbDock .tr-cam .tr-prop{left:15px;top:-17px;width:36px;height:28px;rotate:-6deg}
+#xbDock .tr-fil .tr-prop{left:14px;top:-16px;width:38px;height:29px;rotate:7deg}
+#xbDock .tr-pic .tr-prop{left:13px;top:34px;width:40px;height:31px;rotate:-4deg;z-index:5}
+#xbDock.dk-col[data-edge="left"] .tr-cam .tr-prop{left:44px;top:6px;rotate:12deg}
+#xbDock.dk-col[data-edge="left"] .tr-fil .tr-prop{left:42px;top:8px;rotate:-12deg}
+#xbDock.dk-col[data-edge="right"] .tr-cam .tr-prop{left:-16px;top:6px;rotate:-12deg}
+#xbDock.dk-col[data-edge="right"] .tr-fil .tr-prop{left:-18px;top:8px;rotate:12deg}
+#xbDock .tr-arm{position:absolute;top:46px;width:13px;height:10px;border-radius:50%;background:var(--w-camB);border:1.5px solid var(--w-camBd);z-index:3}
+#xbDock .tr-arm.l{left:7px;rotate:25deg}#xbDock .tr-arm.r{right:7px;rotate:-25deg}
+#xbDock .tr-bub{position:absolute;right:-24px;top:-24px;z-index:6;background:#fff;color:#111;border:1.6px solid #111;border-radius:10px;padding:2px 8px;font-size:12.5px;font-weight:900;line-height:1.35;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.12);pointer-events:none}
+#xbDock .tr-bub::after{content:"";position:absolute;left:7px;bottom:-6px;width:8px;height:8px;background:#fff;border-right:1.6px solid #111;border-bottom:1.6px solid #111;transform:rotate(45deg) skew(8deg,8deg)}
+#xbDock .tr-pic .tr-bub{top:-14px}
+#xbDock.dk-col[data-edge="left"] .tr-bub{right:-30px}
+#xbDock.dk-col[data-edge="right"] .tr-bub{right:auto;left:-30px}
+#xbDock.dk-col[data-edge="right"] .tr-bub::after{left:auto;right:7px}
+#xbDock .tr-tag{position:absolute;left:50%;bottom:-11px;translate:-50% 0;z-index:5;display:flex;align-items:center;gap:4px;padding:2px 9px 2px 6px;border-radius:999px;background:#fffdf6;border:1px solid color-mix(in srgb,var(--w-camB) 40%,transparent);font-size:11px;font-weight:800;color:color-mix(in srgb,var(--w-camB) 70%,#1a1a18);white-space:nowrap;pointer-events:none}
+#xbDock.dk-col[data-edge="left"] .tr-tag{left:100%;bottom:8px;translate:8px 0}
+#xbDock.dk-col[data-edge="right"] .tr-tag{left:0;bottom:8px;translate:calc(-100% - 8px) 0}
+#xbDock .tr-tag .wrx-hat.sm{position:relative;width:11px;height:14px;left:auto;top:auto;margin:0;rotate:0deg;opacity:1;visibility:visible;animation:none}
+#xbDock .dk-home{left:-6px;bottom:-6px}
+/* 小白單帽（紙白＋主題色線條） */
+.wrx-hat{position:absolute;pointer-events:none;width:22px;height:27px;z-index:7;transform-origin:50% 100%}
+.wrx-hat svg{display:block;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+.wrx-hat .pp{fill:#fffdf6;stroke:var(--w-camB);stroke-width:1.3;stroke-linejoin:round}
+.wrx-hat .ln{fill:none;stroke:var(--w-camB);stroke-width:1.3;stroke-linecap:round;opacity:.75}
+.wrx-hat .ln2{fill:none;stroke:#9a9a94;stroke-width:1.1;stroke-linecap:round}
+@keyframes wrxBop{0%,78%,100%{translate:0 0;transform:rotate(0)}81%{translate:var(--bop-pre-x,0px) var(--bop-pre-y,1px);transform:rotate(0)}85%{translate:var(--bop-up-x,0px) var(--bop-up-y,-9px);transform:rotate(var(--bop-r1,-14deg))}89%{translate:0 0;transform:rotate(var(--bop-r2,4deg))}92%{translate:var(--bop-up2-x,0px) var(--bop-up2-y,-3px);transform:rotate(var(--bop-r3,-3deg))}95%{translate:0 0;transform:rotate(0)}}
+@keyframes wrxPush{0%,78%,86%,100%{scale:1 1}81%{scale:var(--push-1-x,1.06) var(--push-1-y,.9)}84%{scale:var(--push-2-x,.96) var(--push-2-y,1.06)}}
+/* 收起後：一顆 58px 寶寶戴著小白單帽（FIG-19）；上邊＝帽子在左下、往下頂 */
+.dk-eye.xb-eye .wrx-hat{left:38px;top:-18px;rotate:12deg}
+.dk-eye.xb-eye[data-edge="right"] .wrx-hat{left:6px;rotate:-12deg}
+.dk-eye.xb-eye[data-edge="bottom"] .wrx-hat{left:50%;margin-left:-11px;rotate:8deg}
+.dk-eye.xb-eye[data-edge="top"] .wrx-hat{left:2px;top:34px;rotate:-18deg;--bop-pre-y:-1px;--bop-up-y:9px;--bop-up2-y:3px;--bop-r1:14deg;--bop-r2:-4deg;--bop-r3:3deg}
+.dk-eye.xb-eye{--push-1-x:.9;--push-1-y:1.06;--push-2-x:1.06;--push-2-y:.96;transform-origin:0% 50%}
+.dk-eye.xb-eye[data-edge="right"]{transform-origin:100% 50%}
+.dk-eye.xb-eye[data-edge="top"]{transform-origin:50% 0%;--push-1-x:1.06;--push-1-y:.9;--push-2-x:.96;--push-2-y:1.06}
+.dk-eye.xb-eye[data-edge="bottom"]{transform-origin:50% 100%;--push-1-x:1.06;--push-1-y:.9;--push-2-x:.96;--push-2-y:1.06}
+body.fx-anim .dk-eye.xb-eye .wrx-hat{animation:wrxBop 6.2s ease-in-out 1.6s infinite}
+body.fx-anim .dk-eye.xb-eye{animation:wrxPush 6.2s ease-in-out 1.6s infinite}
+body.fx-anim .dk-eye.xb-eye.dk-eye-in{animation:dkPeek .55s cubic-bezier(.2,1.5,.4,1) both,wrxPush 6.2s ease-in-out 1.6s infinite}
+body.fx-anim .dk-eye.xb-eye.dk-eye-out{animation:dkBye .2s ease-in both}
+body.on-sius .dk-eye.xb-eye{visibility:visible}
+body:not(.on-sius) .dk-eye.xb-eye,body:not(.on-sius) #xbDock{visibility:hidden}
+body.lay-editing .dk-eye.xb-eye{visibility:hidden}
+/* 收合動畫用的分身（dock.js morph）＋星星＋煙 */
+.dk-eye.dk-morph{pointer-events:none;z-index:24;transition:none}
+.dk-eye.dk-morph::after{display:none}
+.dk-eye.dk-morph .dk-face{left:29px!important;top:29px!important}
+.dk-eye.dk-morph .wrx-hat{left:50%;top:-20px;margin-left:-11px;rotate:0deg;animation:none}
+.dk-eye.dk-morph[data-edge="top"] .wrx-hat{left:50%;top:-20px}
+.dk-star,.dk-puff{position:fixed;z-index:25;width:16px;height:16px;pointer-events:none;opacity:0}
+.dk-star{background:radial-gradient(circle at 50% 50%,#fff,#ffe0c0 40%,var(--w-camB,#ef6a1f) 70%);clip-path:polygon(50% 0,61% 35%,100% 50%,61% 65%,50% 100%,39% 65%,0 50%,39% 35%);filter:drop-shadow(0 0 6px #ffb086)}
+.dk-puff{border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(255,252,245,.95),rgba(180,170,150,.55) 55%,rgba(160,150,135,0) 72%);filter:blur(.6px)}
+@media (prefers-reduced-motion:reduce){.tr-face,.wrx-hat,.dk-eye.xb-eye{animation:none!important}.dk-star,.dk-puff,.dk-morph{display:none!important}}
+/* ---------- 看不出是什麼靶：寶寶對話框 v1（概念圖 bubble_v1；顏色跟主題） ---------- */
+.sius-ask{position:fixed;inset:0;z-index:240;background:rgba(10,12,16,.42);display:flex;align-items:flex-end;justify-content:center;padding:0 14px calc(24px + env(safe-area-inset-bottom));box-sizing:border-box}
+.sius-ask-in{position:relative;width:100%;max-width:440px}
+.sius-ask .sius-bub{position:relative;margin:0 0 0 22px;background:var(--w-popBg,#fff);color:var(--w-popTx,#1a1a18);border:2px solid currentColor;border-radius:22px;padding:15px 14px 12px;box-shadow:0 10px 28px rgba(0,0,0,.28)}
+.sius-ask .sius-bub::after{display:none}
+.sius-ask .sius-bub p{margin:0 0 12px;font-size:16.5px;font-weight:900;line-height:1.45;letter-spacing:.2px}
+.sius-ask-row{display:flex;align-items:center;gap:6px;margin:0 0 10px;font-size:13px;font-weight:800;opacity:.75}
+.sius-ask-row b{font-size:18px;opacity:1}
+.sius-ask .sius-gopts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex-direction:initial}
+.sius-ask .sius-gopt{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;min-height:96px;padding:20px 4px 9px;border-radius:16px;border:1.5px solid color-mix(in srgb,currentColor 28%,transparent);background:color-mix(in srgb,currentColor 5%,transparent);color:inherit;font:inherit;cursor:pointer;box-sizing:border-box}
+.sius-ask .sius-gopt svg{width:92%;height:40px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+.sius-ask .sius-gopt svg *{vector-effect:non-scaling-stroke}
+.sius-ask .sius-gopt b{font-size:13.5px;line-height:1.2;white-space:nowrap}
+.sius-ask .sius-gopt b i{font-style:normal;opacity:.6}
+.sius-ask .sius-gopt em{position:absolute;top:-9px;left:50%;translate:-50% 0;font-style:normal;font-size:11px;font-weight:900;white-space:nowrap;padding:2px 8px;border-radius:999px;background:var(--w-acc,#1f6feb);color:var(--w-accTx,#fff);box-shadow:0 0 0 2px var(--w-popBg,#fff)}
+.sius-ask .sius-gopt.like{border:2px solid var(--w-acc,#1f6feb);background:color-mix(in srgb,var(--w-acc,#1f6feb) 12%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--w-acc,#1f6feb) 18%,transparent)}
+.sius-ask .sius-gopt.wip{opacity:.6;border-style:dashed;cursor:not-allowed}
+.sius-ask .sius-gopt.wip em{background:#8d8d8d;color:#fff}
+.sius-ask .sius-foot{min-height:40px;display:flex;align-items:center;padding:8px 0 0 52px;font-size:12px;font-weight:700;opacity:.7;margin:0}
+.sius-ask .sius-baby{position:absolute;left:-24px;bottom:-22px;width:66px;height:66px;border-radius:50%;box-sizing:border-box;display:block;
+  background:radial-gradient(circle at 50% 36%,rgba(255,255,255,.38),transparent 56%),linear-gradient(180deg,var(--w-camA),var(--w-camB));border:2px solid currentColor;box-shadow:0 0 0 4px var(--w-popBg,#fff),0 6px 14px rgba(0,0,0,.25)}
+.sius-ask .sius-baby .eyes{position:absolute;left:0;right:0;top:24px;display:flex;justify-content:center;gap:11px;translate:3px -2px} /* 眼睛往右上方的選項看 */
+.sius-ask .sius-baby .eyes i{position:relative;display:block;width:8px;height:12px;border-radius:50%;background:#111;transform-origin:50% 60%} /* 黑眼睛、沒有白色反光 */
+.sius-ask .sius-baby .blush{position:absolute;top:39px;width:9px;height:5px;border-radius:50%;background:rgba(255,80,80,.45)}
+.sius-ask .sius-baby .blush.l{left:12px}.sius-ask .sius-baby .blush.r{right:12px}
+.sius-ask .sius-q{position:absolute;left:58px;top:-16px;font:900 34px/1 -apple-system,"Roboto",sans-serif;color:#e5262b;text-shadow:2px 2px 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff,0 3px 6px rgba(0,0,0,.25);transform-origin:40% 100%}
+@keyframes siusBlink{0%,86%,100%{transform:scaleY(1)}89%,91%{transform:scaleY(.1)}94%{transform:scaleY(1)}}
+@keyframes siusQ{0%{transform:scale(0) rotate(-20deg);opacity:0}8%{transform:scale(1.25) rotate(8deg);opacity:1}14%{transform:scale(.95) rotate(-4deg)}20%{transform:scale(1) rotate(0)}40%{transform:translateY(-3px) rotate(6deg)}60%{transform:translateY(0) rotate(-6deg)}80%{transform:translateY(-3px) rotate(4deg)}100%{transform:translateY(0) rotate(0);opacity:1}}
+body.fx-anim .sius-ask .sius-baby .eyes i{animation:siusBlink 3.2s infinite}
+body.fx-anim .sius-ask .sius-q{animation:siusQ 3.2s infinite}
+@media (prefers-reduced-motion:reduce){.sius-ask .sius-baby .eyes i,.sius-ask .sius-q{animation:none!important}}
+/* ---------- v3.0 beta 字型三選一（方向稿 settings_switch）：只換 --w-sans；內文字重 400、寬度 100%；自己輸入的文字維持系統字 ---------- */
+body.ff-zev-n{--w-sans:"ZevHeiTC-N",-apple-system,"Roboto","Noto Sans TC","PingFang TC",sans-serif}
+body.ff-zev-f{--w-sans:"ZevHeiTC-F",-apple-system,"Roboto","Noto Sans TC","PingFang TC",sans-serif}
+body:is(.ff-zev-n,.ff-zev-f){font-family:var(--w-sans);font-weight:400;font-stretch:100%}
+body:is(.ff-zev-n,.ff-zev-f) :where(button,select){font-family:inherit} /* 按鈕預設不繼承字型；:where 不加權重，主題自己的數字字型照舊 */
+body:is(.ff-zev-n,.ff-zev-f) :is(input,textarea,[contenteditable]){font-family:-apple-system,"Roboto","Noto Sans TC","PingFang TC",sans-serif;font-stretch:100%}
+.font-list{display:flex;flex-direction:column;gap:8px;margin:8px 0 8px}
+.font-list button{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto auto;column-gap:9px;align-items:center;text-align:left;min-height:58px;padding:8px 10px;border-radius:14px;
+  background:var(--w-glass);border:1.5px solid var(--w-glassBd);color:var(--w-tx);box-shadow:none;font-family:var(--w-sans);width:100%;cursor:pointer}
+.font-list .sw{grid-row:1/3;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:18px;line-height:1;background:var(--w-th,#efeee9);box-shadow:inset 0 0 0 1px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.12);color:var(--w-tx)}
+.font-list b{font-size:14px;font-weight:800;line-height:1.2}
+.font-list small{font-size:11px;color:var(--w-tx2);line-height:1.25;font-weight:400}
+.font-list button.on{border-color:var(--w-accTxt);box-shadow:0 0 0 3px var(--w-accSh)}
+.font-list button.on b::after{content:" ✓";color:var(--w-accTxt)}
+.font-preview{grid-column:1/-1;margin-top:7px;padding:7px 8px 6px;border-radius:8px;background:var(--w-th,#efeee9);font-size:13.5px;font-weight:400;font-stretch:100%;line-height:1.45;letter-spacing:0;color:var(--w-tx);white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums lining-nums}
+.font-list .sys{font-family:-apple-system,"Roboto","Noto Sans TC","PingFang TC",sans-serif!important}
+.font-list .zev-n{font-family:"ZevHeiTC-N",-apple-system,"Roboto","Noto Sans TC",sans-serif!important}
+.font-list .zev-f{font-family:"ZevHeiTC-F",-apple-system,"Roboto","Noto Sans TC",sans-serif!important}
+body.ff-loading #fontSeg{opacity:.7}
+/* ---------- v3.0 beta 測試期回報表單（分析頁最下面） ---------- */
+.ana-rep-card[hidden]{display:none}
+.ana-rep-card .rp-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 0 6px}
+.ana-rep-card .rp-h b{font-size:15px}
+.ana-rep-card .rp-h small{font-size:11.5px;color:var(--w-tx2)}
+.ana-rep-card .rp-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}
+.ana-rep-card .rp-row>span{font-size:13px;font-weight:800;min-width:5.5em}
+.ana-rep-card input[type=number]{width:5em;min-height:40px;font-size:16px;padding:4px 8px;border-radius:10px;border:1px solid var(--w-inBd);background:var(--w-inBg);color:var(--w-tx)}
+.ana-rep-card .rp-stars{display:flex;gap:2px}
+.ana-rep-card .rp-stars button{width:40px;height:40px;min-height:0;padding:0;border:0;background:none;font-size:26px;line-height:1;color:var(--w-tx2);cursor:pointer;box-shadow:none}
+.ana-rep-card .rp-stars button.on{color:#ffb300}
+.ana-rep-card .rp-types{display:flex;flex-wrap:wrap;gap:6px}
+.ana-rep-card .rp-types button{min-height:38px;padding:0 12px;border-radius:19px;border:1px solid var(--w-line);background:var(--w-th);color:var(--w-tx);font-size:13px;font-weight:700;cursor:pointer;box-shadow:none}
+.ana-rep-card .rp-types button[aria-pressed="true"]{background:var(--w-acc);color:var(--w-accTx);border-color:var(--w-acc)}
+.ana-rep-card textarea{width:100%;box-sizing:border-box;min-height:64px;font-size:15px;padding:8px 10px;border-radius:10px;border:1px solid var(--w-inBd);background:var(--w-inBg);color:var(--w-tx)}
+.ana-rep-card .rp-go{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.ana-rep-card .rp-st{font-size:12px;color:var(--w-tx2)}

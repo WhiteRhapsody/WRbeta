@@ -25,7 +25,18 @@
     return loading;
   }
   // 停止：關掉 worker（terminate 回傳的 promise 失敗也吞掉；重複呼叫沒關係）
-  function stop() { gen++; var w = worker; worker = null; loading = null; if (w) try { quiet(w.terminate()); } catch (e) {} }
+  /* v3.0 beta：取消不再噴「Cannot read properties of null (reading 'postMessage')」。
+   * 原因：tesseract.js 的 recognize() 先非同步載入圖片、之後才送工作給 worker；在這段空檔 terminate()，它送工作時 worker 已經是 null，
+   * 錯誤在 tesseract 內部變成沒人接的 rejection。做法：worker 有工作在跑時先不關，等這份工作結束（成功或失敗）再關；新的工作也不再派給要關的 worker。 */
+  function track(w, img) {
+    if (w._kill) return Promise.reject(CANCEL);
+    w._n = (w._n || 0) + 1;
+    var done = function () { w._n--; if (!w._n && w._kill === 1) { w._kill = 2; try { quiet(w.terminate()); } catch (e) {} } };
+    var p; try { p = w.recognize(img); } catch (e) { done(); return Promise.reject(e); } // 同步丟錯也要歸還計數（審查時抓到）
+    p.then(done, done); return p;
+  }
+  function kill(w) { if (!w || w._kill) return; w._kill = 1; if (!w._n) { w._kill = 2; try { quiet(w.terminate()); } catch (e) {} } }
+  function stop() { gen++; var w = worker; worker = null; loading = null; kill(w); }
   // 檔案 → 原始解析度灰階（照 EXIF 方向轉正；超過 2400 萬像素先縮小，避免手機記憶體不夠）
   function fileToGray(file) {
     var MAXPX = 24e6;
@@ -40,12 +51,12 @@
   }
   function grayCanvas(G) { var c = document.createElement('canvas'); c.width = G.w; c.height = G.h; var x = c.getContext('2d'), id = x.createImageData(G.w, G.h); I.toRGBA(G, id.data); x.putImageData(id, 0, 0); return c; }
   function readParts(w, parts, tick, opt) {
-    var txt = [], i = 0;
+    var txt = [], i = 0, my = gen;
     var next = function () {
-      if (opt.cancelled && opt.cancelled()) return Promise.reject(CANCEL);
+      if (my !== gen || (opt.cancelled && opt.cancelled())) return Promise.reject(CANCEL);
       if (i >= parts.length) return Promise.resolve(txt.join('\n'));
       var c = grayCanvas(parts[i++]);
-      return w.recognize(c).then(function (r) { txt.push(r.data.text || ''); c.width = c.height = 1; tick(); return next(); });
+      return track(w, c).then(function (r) { txt.push(r.data.text || ''); c.width = c.height = 1; tick(); return next(); }, function (e) { c.width = c.height = 1; throw my !== gen ? CANCEL : e; });
     };
     return next();
   }

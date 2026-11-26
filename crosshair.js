@@ -4,7 +4,7 @@
 // - 用事件委派（document 上的 capture 監聽），之後新增的按鈕／清單項目自動適用，不需要逐一綁定。
 // - 只監聽、passive、不 preventDefault；十字線圖層 pointer-events:none → 不擋點擊、捲動、雙指縮放、拖曳彈孔、輸入框。
 // - 文字輸入框、textarea、滑桿（range）不顯示（會干擾游標與拖曳）。
-// - 靶面：靶面自己已經畫十字線的（預報、對照、分析、鬼影、Lite 第 1／2 步）維持原樣，不重複畫；
+// - 靶面：靶面自己已經畫十字線的（預報、對照、分析、Lite 第 1／2 步）維持原樣，不重複畫；
 //   其他靶面／照片（Lite 第 3 步、照片校正畫面）畫一個跟著手指的全幅十字線。
 // - 按鈕、資訊方塊、清單項目：十字線被裁切在該元素的框內（Lite 上方四塊用各自的多邊形外形裁切）。
 // - 裁切框會再跟所有可捲動的上層容器與畫面取交集 → 不會跑出捲動區域。
@@ -19,10 +19,10 @@
   var TARGET = 'svg.target,svg.lite-photo,#photoSvg,#anaPhotoSvg,[data-xh=full]';
   var PRESS = 'button,a[href],select,summary,label,[role=button],[role=tab],[role=switch],[role=option],[role=menuitem],' +
     'input[type=checkbox],input[type=radio],input[type=file],input[type=button],input[type=submit],input[type=reset],input[type=color],' +
-    '.rec,.stat,.ana-chip,.lite-card,.gh-rb,.gh-cell,[data-xh=box]';
+    '.rec,.stat,.ana-chip,.lite-card,[data-xh=box]';
 
   // 橘色（強調色）的按鈕上，橘色十字線看不清楚 → 改用深色（.alt）
-  var ACCENT = '.wr-cam,.wr-seg button.on,.ana-chip.on,.lay-done,.wr-pop .pi.all,.wr-fab,.pf-btn.pri,#wrNav button.active,.navc-dots button.on,.lite-verify,.gh-primary,.primary,.modetg button.on,.lite-steps button.on,.gh-seg button.on,.lite-srcbtn.lite-cam,.lite-rounds button.on,.modal .yes';
+  var ACCENT = '.wr-cam,.wr-seg button.on,.ana-chip.on,.lay-done,.wr-pop .pi.all,.wr-fab,.pf-btn.pri,#wrNav button.active,.navc-dots button.on,.lite-verify,.primary,.modetg button.on,.lite-steps button.on,.lite-srcbtn.lite-cam,.lite-rounds button.on,.modal .yes';
   var root = null, clip = null, hl = null, vl = null, hole = null;
   var act = null;   // { id, el, mode:'box'|'full', x, y, t0, box:{l,t,w,h}, own }
   var raf = 0, hideT = 0;

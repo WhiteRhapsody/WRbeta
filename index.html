@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v2.9.5">
-<link rel="icon" href="icon.svg?v=v2.9.5">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v2.9.5">
+<link rel="manifest" href="manifest.webmanifest?v=v3.0">
+<link rel="icon" href="icon.svg?v=v3.0">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v3.0">
 <script>/* v2.9.0 首頁：同一個分頁第一次打開才顯示（app-home.js） */try{if(!sessionStorage.getItem('wr_home_seen'))document.documentElement.classList.add('wr-home');}catch(e){document.documentElement.classList.add('wr-home');}</script>
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v2.9.5"><link rel="stylesheet" href="themes.css?v=v2.9.5"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v3.0"><link rel="stylesheet" href="themes.css?v=v3.0"><!--/STYLE-->
 </head>
 <body>
 <!-- v2.5.0 分析模塊圖示（White 2026-11-20「超讚」；24×24 單線條，顏色跟著 currentColor，所有主題通用） -->
@@ -62,12 +62,12 @@
 <div id="storageNotice" class="notice soft" style="display:none">此畫面無法存檔（儲存空間被封鎖），可以操作，但關閉後資料會消失。請用 Chrome 開啟以保存紀錄。</div>
 <div id="errNotice" class="notice" style="display:none"></div>
 <script>window.addEventListener('error',function(e){try{var n=document.getElementById('errNotice');n.style.display='';n.textContent=(window.wrT&&wrT.isEn()?'Program error: ':'程式錯誤：')+(e.message||e)+(window.wrT&&wrT.isEn()?' (please take a screenshot and report it)':'（請截圖回報）');}catch(_){}});</script>
-<!-- v1.8.0：順序＝預報·對照／鬼影／分析（中間、稍大、打開 App 預設）／紀錄／設定/說明（齒輪） -->
+<!-- v3.0 beta：順序＝預報·對照／小白單／分析（中間、稍大、打開 App 預設）／紀錄／設定/說明（齒輪） -->
 <!-- v1.5.0 功能切換（Pro）：A 底部圖示列（預設，閒置自動淡出、輕滑淡入）／B 浮動按鈕／C 左右滑動；在「設定/說明 › 設定」切換 -->
 <nav id="wrNav" class="tabs wr-nav pro-only" aria-label="功能">
   <div class="wr-nav-in">
     <button type="button" data-tab="predict" data-ic="fc"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span>預報·對照</span></button>
-    <button type="button" data-tab="ghost" data-ic="gh"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20.5V11a7 7 0 0 1 14 0v9.5l-2.4-1.8-2.3 1.8-2.3-1.8-2.3 1.8-2.3-1.8z"/><circle cx="9.5" cy="11" r="1" fill="currentColor"/><circle cx="14.5" cy="11" r="1" fill="currentColor"/></svg><span>鬼影</span></button>
+    <button type="button" data-tab="sius" data-ic="xb"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 3.5h11v17l-2.2-1.4-2.2 1.4-2.2-1.4-2.2 1.4-2.2-1.4z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/></svg><span>小白單</span></button>
     <button type="button" data-tab="analysis" data-ic="an" class="nv-main active" aria-current="page"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M6 17v-5M10.5 17V7M15 17v-7.5M19.5 17V4.5"/></svg><span>分析</span></button>
     <button type="button" data-tab="records" data-ic="rec"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="3" width="15" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>紀錄</span></button>
     <button type="button" data-tab="about" data-ic="set"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.93 9.39 L21.37 9.90 L21.37 14.10 L18.93 14.61 L18.74 15.05 L20.11 17.14 L17.14 20.11 L15.05 18.74 L14.61 18.93 L14.10 21.37 L9.90 21.37 L9.39 18.93 L8.95 18.74 L6.86 20.11 L3.89 17.14 L5.26 15.05 L5.07 14.61 L2.63 14.10 L2.63 9.90 L5.07 9.39 L5.26 8.95 L3.89 6.86 L6.86 3.89 L8.95 5.26 L9.39 5.07 L9.90 2.63 L14.10 2.63 L14.61 5.07 L15.05 5.26 L17.14 3.89 L20.11 6.86 L18.74 8.95Z"/><circle cx="12" cy="12" r="3.3"/></svg><span>設定/說明</span></button>
@@ -78,7 +78,7 @@
 <div id="wrFabWrap" class="wr-fab-wrap pro-only"><span id="wrFabLbl" class="wr-fab-lbl" aria-hidden="true">分析</span><button type="button" id="wrFab" class="wr-fab" aria-label="功能選單（目前：分析）" aria-expanded="false" aria-controls="wrNav"><span class="wr-fab-ic"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5h17"/><path d="M6 17v-5M10.5 17V7M15 17v-7.5M19.5 17V4.5"/></svg></span><span class="wr-fab-x"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></span></button></div>
 <div id="wrNavC" class="wr-navc pro-only" aria-label="功能（左右滑動切換）">
   <span class="navc-side navc-prev" id="navcPrev"></span>
-  <span class="navc-mid"><b id="navcCur">分析</b><span class="navc-dots" role="tablist"><button type="button" role="tab" data-tab="predict" aria-label="預報·對照" aria-selected="false"></button><button type="button" role="tab" data-tab="ghost" aria-label="鬼影" aria-selected="false"></button><button type="button" role="tab" data-tab="analysis" aria-label="分析" class="on" aria-selected="true"></button><button type="button" role="tab" data-tab="records" aria-label="紀錄" aria-selected="false"></button><button type="button" role="tab" data-tab="about" aria-label="設定/說明" aria-selected="false"></button></span></span>
+  <span class="navc-mid"><b id="navcCur">分析</b><span class="navc-dots" role="tablist"><button type="button" role="tab" data-tab="predict" aria-label="預報·對照" aria-selected="false"></button><button type="button" role="tab" data-tab="sius" aria-label="小白單" aria-selected="false"></button><button type="button" role="tab" data-tab="analysis" aria-label="分析" class="on" aria-selected="true"></button><button type="button" role="tab" data-tab="records" aria-label="紀錄" aria-selected="false"></button><button type="button" role="tab" data-tab="about" aria-label="設定/說明" aria-selected="false"></button></span></span>
   <span class="navc-side navc-next" id="navcNext"></span>
 </div>
 
@@ -313,6 +313,8 @@
       <div class="row"><button type="button" id="anaPasteGo" class="primary">還原</button><button type="button" id="anaPasteCancel">取消</button></div>
     </div>
   </div>
+  <!-- v3.0 beta：測試期回報表單（分析頁最下面；小白單紀錄才出現；report.js） -->
+  <div class="card ana-rep-card" id="anaRepCard" hidden></div>
   <div class="ana-dock" id="anaDock" data-edge="home">
     <button type="button" class="dk-home" id="dockHome" aria-label="拍照按鈕回到預設位置" title="回到預設位置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg></button>
     <label class="wr-side dk-it" id="anaPickBtn"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4.5 3.5"/></svg><span><b>相簿</b><small>可多選</small></span><input type="file" id="anaPick" accept="image/*" multiple hidden></label>
@@ -325,40 +327,20 @@
   <button type="button" class="dk-eye" id="anaEye" data-edge="left" aria-label="顯示拍照按鈕（相簿／拍下一張／檔案／小白單）" hidden><span class="dk-face"><i class="dk-e"></i><i class="dk-e"></i></span></button>
 </section>
 
-<section id="tab-ghost" class="tab">
-  <div id="ghostView" class="gh" data-src="prev">
-    <button type="button" class="lay-btn pro-only gh-laybtn" data-lay-page="ghost" aria-label="編輯版面（調整數據方塊的位置）"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg><span>編輯版面</span></button>
-    <div id="ghHint" class="gh-hint">鬼影模式：60 發＝6 輪 × 10 發，按住靶面、放開記錄</div>
-    <div class="gh-grid">
-      <div class="gh-tgbox"><div class="gh-tg" id="ghTg"><svg id="ghSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="鬼影靶面（按住看落點，放開記錄；雙指縮放）"></svg>
-        <div id="ghZoomBadge" class="lite-zbadge"></div>
-        <div id="ghEmpty" class="gh-empty" hidden></div>
-      </div></div>
-      <div class="gh-side">
-        <div id="ghRail" class="gh-rail" role="group" aria-label="鬼影數據"></div>
-        <div class="gh-legend" aria-hidden="true"><span><i class="dot me"></i>這次</span><span><i class="dot gh"></i>上次同一發</span><span><i class="dot nx"></i>下一發</span><span><i class="dot xh"></i>按壓十字</span></div>
-        <div id="ghStrip" class="gh-strip" role="group" aria-label="本輪 10 發成績條"></div>
-        <div id="ghBig" class="gh-big" aria-live="polite"></div>
-        <div class="gh-acts">
-          <div class="gh-arow lite-bar">
-            <button type="button" id="ghUndo">↶ 復原</button>
-            <button type="button" id="ghToggle" class="gh-toggle" role="switch" aria-checked="true">鬼影 <span class="sw" aria-hidden="true"></span></button>
-            <button type="button" id="ghFit">全靶</button>
-          </div>
-          <button type="button" id="ghFinish" class="lite-verify glass gh-primary"><span class="vlbl"><span id="ghFinishLbl">完成第 1 輪</span> <small id="ghFinishSub">0/10</small></span><i class="gh-prog" id="ghProg"></i></button>
-        </div>
-        <details id="ghOpts" class="gh-opts">
-          <summary>鬼影設定<span class="rc-only">・紀錄碼</span></summary>
-          <div class="gh-optrow"><span class="gh-ol">鬼影來源</span><div class="gh-seg" role="group" aria-label="鬼影來源"><button type="button" data-src="prev" aria-pressed="true">上一次訓練同一發</button><button type="button" data-src="round" aria-pressed="false">本次上一輪</button></div></div>
-          <div class="gh-optrow" id="ghRefRow"><span class="gh-ol">對照紀錄</span><select id="ghRef" aria-label="鬼影對照的紀錄"></select></div>
-          <label class="gh-optrow gh-chk pro-only"><input type="checkbox" id="ghWhole"> 整輪淡影（淡淡顯示上次這一輪全部 10 發）</label>
-          <div class="gh-optrow"><input id="ghName" class="gh-name" maxlength="60" placeholder="名稱（選填）" aria-label="鬼影紀錄名稱"><button type="button" id="ghCopyCode" class="rc-gate">📋 紀錄碼</button></div>
-          <div class="gh-optrow"><button type="button" id="ghNew">＋ 開始新的一組（60 發）</button></div>
-          <div id="ghCodeInfo" class="lbl rc-gate"></div>
-        </details>
-      </div>
-    </div>
+<!-- v3.0 beta：小白單（取代鬼影，White 2026-11-27 指定）；畫面由 app-sius.js 產生 -->
+<section id="tab-sius" class="tab">
+  <div id="siusRoot" class="xb"></div>
+  <!-- v3.0 beta：小白單的三隻寶寶（拍照／相簿／檔案；讀進來一律當小白單）。閒置 1.8 秒收到邊邊、合成一顆戴小白單帽的寶寶（dock.js WRDockMake，FIG-19）
+       相簿＝v2.9.4 寫法（accept image/*，不走 showOpenFilePicker）；檔案＝一般檔案選擇器（app-nav.js KIND 'any'） -->
+  <div class="ana-dock xb-dock" id="xbDock" data-edge="home">
+    <button type="button" class="dk-home" id="xbHome" aria-label="小白單寶寶回到預設位置" title="回到預設位置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg></button>
+    <div class="tr-base" aria-hidden="true"></div>
+    <label class="tr-b tr-cam dk-it" id="siusCamBtn"><span class="tr-prop" aria-hidden="true"><svg viewBox="0 0 34 26"><path d="M11 5l2.2-3h7.6L23 5h6a3 3 0 0 1 3 3v13a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z" fill="#2c2d33"/><circle cx="17" cy="14.5" r="6.6" fill="#55657a" stroke="#fff" stroke-width="1.6"/><circle cx="17" cy="14.5" r="3" fill="#1b1c20"/><circle cx="15.6" cy="13.1" r="1" fill="#fff" opacity=".8"/><rect x="25" y="7.5" width="4" height="2.4" rx="1" fill="#ffd34d"/></svg></span><span class="tr-body"><span class="tr-face"><i class="dk-e" style="animation-delay:0s"></i><i class="dk-e" style="animation-delay:0s"></i></span></span><span class="tr-bub">拍照</span><input type="file" id="siusCam" accept="image/*" capture="environment" hidden></label>
+    <label class="tr-b tr-pic dk-it" id="siusPickBtn"><span class="tr-body"><span class="tr-face"><i class="dk-e" style="animation-delay:-1.4s"></i><i class="dk-e" style="animation-delay:-1.4s"></i></span><span class="tr-arm l"></span><span class="tr-arm r"></span></span><span class="tr-prop" aria-hidden="true"><svg viewBox="0 0 36 28"><rect x="1.5" y="1.5" width="33" height="25" rx="2.5" fill="#fff" stroke="#c9c7c0" stroke-width="1.2"/><rect x="4.5" y="4.5" width="27" height="16" fill="#9fd6ff"/><circle cx="25" cy="9" r="2.6" fill="#ffcf4d"/><path d="M4.5 20.5l7-8 5 5 4-3.5 11 6.5z" fill="#5bbf6a"/></svg></span><span class="tr-bub">相簿</span><input type="file" id="siusPick" accept="image/*" multiple hidden></label>
+    <label class="tr-b tr-fil dk-it" id="siusFileBtn"><span class="tr-prop" aria-hidden="true"><svg viewBox="0 0 34 26"><path d="M2 5a2.5 2.5 0 0 1 2.5-2.5h8l3 3H29.5A2.5 2.5 0 0 1 32 8v14.5a2.5 2.5 0 0 1-2.5 2.5h-25A2.5 2.5 0 0 1 2 22.5z" fill="#e3a12a"/><path d="M2 10.5A2.5 2.5 0 0 1 4.5 8h25A2.5 2.5 0 0 1 32 10.5v12a2.5 2.5 0 0 1-2.5 2.5h-25A2.5 2.5 0 0 1 2 22.5z" fill="#f8c94e"/></svg></span><span class="tr-body"><span class="tr-face"><i class="dk-e" style="animation-delay:-3.1s"></i><i class="dk-e" style="animation-delay:-3.1s"></i></span></span><span class="tr-bub">檔案</span><input type="file" id="siusFile" accept="*/*" multiple hidden></label>
+    <div class="tr-tag"><span class="wrx-hat sm" aria-hidden="true"><svg viewBox="0 0 22 27"><path class="pp" d="M2 1.5h18v22.5l-3-1.8-3 1.8-3-1.8-3 1.8-3-1.8-3 1.8z"/><path class="ln" d="M5.5 6h11"/><path class="ln2" d="M5.5 10h11M5.5 13.5h11M5.5 17h7"/></svg></span>都當小白單讀</div>
   </div>
+  <button type="button" class="dk-eye xb-eye" id="xbEye" data-edge="left" aria-label="叫出小白單的拍照／相簿／檔案" hidden><span class="wrx-hat" aria-hidden="true"><svg viewBox="0 0 22 27"><path class="pp" d="M2 1.5h18v22.5l-3-1.8-3 1.8-3-1.8-3 1.8-3-1.8-3 1.8z"/><path class="ln" d="M5.5 6h11"/><path class="ln2" d="M5.5 10h11M5.5 13.5h11M5.5 17h7"/></svg></span><span class="dk-face"><i class="dk-e"></i><i class="dk-e"></i></span></button>
 </section>
 
 <section id="tab-records" class="tab">
@@ -405,7 +387,7 @@
         <button type="button" role="radio" data-lang="zh-TW" aria-checked="false" lang="zh-Hant-TW"><b>繁體中文</b></button>
         <button type="button" role="radio" data-lang="en" aria-checked="false" lang="en"><b>English</b></button>
       </div></div>
-    <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／鬼影／分析／紀錄／設定/說明」的方式</small></div>
+    <div class="set-row pro-only"><div class="set-k"><b>功能切換方式</b><small>Pro 介面切換「預報·對照／小白單／分析／紀錄／設定/說明」的方式</small></div>
       <div class="set-seg" id="navStyleSeg" role="radiogroup" aria-label="功能切換方式">
         <button type="button" role="radio" data-nav="a" aria-checked="true"><i class="ns-ill ns-a" aria-hidden="true"><s></s><s></s><s></s><s></s><s></s></i><b>A 底部圖示列</b><small>預設・閒置自動隱藏</small></button>
         <button type="button" role="radio" data-nav="b" aria-checked="false"><i class="ns-ill ns-b" aria-hidden="true"><s></s></i><b>B 浮動按鈕</b><small>右下角圓鈕展開</small></button>
@@ -414,8 +396,26 @@
     <label class="chk set-chk pro-only" id="navAutoHideRow"><input type="checkbox" id="navAutoHide" checked> 底部圖示列閒置 3 秒自動隱藏（在靶面以外輕輕一滑就出現）</label>
     <label class="chk set-chk"><input type="checkbox" id="liftCursor"> 按壓靶面時落點上移 60px（避免手指擋住）</label>
     <label class="chk set-chk" id="fxAnimRow"><input type="checkbox" id="fxAnimTg" checked> 主題動畫（賽博龐克、電子世界的靶面、卡片與按鈕會動；按靶面時自動暫停 1.5 秒；系統設定「減少動態效果」時一律不動）</label>
-    <label class="chk set-chk" id="dockAutoHideRow"><input type="checkbox" id="dockAutoHide" checked> 分析頁「相簿／拍下一張／檔案」閒置 3 秒自動收到螢幕邊緣（留下會眨眼的小圓，點它或從它往內滑就出來）</label>
+    <label class="chk set-chk" id="dockAutoHideRow"><input type="checkbox" id="dockAutoHide" checked> 分析頁「相簿／拍下一張／檔案」和小白單的三隻寶寶，閒置 1.8 秒自動收到螢幕邊緣（留下會眨眼的小圓，點它或從它往內滑就出來）</label>
     <div class="set-row" id="dockResetRow"><button type="button" id="dockResetSet" class="set-btn">拍照按鈕回到預設位置（下方中間）</button></div>
+  </div>
+  <!-- v3.0 beta：字型三選一（White 2026-11-27 指定；方向稿 wrbeta-font-compare/settings_switch）。只改 --w-sans；選宙黑體才下載那一套（約 1MB）；自己輸入的文字維持系統字 -->
+  <div class="card set-card" id="fontCard" data-mod="font" data-mod-name="字型">
+    <div class="set-h">字型 <small class="set-sub">系統字／宙黑體，可隨時切換</small></div>
+    <div class="set-row">
+      <div class="set-k"><b>畫面字型</b><small>選到的字型會套用在介面文字；選手名字等自己輸入的內容仍用系統字。</small></div>
+      <div class="font-list" id="fontSeg" role="radiogroup" aria-label="畫面字型">
+        <button type="button" role="radio" aria-checked="true" data-font="system"><i class="sw" aria-hidden="true">系</i><b>系統字</b><small>預設・不必下載</small><span class="font-preview sys">10.9 環 消滅彈孔 射擊紀錄 0123456789</span></button>
+        <button type="button" role="radio" aria-checked="false" data-font="zev-n"><i class="sw zev-n" aria-hidden="true">N</i><b>宙黑體 N</b><small>首次使用需下載約 1MB</small><span class="font-preview zev-n">10.9 環 消滅彈孔 射擊紀錄 0123456789</span></button>
+        <button type="button" role="radio" aria-checked="false" data-font="zev-f"><i class="sw zev-f" aria-hidden="true">F</i><b>宙黑體 F</b><small>首次使用需下載約 1MB</small><span class="font-preview zev-f">10.9 環 消滅彈孔 射擊紀錄 0123456789</span></button>
+      </div>
+      <div class="lbl">宙黑體 Zev Hei TC（OFL-1.1，Tamcy／chiron-fonts）；App 只收常用字，少數字會改用系統字顯示。</div>
+    </div>
+  </div>
+  <!-- v3.0 beta：測試期回報（White 2026-11-27 指定）：第一次用小白單時問一次；這裡可以隨時關掉 -->
+  <div class="card set-card" id="repSetCard" data-mod="report" data-mod-name="測試期回報">
+    <div class="set-h">測試期回報 <small class="set-sub">幫小白單辨識變準</small></div>
+    <label class="chk set-chk"><input type="checkbox" id="repConsent"> 存小白單時，把辨識結果上傳給 WRbeta（每一發讀到什麼、你改了哪些、花多久、App 版本、手機型號）。需要登入；照片目前不上傳。</label>
   </div>
   <div class="card set-card" id="liteThemeCard" data-mod="theme" data-mod-name="主題"><div class="set-h">主題 <small class="set-sub">10 款・Pro 與 Lite 共用</small></div>
     <div class="th-grid" id="themeGrid" role="radiogroup" aria-label="主題"><button type="button" role="radio" data-th="sport" aria-checked="false"><i class="sw sw-sport" aria-hidden="true"></i><b>運動風</b><small>深藍碳纖維＋橘</small></button><button type="button" role="radio" data-th="hud" aria-checked="false"><i class="sw sw-hud" aria-hidden="true"></i><b>戰術 HUD</b><small>黑碳纖維＋青光</small></button><button type="button" role="radio" data-th="light" aria-checked="false"><i class="sw sw-light" aria-hidden="true"></i><b>簡約亮色</b><small>乳白斜髮絲紋・戶外清楚（預設）</small></button><button type="button" role="radio" data-th="glass" aria-checked="false"><i class="sw sw-glass" aria-hidden="true"></i><b>玻璃漸層</b><small>夜空霓虹玻璃</small></button><button type="button" role="radio" data-th="cyberpunk" aria-checked="false"><i class="sw sw-cyberpunk" aria-hidden="true"></i><b>賽博龐克</b><small>霓虹故障・會動的靶面</small></button><button type="button" role="radio" data-th="tron" aria-checked="false"><i class="sw sw-tron" aria-hidden="true"></i><b>電子世界</b><small>光跡網格・會動的靶面</small></button><button type="button" role="radio" data-th="piano" aria-checked="false"><i class="sw sw-piano" aria-hidden="true"></i><b>鋼琴烤漆與霧面</b><small>黑白鋼琴漆</small></button><button type="button" role="radio" data-th="racing" aria-checked="false"><i class="sw sw-racing" aria-hidden="true"></i><b>賽車</b><small>碳纖維＋紅橘</small></button><button type="button" role="radio" data-th="appliance" aria-checked="false"><i class="sw sw-appliance" aria-hidden="true"></i><b>科技家電</b><small>霧面深藍＋暖橘點</small></button><button type="button" role="radio" data-th="luxury" aria-checked="false"><i class="sw sw-luxury" aria-hidden="true"></i><b>精密精品</b><small>黑金細線</small></button></div>
@@ -485,7 +485,6 @@
     <div class="lt-more-list">
       <button type="button" data-act="theme"><b>🎨 外觀</b><small>10 款主題</small></button>
       <button type="button" data-act="records"><b>🗂 紀錄</b><small><span class="rc-only">紀錄碼備份、比較、還原</span><span class="rc-no">比較、管理紀錄</span></small></button>
-      <button type="button" data-act="ghost"><b>👻 鬼影模式</b><small>60 發，和上一次同一發比</small></button>
       <button type="button" data-act="analysis"><b>📈 多張分析</b><small>不預報，連拍多張</small></button>
       <button type="button" data-act="about"><b>⚙️ 設定/說明</b><small>外觀、帳號（雲端）、使用方法、更新</small></button>
       <button type="button" data-act="pro"><b>⚙️ 切到 Pro</b><small>完整功能</small></button>
@@ -495,25 +494,24 @@
 </div>
 <div id="toast"></div>
 <div id="wrHome" hidden></div>
-<!--I18N--><script src="i18n/zh-TW.js?v=v2.9.5"></script><script src="i18n/en.js?v=v2.9.5"></script><script src="i18n/i18n.js?v=v2.9.5"></script><!--/I18N-->
-<!--CORE--><script src="core.js?v=v2.9.5"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v2.9.5"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v2.9.5"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v2.9.5"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v2.9.5"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v2.9.5"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v2.9.5"></script><script src="member-friends.js?v=v2.9.5"></script><script src="member-admin.js?v=v2.9.5"></script><!--/MEMBER-->
-<!--GHOST--><script src="ghost.js?v=v2.9.5"></script><!--/GHOST-->
-<!--PRESS--><script src="press.js?v=v2.9.5"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v2.9.5"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v2.9.5"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v2.9.5"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v2.9.5"></script><!--/DOCK-->
-<!--APP--><script src="app-base.js?v=v2.9.5"></script><script src="app-forecast.js?v=v2.9.5"></script><script src="app-lite.js?v=v2.9.5"></script><script src="app-ghost.js?v=v2.9.5"></script><script src="app-photo.js?v=v2.9.5"></script><script src="app-mods.js?v=v2.9.5"></script>
-<script src="app-analysis.js?v=v2.9.5"></script><script src="sius-img.js?v=v2.9.5"></script><script src="sius.js?v=v2.9.5"></script><script src="sius-ocr.js?v=v2.9.5"></script><script src="app-sius.js?v=v2.9.5"></script><script src="app-records.js?v=v2.9.5"></script><script src="app-nav.js?v=v2.9.5"></script><script src="app.js?v=v2.9.5"></script><script src="app-account.js?v=v2.9.5"></script><script src="app-back.js?v=v2.9.5"></script><script src="app-coach.js?v=v2.9.5"></script><script src="app-home.js?v=v2.9.5"></script><script src="pdf-report.js?v=v2.9.5"></script><script src="pdf-export.js?v=v2.9.5"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v3.0"></script><script src="i18n/en.js?v=v3.0"></script><script src="i18n/i18n.js?v=v3.0"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v3.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v3.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v3.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v3.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v3.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v3.0"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v3.0"></script><script src="member-friends.js?v=v3.0"></script><script src="member-admin.js?v=v3.0"></script><!--/MEMBER-->
+<!--PRESS--><script src="press.js?v=v3.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v3.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v3.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v3.0"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v3.0"></script><!--/DOCK-->
+<!--APP--><script src="app-base.js?v=v3.0"></script><script src="app-forecast.js?v=v3.0"></script><script src="app-lite.js?v=v3.0"></script><script src="app-photo.js?v=v3.0"></script><script src="app-mods.js?v=v3.0"></script>
+<script src="app-analysis.js?v=v3.0"></script><script src="sius-img.js?v=v3.0"></script><script src="sius.js?v=v3.0"></script><script src="sius-ocr.js?v=v3.0"></script><script src="sius-x-parse.js?v=v3.0"></script><script src="sius-x-align.js?v=v3.0"></script><script src="sius-x-check.js?v=v3.0"></script><script src="sius-x-img.js?v=v3.0"></script><script src="sius-x-core.js?v=v3.0"></script><script src="sius-x.js?v=v3.0"></script><script src="sius-v3.js?v=v3.0"></script><script src="app-sius.js?v=v3.0"></script><script src="report.js?v=v3.0"></script><script src="app-records.js?v=v3.0"></script><script src="app-nav.js?v=v3.0"></script><script src="app.js?v=v3.0"></script><script src="app-account.js?v=v3.0"></script><script src="app-back.js?v=v3.0"></script><script src="app-coach.js?v=v3.0"></script><script src="app-home.js?v=v3.0"></script><script src="pdf-report.js?v=v3.0"></script><script src="pdf-export.js?v=v3.0"></script><!--/APP-->
 <script>
 (function () {
-  var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['BMGhost','ghost.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];
+  var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];
   var miss = [];
   for (var i = 0; i < need.length; i++) if (!window[need[i][0]]) miss.push(need[i][1] + ' (' + need[i][0] + ')');
   if (!miss.length) return;

@@ -175,7 +175,8 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
       return reauth.then(function () {
         blocked = true; clearTimeout(timer); // 刪除途中與刪除後都不要再同步（不然會把本機紀錄又傳上去）
         // v2.0.0：先刪會員資料（會員 ID 保留、公開頭像、好友、分享、兌換），再刪紀錄與帳號
-        return (root.WRMember && root.WRMember.purge ? root.WRMember.purge() : Promise.resolve());
+        // v3.0 beta：也清掉自己送過的測試期回報（siusReports）
+        return (root.WRMember && root.WRMember.purge ? root.WRMember.purge() : Promise.resolve()).then(function () { var R = root.WRApp && root.WRApp.siusReport; return R && R.purge ? R.purge() : null; });
       }).then(function () {
         var col = M.F.collection(db, 'users', uid, 'records');
         return M.F.getDocs(col).then(function (snap) {

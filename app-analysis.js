@@ -748,6 +748,7 @@
     else acur.sheets.forEach(function (s2, k) { if (isSighter(s2)) return; s2.shots.forEach(function (q, i) { out.push({ q: q, sheet: k + 1, i: i + 1, color: SHEET_COLORS[k % SHEET_COLORS.length] }); }); }); // v2.9.2：合併不含試射
     return out;
   }
+  App.anaExtraHTML = function (t, st, set, single) { return anaExtraHTML(t, st, set, single); }; // v3.0 beta：小白單畫面也用同一套分析模塊
   function anaExtraHTML(t, st, set, single) {
     var M = App.mods, h = '', card = function (title, body, cls, id) { return '<div class="ana-card ' + (cls || '') + '" data-mod="' + id + '" data-mod-name="' + esc(M.plain(title)) + '"><div class="ana-ct">' + M.plain(title) + '</div>' + body + '</div>'; };
     // v2.5.0 預報對照分析（唯讀檢視）：預報專屬模塊放最前面
@@ -855,6 +856,7 @@
   }
   function renderAnalysis() {
     var t = atgt(), sh = selSheet(), P;
+    if (App.siusReport) try { App.siusReport.card(); } catch (e) {} // v3.0 beta：測試期回報表單（小白單紀錄才有）
     if (anaSel !== 'all' && !sh) anaSel = 'all';
     P = sh && anaPhotos[sh.id];
     if (anaView === 'photo' && !P) anaView = 'target';

@@ -4,7 +4,7 @@
   var T = App.T, $ = App.$, storageOK = App.storageOK, prefs = App.prefs, savePrefs = App.savePrefs, newSession = App.newSession,
     persist = App.persist, PV = App.PV, renderPredict = App.renderPredict, liteStep = App.liteStep, LITE_THEMES = App.LITE_THEMES,
     THEME_NAME = App.THEME_NAME, setLiteTheme = App.setLiteTheme, liteLayout = App.liteLayout, renderLite = App.renderLite,
-    setLiteStep = App.setLiteStep, renderGhost = App.renderGhost, setMode = App.setMode, photo = App.photo, renderCompare = App.renderCompare,
+    setLiteStep = App.setLiteStep, setMode = App.setMode, photo = App.photo, renderCompare = App.renderCompare,
     CV = App.CV, anaPZ = App.anaPZ, anaSetView = App.anaSetView, AV = App.AV, anaChangeTarget = App.anaChangeTarget,
     renderAnalysis = App.renderAnalysis, restoreCodes = App.restoreCodes, drawRecord = App.drawRecord, recMetaHTML = App.recMetaHTML,
     renderRecords = App.renderRecords, renderAbout = App.renderAbout, ask = App.ask, toast = App.toast, showTab = App.showTab, stSub = App.stSub,
@@ -16,7 +16,7 @@
   Object.defineProperty(App, 'APP_VERSION', { get: function () { return APP_VERSION; }, set: function (v) { APP_VERSION = v; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'APP_LABEL', { get: function () { return APP_LABEL; }, set: function (v) { APP_LABEL = v; }, enumerable: true, configurable: true });
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v2.9.5', APP_LABEL = 'beta v2.9.5'; // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v3.0', APP_LABEL = 'v3.0 beta'; // v3.0：White 2026-11-27 指定這版叫「v3.0 beta」（版號在前） // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = APP_LABEL; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = wrT('app.x', [APP_LABEL, APP_VERSION]); document.title = APP_NAME; } catch (e) {}
   var tsel = $('targetSel');
   Object.keys(T).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = T[k].name; tsel.appendChild(o); });
@@ -40,9 +40,40 @@
   if (window.WRDock) {
     WRDock.init({ enabled: prefs.dockAutoHide !== false, active: function () { return App.curTab === 'analysis'; }, toast: toast });
     $('dockAutoHide').checked = prefs.dockAutoHide !== false;
-    $('dockAutoHide').onchange = function () { prefs.dockAutoHide = this.checked; savePrefs(); WRDock.setEnabled(this.checked); toast(this.checked ? wrT('app.camera_buttons_tuck_to_the') : wrT('app.camera_buttons_always_show')); };
-    $('dockResetSet').onclick = function () { WRDock.home(); };
+    $('dockAutoHide').onchange = function () { prefs.dockAutoHide = this.checked; savePrefs(); WRDock.setEnabled(this.checked); if (window.WRDockXB) WRDockXB.setEnabled(this.checked); toast(this.checked ? wrT('app.camera_buttons_tuck_to_the') : wrT('app.camera_buttons_always_show')); };
+    $('dockResetSet').onclick = function () { WRDock.home(); if (window.WRDockXB) WRDockXB.home(true); };
   }
+  // v3.0 beta：字型三選一（系統字／宙黑體 N／宙黑體 F；White 2026-11-27 指定）。只改 --w-sans（body.ff-zev-n／ff-zev-f）；
+  // 選宙黑體才用 FontFace 下載那一套（各約 1MB，不放進 sw.js 預先快取）；單檔版（file://）讀不到字型檔就退回系統字。
+  var FONTS = { 'zev-n': { fam: 'ZevHeiTC-N', file: 'fonts/ZevHeiTC-N-VF-WR.woff2' }, 'zev-f': { fam: 'ZevHeiTC-F', file: 'fonts/ZevHeiTC-F-VF-WR.woff2' } }, fontLoaded = {};
+  function loadFont(id) {
+    var f = FONTS[id]; if (!f) return Promise.resolve(true);
+    if (fontLoaded[id]) return fontLoaded[id];
+    if (typeof FontFace === 'undefined' || !document.fonts) return Promise.resolve(false);
+    var ff = new FontFace(f.fam, 'url("' + f.file + '") format("woff2")', { weight: '200 900', stretch: '75% 125%', display: 'swap' });
+    fontLoaded[id] = ff.load().then(function (x) { document.fonts.add(x); return true; }, function () { fontLoaded[id] = null; return false; });
+    return fontLoaded[id];
+  }
+  function fontSync() {
+    var cur = FONTS[prefs.uiFont] ? prefs.uiFont : 'system';
+    document.querySelectorAll('#fontSeg button').forEach(function (b) { var on = b.dataset.font === cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+  }
+  function applyFont(id, quiet) {
+    var B = document.body;
+    if (!FONTS[id]) { B.classList.remove('ff-zev-n', 'ff-zev-f'); fontSync(); return; }
+    B.classList.add('ff-loading');
+    loadFont(id).then(function (ok) {
+      B.classList.remove('ff-loading');
+      if (!ok) { if (prefs.uiFont === id) { prefs.uiFont = 'system'; savePrefs(); } B.classList.remove('ff-zev-n', 'ff-zev-f'); fontSync(); if (!quiet) toast(wrT('app.font_fail')); return; }
+      if (prefs.uiFont !== id) return;
+      B.classList.toggle('ff-zev-n', id === 'zev-n'); B.classList.toggle('ff-zev-f', id === 'zev-f'); fontSync();
+    });
+  }
+  document.querySelectorAll('#fontSeg button').forEach(function (b) {
+    b.onclick = function () { var id = b.dataset.font; prefs.uiFont = FONTS[id] ? id : 'system'; savePrefs(); fontSync(); applyFont(prefs.uiFont); if (FONTS[id] && !fontLoaded[id]) toast(wrT('app.font_loading')); };
+  });
+  fontSync(); if (FONTS[prefs.uiFont]) applyFont(prefs.uiFont, true);
+  App.fontLoad = loadFont; App.applyFont = applyFont;
   // v1.8.0：Pro 打開 App 預設在「分析」（Lite 照舊從三步驟的預報開始）
   // v2.2.0：換語言會重新載入；回到原本的分頁（「設定」子標籤由 prefs.aboutSub 記住）
   var _langTab = null; try { _langTab = sessionStorage.getItem('wr_lang_tab'); sessionStorage.removeItem('wr_lang_tab'); } catch (e) {}

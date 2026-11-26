@@ -5,7 +5,7 @@
   'use strict';
   // 其他模組（先載入）的共用名稱
   var T = App.T, NS = App.NS, $ = App.$, f2 = App.f2, prefs = App.prefs, savePrefs = App.savePrefs, renderPredict = App.renderPredict,
-    THEME_NAME = App.THEME_NAME, setLiteTheme = App.setLiteTheme, liteLayout = App.liteLayout, renderGhost = App.renderGhost, toast = App.toast,
+    THEME_NAME = App.THEME_NAME, setLiteTheme = App.setLiteTheme, liteLayout = App.liteLayout, toast = App.toast,
     showTab = App.showTab;
   // 給其他模組用（函式）
   App.setMode = setMode; App.pickIsHeic = pickIsHeic; App.renderAbout = renderAbout; App.navBulge = navBulge;
@@ -20,7 +20,7 @@
     document.querySelectorAll('#modeToggle button').forEach(function (b) { var on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     if (prefs.ui !== m) { prefs.ui = m; savePrefs(); }
     if (typeof nav !== 'undefined' && nav) nav.modeChanged(); // v1.5.0：功能列只在 Pro（Lite 有自己的步驟列）
-    if (document.body.classList.contains('on-ghost')) renderGhost();
+    if (document.body.classList.contains('on-sius') && App.renderSius) App.renderSius();
     if (!quiet) { renderPredict(); liteLayout(); toast(m === 'lite' ? wrT('app.switched_to_lite') : wrT('app.switched_to_pro')); }
   }
   document.querySelectorAll('#modeToggle button').forEach(function (b) { b.onclick = function () { setMode(b.dataset.mode); }; });
@@ -65,7 +65,7 @@
   // 相簿＝只列圖片的檔案選擇器；檔案＝全部檔案。拍照鈕（capture）不經過這裡。沒有這個 API 時退回原本的 input。
   (function () {
     var IMG = { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'], 'image/webp': ['.webp'], 'image/gif': ['.gif'], 'image/heic': ['.heic'], 'image/heif': ['.heif'] };
-    var KIND = { litePick: 'img', photoPick: 'img', anaPick: 'img', liteFile: 'any', photoFile: 'any', anaFile: 'any', siusPick: 'img', siusAdd: 'img', siusFile: 'any' }; // v2.9.5：小白單的相簿／再加一張／檔案
+    var KIND = { litePick: 'img', photoPick: 'img', anaPick: 'img', liteFile: 'any', photoFile: 'any', anaFile: 'any', siusAdd: 'img', siusFile: 'any' }; // v2.9.5：小白單的再加一張／檔案；v3.0 beta：小白單「相簿」寶寶回到 v2.9.4 寫法（accept image/*，不走 showOpenFilePicker，White 2026-11-27 指定）
     var android = /Android/i.test(navigator.userAgent || '');
     function feed(inp, files) {
       try { var dt = new DataTransfer(); files.forEach(function (f) { dt.items.add(f); }); inp.files = dt.files; } catch (e) { return; }
@@ -154,8 +154,9 @@
   // B：右下角浮動圓鈕，按一下往上展開 5 個功能（順序同 NAV_ORDER）。C：在靶面以外左右滑動換功能，上方小圓點顯示目前位置。
   // 設定存在 prefs.nav（'a'｜'b'｜'c'）與 prefs.navAutoHide（預設 true）。
   // v1.8.0：順序改成 預報·對照／鬼影／分析（中間）／紀錄／設定/說明；打開 App 預設在「分析」
-  var NAV_ORDER = ['predict', 'ghost', 'analysis', 'records', 'about'];
-  var NAV_NAME = { predict: wrT('app.call_check'), analysis: wrT('app.analysis_2'), records: wrT('app.records'), ghost: wrT('app.ghost_2'), about: wrT('app.settings') };
+  // v3.0 beta：鬼影換成小白單（White 2026-11-27 指定）
+  var NAV_ORDER = ['predict', 'sius', 'analysis', 'records', 'about'];
+  var NAV_NAME = { predict: wrT('app.call_check'), analysis: wrT('app.analysis_2'), records: wrT('app.records'), sius: wrT('sius.title'), about: wrT('app.settings') };
   var nav = (function () {
     var N = $('wrNav'), H = $('wrNavHandle'), fab = $('wrFab'), scrim = $('wrFabScrim'), B = document.body, M = document.querySelector('main');
     var HIDE_MS = 5000, hideT = 0, holding = false, keyboard = false, style = 'a', autoHide = prefs.navAutoHide !== false, g = null, anim = 0;

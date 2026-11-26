@@ -8,7 +8,7 @@
  * 混淆：固定金鑰的 XOR 流（這是混淆，不是加密；金鑰在程式裡，無法當作保密通訊）。
  * 分段：每段有獨特開頭、長度與校驗，可直接接在一起；空白與換行會被忽略。
  *
- * v1.8.0：也能存「預報」紀錄（含鬼影、Lite 多輪）——第一個 4 位元（模型版號）＝2 代表預報紀錄（沿用模型 1 的數字）：
+ * v1.8.0：也能存「預報」紀錄（含 Lite 多輪；v3.0 beta 起鬼影拿掉，舊鬼影碼解成一般預報）——第一個 4 位元（模型版號）＝2 代表預報紀錄（沿用模型 1 的數字）：
  *   靶種、建立時間（分）、名稱、模式（一般／鬼影）、配對方式、目前輪次、每輪的預報發數與實際發數，
  *   之後是「預報點」一組、「實際彈著」一組，各自用群中心＋相對座標（0.01mm）的同一套機率模型編碼。
  *   舊版 App（v1.7.x）看到這種碼會當作無效略過，不會出錯。
@@ -512,17 +512,15 @@
     var nb = utf8Bytes(name); if (nb.length > 240) nb = nb.slice(0, 240);
     var P = byRound(rec.preds), A = byRound(rec.actuals), nR = 1, i, k;
     P.concat(A).forEach(function (o) { if (o.r + 1 > nR) nR = o.r + 1; });
-    var ghost = rec.mode === 'ghost';
     var e = new AcEnc();
     encRawBits(e, FC_VER, 4);
     encRawBits(e, ti, 4);
     encRawBits(e, minuteOf(rec.created) >>> 0, 32);
     encBit(e, nb.length ? 1 : 0, TOT >> 1);
     if (nb.length) { encRawBits(e, nb.length, 8); for (i = 0; i < nb.length; i++) encRawBits(e, nb[i], 8); }
-    encRawBits(e, ghost ? 1 : 0, 2);
+    encRawBits(e, 0, 2); // 模式：v1.8.0–v2.9.6 的 1＝鬼影；v3.0 beta 起一律 0（鬼影拿掉，解碼仍相容）
     encRawBits(e, Math.max(0, PAIR.indexOf(rec.pairMode || '')), 2);
     encRawBits(e, rec.round > 0 ? Math.min(255, rec.round | 0) : 0, 8);
-    if (ghost) { var g = rec.ghost || {}; encRawBits(e, g.src === 'round' ? 1 : 0, 1); encRawBits(e, g.done ? 1 : 0, 1); }
     encRawBits(e, nR, 8);
     for (k = 0; k < nR; k++) {
       encRawBits(e, P.filter(function (o) { return o.r === k; }).length, 12);
@@ -564,19 +562,19 @@
     var rec = { v: 2, kind: 'forecast', created: created, name: name, note: '', targetId: tid, preds: pts(P, pr, true), actuals: pts(A, ar, false), calib: null };
     if (pm) rec.pairMode = pm;
     if (round) rec.round = round;
-    if (mode === 1) { rec.mode = 'ghost'; rec.round = round; rec.ghost = { src: gsrc ? 'round' : 'prev', ref: null, done: !!gdone }; }
+    if (mode === 1 && round) rec.round = round; // v3.0 beta：舊的鬼影紀錄碼照樣能還原，解成一般預報紀錄（多輪照留；鬼影設定 gsrc／gdone 讀過就丟）
     return rec;
   }
   function isForecast(rec) { return !!rec && rec.kind !== 'analysis'; }
   function contentKeyFc(rec) {
-    var parts = ['F', String(rec.targetId || ''), String(minuteOf(rec.created)), String(rec.name || ''), rec.mode === 'ghost' ? 'g' : ''];
+    var parts = ['F', String(rec.targetId || ''), String(minuteOf(rec.created)), String(rec.name || '')];
     function add(list) { byRound(list).forEach(function (o) { parts.push(o.r + ':' + qmm(o.p.x) + ',' + qmm(o.p.y)); }); }
     add(rec.preds); parts.push('|'); add(rec.actuals);
     return parts.join(';');
   }
 
   function newId(rec) {
-    var p = rec && rec.kind !== 'analysis' ? (rec.mode === 'ghost' ? 'g' : 's') : 'a';
+    var p = rec && rec.kind !== 'analysis' ? 's' : 'a';
     return p + Date.now() + Math.floor(Math.random() * 1000);
   }
 

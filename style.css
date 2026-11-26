@@ -563,23 +563,23 @@ body.lite.lt-glass .lite-tg{background:rgba(209,247,255,.10);box-shadow:0 0 0 1p
  * ===================================================================================== */
 body.lite{--pz-in:.11s;--pz-in-ease:cubic-bezier(.3,.7,.4,1);--pz-out:.42s;--pz-out-ease:cubic-bezier(.34,1.56,.64,1);--pz-delay:.03s;
   --pz-s:.95;--pz-y:1px;--pz-sh:inset 0 2px 6px rgba(0,0,0,.22),0 1px 2px rgba(0,0,0,.18)}
-body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button,#ghostView button){
+body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button){
   --pz-base:scale(1);-webkit-tap-highlight-color:transparent;
   transform:var(--pz-base) translateY(0) scale(1);
   transition:transform var(--pz-out) var(--pz-out-ease) var(--pz-delay),box-shadow .32s ease-out var(--pz-delay),background-position .45s ease-out,opacity .2s ease-out}
-body.lite.lt-sport :is(#liteView,#ghostView) .lite-verify{--pz-base:skewX(-10deg)}
+body.lite.lt-sport #liteView .lite-verify{--pz-base:skewX(-10deg)}
 /* 按下（:active 是沒有 JS 時的備援） */
-body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button,#ghostView button):is(:active,.pz-down):not(:disabled){
+body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button):is(:active,.pz-down):not(:disabled){
   transform:var(--pz-base) translateY(var(--pz-y)) scale(var(--pz-s));filter:none;box-shadow:var(--pz-sh);
   transition:transform var(--pz-in) var(--pz-in-ease),box-shadow var(--pz-in) ease-out,background-position .25s ease-out,opacity .1s}
 /* 大按鈕（下一步）：陰影層數跟原本一樣（3 內＋2 外） */
-body.lite :is(#liteView,#ghostView) .lite-verify:is(:active,.pz-down):not(:disabled){
+body.lite #liteView .lite-verify:is(:active,.pz-down):not(:disabled){
   box-shadow:inset 0 1px 0 var(--g-in),inset 0 -1px 0 rgba(255,255,255,.10),inset 0 5px 14px rgba(0,0,0,.20),0 3px 8px var(--g-sh),0 1px 2px rgba(0,0,0,.14)}
 
 /* --- 運動風（Gulf）：Switch 風「咕啵」——軟軟壓扁、放開後稍停一下再彈回（有過衝） --- */
 body.lite.lt-sport{--pz-s:.92;--pz-y:0px;--pz-in:.12s;--pz-in-ease:cubic-bezier(.25,.8,.35,1);--pz-out:.5s;--pz-out-ease:cubic-bezier(.3,1.8,.5,1);--pz-delay:.05s;
   --pz-sh:inset 0 3px 8px rgba(0,10,40,.35),0 1px 2px rgba(0,10,40,.30)}
-body.lite.lt-sport :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button,#ghostView button).pz-up{animation:pzPopSport .48s linear .05s backwards}
+body.lite.lt-sport :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button).pz-up{animation:pzPopSport .48s linear .05s backwards}
 @keyframes pzPopSport{
   0%{transform:var(--pz-base) translateY(0) scale(.92);animation-timing-function:cubic-bezier(.2,.7,.4,1)}
   36%{transform:var(--pz-base) translateY(0) scale(1.045,1.03);animation-timing-function:cubic-bezier(.5,0,.5,1)}
@@ -591,9 +591,9 @@ body.lite.lt-sport :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button
 body.lite.lt-light{--pz-in:.09s;--pz-in-ease:cubic-bezier(.4,0,.6,1);--pz-out:.34s;--pz-out-ease:cubic-bezier(.2,1.25,.4,1);--pz-delay:.02s;
   --pz-sh:inset 0 2px 5px rgba(46,46,44,.30),inset 0 -1px 0 rgba(255,255,255,.7),0 0 0 rgba(46,46,44,0);
   --pz-sheen:linear-gradient(105deg,rgba(255,255,255,0) 44%,rgba(255,255,255,.45) 50%,rgba(255,255,255,0) 56%)}
-body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button,#ghostView button){
+body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button){
   transform:var(--pz-base) perspective(600px) translateY(0) rotateX(0deg) scale(1,1)}
-body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button,#ghostView button):is(:active,.pz-down):not(:disabled){
+body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button):is(:active,.pz-down):not(:disabled){
   transform:var(--pz-base) perspective(600px) translateY(2px) rotateX(2.5deg) scale(.985,.965)}
 /* 拉絲鋁按鈕：髮絲紋＋一道斜高光（按下時高光從左緣滑到中間＝光線角度變了） */
 body.lite.lt-light :is(.lite-bar button,.lite-srcbtn:not(.lite-cam),.lite-s2.has-photo .lite-srcbtn,.lite-tools button:not(#liteDelHole),.lite-rounds button:not(.on),.lite-s3row button,.lite-finishrow button){
@@ -602,14 +602,14 @@ body.lite.lt-light :is(.lite-bar button,.lite-srcbtn:not(.lite-cam),.lite-s2.has
   border-color:rgba(46,46,44,.22);color:#1a1a18}
 body.lite.lt-light :is(.lite-verify,.lite-srcbtn.lite-cam){background-image:var(--pz-sheen),linear-gradient(180deg,var(--g-a),var(--g-b));background-size:300% 100%,auto;background-position:74% 0,0 0;background-repeat:no-repeat}
 body.lite.lt-light .lite-s2.has-photo .lite-srcbtn.lite-cam{background-image:var(--pz-sheen),var(--tx-hair),linear-gradient(180deg,#fbfaf7,#e4e1da);background-size:300% 100%,auto,auto,auto,auto;background-position:74% 0,0 0,0 0,0 0,0 0}
-body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#ghostView .lite-bar button):is(:active,.pz-down):not(:disabled){background-position:50% 0,0 0,0 0,0 0,0 0}
-body.lite.lt-light :is(#liteView,#ghostView) .lite-verify:is(:active,.pz-down):not(:disabled){
+body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn):is(:active,.pz-down):not(:disabled){background-position:50% 0,0 0,0 0,0 0,0 0}
+body.lite.lt-light #liteView .lite-verify:is(:active,.pz-down):not(:disabled){
   box-shadow:inset 0 2px 4px rgba(120,40,0,.35),inset 0 -1px 0 rgba(255,255,255,.35),0 0 0 1px rgba(22,32,43,.14),0 2px 4px rgba(40,60,110,.10),0 1px 1px rgba(40,60,110,.08)}
 
 /* --- 戰術 HUD：俐落縮一下（不回彈）、霓虹瞬間變亮再退 --- */
 body.lite.lt-hud{--pz-s:.965;--pz-y:0px;--pz-in:.07s;--pz-in-ease:linear;--pz-out:.22s;--pz-out-ease:cubic-bezier(.2,.9,.3,1);--pz-delay:0s;
   --pz-sh:inset 0 0 14px rgba(0,245,255,.40),0 0 16px rgba(0,245,255,.50)}
-body.lite.lt-hud :is(#liteView,#ghostView) .lite-verify:is(:active,.pz-down):not(:disabled){
+body.lite.lt-hud #liteView .lite-verify:is(:active,.pz-down):not(:disabled){
   box-shadow:inset 0 1px 0 var(--g-in),inset 0 0 28px rgba(0,245,255,.50),0 0 0 1px rgba(0,245,255,.85),0 0 34px rgba(0,245,255,.70),0 4px 10px rgba(0,0,0,.5)}
 
 /* --- 玻璃漸層：柔和下壓、輕微回彈 --- */
@@ -645,9 +645,9 @@ body.lite.lt-glass .lite-panel{--ib-s:.97;--ib-y:.5px;--ib-out:.38s;--ib-out-eas
 
 /* 減少動態：不位移、不彈，只用淡一點表示按到了 */
 @media (prefers-reduced-motion:reduce){
-  body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button,#ghostView button),
-  body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button,#ghostView button){transform:var(--pz-base)!important;animation:none!important}
-  body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button,#ghostView button):is(:active,.pz-down):not(:disabled){opacity:.82}
+  body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button),
+  body.lite.lt-light :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button){transform:var(--pz-base)!important;animation:none!important}
+  body.lite :is(#liteView button,#liteView .lite-srcbtn,#liteSteps button,.lt-sheet button):is(:active,.pz-down):not(:disabled){opacity:.82}
   body.lite .lp-glass,body.lite .lp-cell,body.lite .lp-s,body.lite .lp-sheen{transform:none!important;animation:none!important}
   body.lite .lite-panel[class*="ib-down-"] .lp-cell{opacity:.85}
 }
@@ -679,154 +679,6 @@ body.lite.lt-light .wr-xh.alt{--xh-c:#1a1a18;--xh-fill:rgba(26,26,24,.18)}
 .wr-xh.rm .wr-xh-clip,.wr-xh.rm.on .wr-xh-clip,.wr-xh.rm.on.out .wr-xh-clip{transition:none}
 @media (prefers-reduced-motion: reduce){.wr-xh-clip,.wr-xh.on .wr-xh-clip,.wr-xh.on.out .wr-xh-clip{transition:none!important}.wr-xh .wr-xh-o s{animation:none!important}}
 
-/* =====================================================================================
- * v1.4.0 鬼影模式（Ghost Mode）
- * 設計參考 docs/ghost_mode_mockup.png。Lite：沿用目前主題的變數（--card-*、--gc-*、--g-*、--lt-page）；
- * Pro：鬼影分頁本身用 Gulf 深藍碳纖維面板（與 Lite 運動風同一套配色）。
- * 灰孔＝上一次同一發（ISSF 實際彈孔 4.5mm 比例）、虛線圈＝下一發、紅孔＝這次。
- * ===================================================================================== */
-body:not(.lite) #ghostView{
-  --cf-a:#061b44;--cf-b:#0d2a5e;--cf-c:#082050;--cf-d:#0b2659;--cf-e:#071d4a;--cf-f:#103068;
-  --gh-carbon:
-    linear-gradient(27deg,var(--cf-a) 5px,transparent 5px) 0 5px/20px 20px,linear-gradient(207deg,var(--cf-a) 5px,transparent 5px) 10px 0/20px 20px,
-    linear-gradient(27deg,var(--cf-b) 5px,transparent 5px) 0 10px/20px 20px,linear-gradient(207deg,var(--cf-b) 5px,transparent 5px) 10px 5px/20px 20px,
-    linear-gradient(90deg,var(--cf-c) 10px,transparent 10px) 0 0/20px 20px,
-    linear-gradient(var(--cf-d) 25%,var(--cf-e) 25%,var(--cf-e) 50%,transparent 50%,transparent 75%,var(--cf-f) 75%,var(--cf-f)) 0 0/20px 20px;
-  --lt-font:-apple-system,"Roboto","Noto Sans TC","PingFang TC",sans-serif;--lt-hint:#d9ecf6;
-  --g-a:rgba(255,140,60,.95);--g-b:rgba(255,99,25,.97);--g-bd:rgba(255,214,180,.9);--g-fg:#001a4f;--g-ts:0 1px 0 rgba(255,225,200,.5);--g-sh:rgba(255,99,25,.45);--g-sheen:.55;--g-in:rgba(255,236,220,.85);
-  --gc-a:rgba(185,217,235,.24);--gc-b:rgba(185,217,235,.10);--gc-bd:rgba(185,217,235,.55);--gc-fg:#fff;--gc-sh:rgba(0,10,40,.35);
-  --card-bg:rgba(0,39,118,.55);--card-fg:#fff;--card-sub:#b9d9eb;--card-bd:rgba(185,217,235,.32);--card-line:rgba(185,217,235,.18);
-  --acc-good:#7fe0a0;--acc-bad:#ff8a80;--st-on-bg:linear-gradient(180deg,#ff8c3c,#ff6319);--st-on-fg:#001a4f;
-  background:radial-gradient(60% 50% at 100% 110%,rgba(255,99,25,.25),transparent 70%),var(--gh-carbon),#05173d;color:#e8eef5;border-radius:16px;padding:12px;margin:8px 0;box-shadow:0 10px 30px rgba(0,10,40,.25)}
-body.lite.on-ghost{background:var(--lt-page);min-height:100vh;min-height:100dvh}
-#ghostView{font-family:var(--lt-font);color:var(--card-fg,#fff);max-width:1100px;margin-left:auto;margin-right:auto;-webkit-tap-highlight-color:transparent}
-body.lite #ghostView{max-width:560px}
-.gh-hint{text-align:center;font-size:13px;color:var(--lt-hint);padding:4px 0 8px;line-height:1.35}
-.gh-hint b{color:var(--xh-c,#ff8c3c);font-weight:900}
-/* 版面：Lite＝靶面＋右側 84px 窄欄，其餘在下方拇指區；Pro 寬螢幕＝左靶面、右欄 */
-.gh-grid{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
-body.lite .gh-grid{grid-template-columns:minmax(0,1fr) 84px;align-items:start}
-body.lite .gh-side{display:contents}
-body.lite .gh-tgbox{grid-column:1;grid-row:1;display:flex;justify-content:center}
-body.lite .gh-rail{grid-column:2;grid-row:1}
-body.lite .gh-legend,body.lite .gh-strip,body.lite .gh-big,body.lite .gh-acts,body.lite .gh-opts{grid-column:1 / -1}
-body:not(.lite) .gh-side{display:flex;flex-direction:column;gap:8px;min-width:0}
-@media (min-width:820px){body:not(.lite) .gh-grid{grid-template-columns:minmax(0,520px) minmax(0,1fr);align-items:start}}
-.gh-tg{position:relative;width:100%;aspect-ratio:1/1;border-radius:6px;overflow:hidden;line-height:0;background:#0b2a5b;box-shadow:0 0 0 3px #b9d9eb,0 0 0 4px #002776,0 10px 26px rgba(0,0,0,.45)}
-body.lite .gh-tg{width:300px;flex:none}
-body.lite.lt-hud .gh-tg{border-radius:4px;box-shadow:0 0 0 1.5px #00f5ff,0 0 18px rgba(0,245,255,.35)}
-body.lite.lt-light .gh-tg{border-radius:18px;box-shadow:0 0 0 1px #c5c3be,0 10px 24px rgba(46,46,44,.16)}
-body.lite.lt-glass .gh-tg{border-radius:18px;box-shadow:0 0 0 1px rgba(209,247,255,.35),0 12px 30px rgba(11,2,33,.45)}
-#ghSvg{width:100%;height:100%;max-height:none;aspect-ratio:auto}
-.gh-empty{position:absolute;left:8px;right:8px;bottom:8px;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:12px;background:rgba(10,16,28,.74);color:#fff;line-height:1.35;pointer-events:none}
-.gh-empty b{font-size:14px}.gh-empty span{font-size:12px;opacity:.88}
-.gh-empty[hidden]{display:none}
-/* 靶面上的點 */
-.gh-ghost{fill:rgba(175,184,194,.78);stroke:#e4e8ec}
-.gh-next{fill:none;stroke:#cfd6de;stroke-dasharray:.9 .6}
-.gh-whole{fill:rgba(175,184,194,.30);stroke:rgba(228,232,236,.55)}
-.gh-off .gh-ghost,.gh-off .gh-next,.gh-off .gh-whole{display:none}
-.gh-num-me{fill:#fff;stroke:#7a0d0d}
-.gh-num-g{fill:#3a434d;stroke:#eef2f6}
-.gh-num-w{fill:rgba(60,68,78,.6);stroke:rgba(238,242,246,.5)}
-/* 圖例 */
-.gh-legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:11.5px;color:var(--card-sub,#b9d9eb)}
-.gh-legend span{display:flex;align-items:center;gap:4px}
-.gh-legend .dot{width:12px;height:12px;border-radius:50%;display:inline-block;box-sizing:border-box}
-.dot.me{background:rgba(220,40,40,.6);border:2px solid #d42020}
-.dot.gh{background:rgba(175,184,194,.78);border:2px solid #e4e8ec;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
-.dot.nx{border:2px dashed #cfd6de}
-.dot.xh{background:var(--xh-fill);border:2px solid var(--xh-c)}
-/* 右側資訊欄 */
-.gh-rail{display:flex;flex-direction:column;gap:6px}
-.gh-rb{position:relative;padding:6px 5px 7px;text-align:center;border-radius:10px;background:linear-gradient(180deg,var(--gc-a),var(--gc-b));border:1px solid var(--card-bd);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 12px var(--gc-sh);color:var(--card-fg);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);overflow:hidden}
-.gh-rb .k{font-size:10.5px;font-weight:800;color:var(--card-sub);letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gh-rb .v{font-size:21px;font-weight:900;line-height:1.1;margin-top:2px;font-variant-numeric:tabular-nums;font-style:var(--lt-vstyle,normal)}
-.gh-rb .v small{font-size:12px;opacity:.7;margin-left:1px}
-.gh-rb .s{font-size:10px;color:var(--card-sub);margin-top:2px;line-height:1.25}
-.gh-g{color:#c4ccd5!important}
-body.lite.lt-light .gh-g{color:#8a8a87!important}
-.gh-pips{display:flex;gap:3px;justify-content:center;margin-top:4px}
-.gh-pips i{width:9px;height:9px;border-radius:2px;background:rgba(185,217,235,.18);border:1px solid var(--card-bd)}
-.gh-pips i.d{background:var(--card-sub)}
-.gh-pips i.on{background:#ff6319;border-color:#ffd0b0;box-shadow:0 0 6px #ff6319}
-.gh-vs{display:flex;flex-direction:column;gap:1px;margin-top:3px;font-size:10.5px;color:var(--card-sub)}
-.gh-vs div{display:flex;justify-content:space-between;align-items:baseline}
-.gh-vs b{font-size:15px;color:var(--card-fg);font-variant-numeric:tabular-nums}
-.gh-d{display:inline-block;font-size:11.5px;font-weight:900;font-variant-numeric:tabular-nums}
-.gh-d.up{color:var(--acc-good,#7fe0a0)}.gh-d.dn{color:var(--acc-bad,#ff8a80)}.gh-d.eq{color:var(--card-sub)}
-.gh-coll{font:inherit;font-size:10.5px;line-height:1.35;color:var(--card-sub);padding:5px 4px;text-align:center;border:1px dashed var(--card-bd);border-radius:8px;background:transparent;width:100%}
-.gh-coll.open{border-style:solid;color:var(--card-fg)}
-.gh-coll b{font-size:12px}
-.gh-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-body:not(.lite) .gh-rb .v{font-size:25px}
-body:not(.lite) .gh-rb .k{font-size:11.5px}
-body:not(.lite) .gh-rail .gh-coll{margin-top:2px}
-.gh-tb{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,var(--gc-a),var(--gc-b));border:1px solid var(--card-bd)}
-.gh-tb th{font-size:11px;color:var(--card-sub);font-weight:700;text-align:right;padding:4px 6px;background:transparent;border:0}
-.gh-tb td{padding:4px 6px;text-align:right;border-top:1px solid var(--card-line);color:var(--card-fg);font-weight:700;background:transparent}
-.gh-tb th:first-child,.gh-tb td:first-child{text-align:left;white-space:nowrap}
-.gh-tb td small{font-weight:600;opacity:.65;font-size:10.5px}
-.gh-tb tr.on td{background:rgba(255,99,25,.18)}
-.gh-tb tr.on td:first-child{box-shadow:inset 3px 0 0 #ff6319}
-.gh-barh{width:30%}
-.gh-barc{width:30%}
-.gh-bar{display:block;height:5px;border-radius:3px;margin:1px 0 1px auto}
-.gh-bar.g{background:#aab4bf}.gh-bar.m{background:linear-gradient(90deg,#ff8c3c,#ff6319)}
-/* 10 格成績條 */
-.gh-strip{padding:7px 8px 8px;border-radius:12px;background:linear-gradient(180deg,var(--gc-a),var(--gc-b));border:1px solid var(--card-bd);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 4px 12px var(--gc-sh)}
-.gh-sh{display:flex;justify-content:space-between;font-size:11px;color:var(--card-sub);font-weight:700;margin-bottom:5px}
-.gh-cells{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px}
-.gh-cell{text-align:center;font-size:10px;color:var(--card-sub);border-radius:6px}
-.gh-cell .n{font-weight:700}
-.gh-cell .me{margin-top:2px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;font-variant-numeric:tabular-nums}
-.gh-cell .me.empty{background:rgba(185,217,235,.08);border:1px solid var(--card-line)}
-.gh-cell .me.now{border:2px dashed var(--xh-c,#f5a623);background:rgba(245,166,35,.16);color:var(--xh-c,#f5a623);font-size:9px}
-.gh-cell .gs{margin-top:2px;font-size:11px;font-weight:800;color:#aab4bf;font-variant-numeric:tabular-nums}
-body.lite.lt-light .gh-cell .gs{color:#8a8a87}
-/* 大數字（按住時的預估分數） */
-.gh-big{display:flex;align-items:center;gap:12px;min-height:76px;padding:6px 14px;border-radius:12px;background:linear-gradient(135deg,var(--score-hi,#3a4a5c),var(--score,#3a4a5c));color:var(--score-fg,#fff);
-  border:1px solid rgba(255,255,255,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -14px 24px rgba(0,0,0,.10),0 6px 16px rgba(0,0,0,.28);transition:background .2s}
-.gh-big.empty{background:linear-gradient(180deg,var(--gc-a),var(--gc-b));color:var(--card-fg);border-color:var(--card-bd)}
-.gh-big .bv{font-size:46px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;font-style:var(--lt-vstyle,normal)}
-.gh-big .bk{font-size:12.5px;font-weight:800;line-height:1.35;color:var(--score-lbl,inherit);white-space:nowrap}
-.gh-big.empty .bk{color:var(--card-sub)}
-.gh-big .cmp{margin-left:auto;text-align:right;font-size:11.5px;min-width:0;font-weight:700;line-height:1.5}
-.gh-big .cmp .gv{display:inline-block;padding:0 6px;border-radius:5px;background:rgba(40,50,60,.3);color:#fff;font-weight:900}
-.gh-big.live{box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 0 0 2px var(--xh-c,#f5a623),0 6px 16px rgba(0,0,0,.28)}
-/* 拇指區按鈕 */
-.gh-acts{display:flex;flex-direction:column;gap:8px}
-.gh-arow{display:flex;gap:8px}
-.gh-arow button{flex:1;min-height:48px;border-radius:10px;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px;
-  background:linear-gradient(180deg,var(--gc-a),var(--gc-b));border:1px solid var(--gc-bd);color:var(--gc-fg);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 4px 12px var(--gc-sh);font-family:var(--lt-font)}
-.gh-arow button:disabled{opacity:.45}
-.gh-arow #ghFit{flex:0 0 64px}
-.gh-toggle .sw{width:30px;height:17px;border-radius:9px;background:rgba(150,160,170,.6);position:relative;box-shadow:inset 0 1px 2px rgba(0,0,0,.3);transition:background .2s}
-.gh-toggle .sw::after{content:"";position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:transform .2s}
-.gh-toggle.on .sw{background:#ff6319}
-.gh-toggle.on .sw::after{transform:translateX(13px)}
-.gh-primary{position:relative;width:100%;min-height:58px;font-size:19px;font-weight:900;letter-spacing:2px;border-radius:var(--lt-btn-r,10px);overflow:hidden;
-  color:var(--g-fg);background:linear-gradient(180deg,var(--g-a),var(--g-b));border:1px solid var(--g-bd);text-shadow:var(--g-ts);box-shadow:inset 0 1px 0 var(--g-in),0 10px 24px var(--g-sh)}
-.gh-primary small{font-size:13px;letter-spacing:0;font-weight:800;opacity:.75;margin-left:4px}
-.gh-primary.soft{opacity:.8}
-.gh-prog{position:absolute;left:0;bottom:0;width:100%;height:5px;background:currentColor;opacity:.4;transform-origin:0 50%;transform:scaleX(0);transition:transform .3s ease-out;pointer-events:none}
-body.lite.lt-sport #ghostView .gh-primary .vlbl{display:inline-block;transform:skewX(10deg);font-style:italic}
-/* 設定 */
-.gh-opts{border-radius:12px;background:linear-gradient(180deg,var(--gc-a),var(--gc-b));border:1px solid var(--card-bd);padding:2px 10px;color:var(--card-fg)}
-.gh-opts summary{font-size:13.5px;font-weight:800;padding:10px 2px;cursor:pointer;color:var(--card-sub)}
-.gh-optrow{display:flex;align-items:center;gap:8px;margin:0 0 10px;flex-wrap:wrap;font-size:13px}
-.gh-optrow.dim{opacity:.5}
-.gh-ol{font-weight:800;color:var(--card-sub);font-size:12.5px;min-width:5em}
-.gh-seg{display:flex;flex:1;border-radius:9px;overflow:hidden;border:1px solid var(--card-bd);min-width:0}
-.gh-seg button{flex:1;border:0;background:transparent;color:var(--card-fg);font-size:13px;font-weight:800;padding:9px 4px;min-height:40px;font-family:var(--lt-font)}
-.gh-seg button.on{background:var(--st-on-bg,linear-gradient(180deg,#ff8c3c,#ff6319));color:var(--st-on-fg,#001a4f)}
-.gh-optrow select,.gh-name{flex:1;min-width:0;font-size:14px;padding:8px;border-radius:8px;border:1px solid var(--card-bd);background:rgba(255,255,255,.92);color:#16202b}
-.gh-optrow button:not(.gh-seg button){min-height:40px;padding:0 12px;border-radius:9px;font-size:14px;font-weight:800;background:linear-gradient(180deg,var(--gc-a),var(--gc-b));border:1px solid var(--gc-bd);color:var(--gc-fg);font-family:var(--lt-font)}
-.gh-chk{gap:6px;font-weight:700}
-.gh-chk input{width:20px;height:20px}
-#ghostView .lbl{color:var(--card-sub)}
-.b-gh{background:#ece7fb;color:#4b2fa8}
 
 /* =====================================================================================
  * v1.5.0 Pro 介面改版（依使用者手繪草圖）

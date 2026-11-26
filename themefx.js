@@ -73,7 +73,7 @@
   // 掃描線、警示條（賽博龐克）、地板網格（電子世界）：放在靶面外框（.svgwrap 等）裡，永遠不接收點擊
   function hostOverlays(svg) {
     var host = svg.parentElement; if (!host) return;
-    var ok = host.classList.contains('svgwrap') || host.classList.contains('lite-tg') || host.classList.contains('gh-tg') || host.classList.contains('fx-host');
+    var ok = host.classList.contains('svgwrap') || host.classList.contains('lite-tg') || host.classList.contains('fx-host');
     if (!ok) return;
     host.classList.add('fx-host');
     var over = host.querySelector(':scope > .fx-over'), under = host.querySelector(':scope > .fx-under');

@@ -61,7 +61,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   }
   function codeHash(s) { return sha256(normCode(s)); }
   function pairId(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
-  function parsePerks(t) { // "ghost, pro 教練" → ['ghost','pro']（只收 a-z 0-9 _ -，最多 8 個，不重複）
+  function parsePerks(t) { // "pro, coach 教練" → ['pro','coach']（只收 a-z 0-9 _ -，最多 8 個，不重複）
     var out = []; String(t || '').toLowerCase().split(/[\s,，、;；]+/).forEach(function (p) { if (/^[a-z0-9_-]{1,20}$/.test(p) && out.indexOf(p) < 0 && out.length < 8) out.push(p); });
     return out;
   }
@@ -524,10 +524,10 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   }
 
   // ---------- 3) 帳號頁：身分卡、會員資料、好友、分享、管理員 ----------
-  function perkName(k) { return { ghost: wrT('app.ghost'), pro: '⭐ Pro', referee: wrT('member.judge_2'), coach: wrT('member.coach_2'), vip: '💎 VIP' }[k] || '🔓 ' + k; }
+  function perkName(k) { return { pro: '⭐ Pro', referee: wrT('member.judge_2'), coach: wrT('member.coach_2'), vip: '💎 VIP' }[k] || '🔓 ' + k; }
   function identityHTML(u) {
     var p = hasProfile() ? S.profile : null; if (!p) return null; u = u || S.user || {};
-    var badges = S.groups.map(function (g) { return '<span class="mb-tag g">' + esc(GROUPS[g] || g) + '</span>'; }).concat(S.perks.map(function (k) { return '<span class="mb-tag">' + esc(perkName(k)) + '</span>'; })).join('');
+    var badges = S.groups.map(function (g) { return '<span class="mb-tag g">' + esc(GROUPS[g] || g) + '</span>'; }).concat(S.perks.filter(function (k) { return k !== 'ghost'; }).map(function (k) { return '<span class="mb-tag">' + esc(perkName(k)) + '</span>'; })).join(''); // v3.0 beta：鬼影拿掉，舊的 ghost 權限不再顯示徽章
     var pb = badgeOf(p.id), avb = p.avatarOn && p.avatar ? wrT('member.change', [esc(p.avatar)]) : '';
     if (pb && avb) avb = avb.replace(/<\/button>$/, pinHTML(pb) + '</button>'); // v2.6.0 站長徽章
     return wrT('member.member_id_signed_in_with', [avb, esc(p.mid) + idPin(p), esc((u.name || '') + (u.name && u.email ? '・' : '') + (u.email || '')), ICON.g, badges ? '<span class="mb-tags">' + badges + '</span>' : '']);

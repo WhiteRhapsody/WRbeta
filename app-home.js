@@ -19,6 +19,8 @@
   var ENTER_MS = 1500, REVEAL_MS = 420;
   // 版本更新紀錄：[版本, 日期, 條目 key…]
   var VLOG = [
+    ['v3.0 beta', '2026/11/27', ['home.v300_1', 'home.v300_2', 'home.v300_3', 'home.v300_4']],
+    ['v2.9.6', '2026/11/26', ['home.v296_1', 'home.v296_2']],
     ['v2.9.5', '2026/11/25', ['home.v295_1', 'home.v295_2']],
     ['v2.9.4', '2026/11/25', ['home.v294_1', 'home.v294_2', 'home.v294_3', 'home.v294_4']],
     ['v2.9.3', '2026/11/24', ['home.v293_1', 'home.v293_2', 'home.v293_3', 'home.v293_4']],
@@ -71,7 +73,7 @@
       '</div>' +
       '<div class="hm-band" aria-hidden="true"></div><div class="hm-top"><div class="hm-bar"><button type="button" class="hm-gear hm-jelly" data-k="set" aria-label="' + esc(wrT('home.settings')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic('gear') + '</span></button>' +
       '<button type="button" class="hm-gear hm-jelly" data-k="help" aria-label="' + esc(wrT('home.help')) + '"><span class="hm-skin"><i class="hm-dent"></i></span><span class="hm-in">' + ic('info') + '</span></button>' +
-      '<span class="hm-beta">beta</span><span class="hm-vpill">' + esc(ver()) + '</span></div>' +
+      '<span class="hm-vpill">' + esc(ver()) + '</span><span class="hm-beta">beta</span></div>' + // v3.0 beta：版號在前、beta 在後（「v3.0 beta」）
       '<div class="hm-brand" lang="en">White Rhapsody</div><div class="hm-tag" lang="en">' + esc(wrT('home.tagline')) + '</div>' +
       '<section class="hm-vlog" aria-label="' + esc(wrT('home.vlog')) + '"><div class="hm-vhd"><b>' + esc(wrT('home.vlog')) + '</b><span>' + esc(wrT('home.vlog_more')) + '</span></div><div class="hm-vsc" tabindex="0">' + vl + '</div></section></div>' +
       '<div class="hm-toast" role="status" aria-live="polite"></div>';

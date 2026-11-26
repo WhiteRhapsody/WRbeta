@@ -6,7 +6,7 @@
   // 其他模組（先載入）的共用名稱
   var C = App.C, T = App.T, LS_CUR = App.LS_CUR, $ = App.$, f1 = App.f1, f2 = App.f2, store = App.store, saveSessions = App.saveSessions,
     SCHEMA_V = App.SCHEMA_V, isAna = App.isAna, newSession = App.newSession, newAnalysis = App.newAnalysis, fmtTW = App.fmtTW, anaShots = App.anaShots,
-    persist = App.persist, drawTarget = App.drawTarget, drawShot = App.drawShot, G = App.G, LS_GCUR = App.LS_GCUR, photo = App.photo,
+    persist = App.persist, drawTarget = App.drawTarget, drawShot = App.drawShot, photo = App.photo,
     LS_ACUR = App.LS_ACUR, requestPersist = App.requestPersist, fillAnaCalRing = App.fillAnaCalRing, trTag = App.trTag, esc = App.esc,
     lineChart = App.lineChart, renderAnalysis = App.renderAnalysis, ask = App.ask, toast = App.toast, showTab = App.showTab;
   // 給其他模組用（函式）
@@ -89,7 +89,7 @@
     showPasteBox(false);
     renderAnalysis(); renderRecords();
   };
-  /* v1.8.0：貼上紀錄碼還原（分析頁與紀錄頁共用）；分析、預報、鬼影都可以，重複的略過。回傳新增的紀錄（失敗＝null） */
+  /* v1.8.0：貼上紀錄碼還原（分析頁與紀錄頁共用）；分析、預報都可以（舊的鬼影碼解成一般預報），重複的略過。回傳新增的紀錄（失敗＝null） */
   function restoreCodes(text) {
     var Code = window.BMCode, r, i, added, now = new Date().toISOString();
     if (!Code) { toast(wrT('app.couldnt_restore')); return null; }
@@ -140,9 +140,9 @@
     h += box(wrT('app.target_type'), esc(t.name)) + box(wrT('app.shots'), st.n, wrT('app.shots_7'));
     if (st.n) h += box(wrT('app.total'), wrT('app.x_7', [st.total, f1(st.totalDec)])) + box(wrT('app.average_2'), f2(st.avgDec)) + (st.n > 1 ? box(wrT('app.group_size_2'), f1(st.groupSize), 'mm') : '');
     if (!isAna(s) && s.preds && s.preds.length && s.actuals && s.actuals.length) { var cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal'); if (cmp.m) h += box(wrT('app.avg_call_error'), f2(cmp.meanErr), 'mm'); }
-    return wrT('app.data', [h, isAna(s) ? wrT('app.analysis_targets', [(s.sheets || []).length]) : G.isGhost(s) ? wrT('app.ghost_training') : wrT('app.calls_blue_call_red_actual'), rs.src]);
+    return wrT('app.data', [h, isAna(s) ? wrT('app.analysis_targets', [(s.sheets || []).length]) : wrT('app.calls_blue_call_red_actual'), rs.src]);
   }
-  function recKindLabel(s) { return isAna(s) ? wrT('app.analysis_2') : (G.isGhost(s) ? wrT('app.ghost') : wrT('app.call_2')); }
+  function recKindLabel(s) { return isAna(s) ? wrT('app.analysis_2') : wrT('app.call_2'); }
   function recTitle(s) { return (s.name && s.name.trim()) || recKindLabel(s) + ' ' + fmtTW(s.created).replace(/^\d{4}\//, ''); }
   function renderRecords() {
     var box = $('recordList');
@@ -151,21 +151,18 @@
     if (!App.sessions.length) { box.innerHTML = wrT('app.no_records_yet_2'); return; }
     box.innerHTML = '';
     App.sessions.forEach(function (s) {
-      var t = T[s.targetId] || T.ap10, ana = isAna(s), gho = G.isGhost(s), isCur = ana ? s.id === App.acur.id : gho ? !!(App.gcur && s.id === App.gcur.id) : s.id === App.cur.id;
+      var t = T[s.targetId] || T.ap10, ana = isAna(s), isCur = ana ? s.id === App.acur.id : s.id === App.cur.id; // v3.0 beta：鬼影拿掉（舊鬼影紀錄已在載入時轉成一般預報）
       var shared = App.isShared(s), locked = !!s.locked || shared, div = document.createElement('div'); div.className = 'rec' + (isCur ? ' cur' : '') + (ana ? ' ana' : '') + (locked ? ' is-locked' : '') + (shared ? ' is-shared' : ''); div.dataset.id = s.id;
       var meta = '';
       if (ana) {
         var as = C.analyzeShots(t, anaShots(s));
         meta = wrT('app.targets_shots', [(s.sheets || []).length, as.n, as.n ? wrT('app.total_avg', [as.total, f1(as.totalDec), f2(as.avgDec), as.n > 1 ? wrT('app.group_mm_2', [f1(as.groupSize)]) : '']) : '']);
-      } else if (gho) {
-        var gsS = C.computeStats(t, s.actuals), gr = G.curRound(s) + 1;
-        meta = wrT('app.60_shot_training_shots', [s.ghost && s.ghost.done ? wrT('app.done') : wrT('app.series_n', [gr]), gsS.n, gsS.n ? wrT('app.total_avg_2', [gsS.total, f1(gsS.totalDec), f2(gsS.avgDec)]) : '']);
       } else {
         var ps = C.computeStats(t, s.preds), xs = C.computeStats(t, s.actuals), cmp = C.comparePredictions(t, s.preds, s.actuals, s.pairMode || 'optimal');
         meta = wrT('app.calls_actual', [ps.n, ps.n ? wrT('app.x', [ps.total, f1(ps.totalDec)]) : '', xs.n, xs.n ? wrT('app.x', [xs.total, f1(xs.totalDec)]) : '', cmp.m ? wrT('app.avg_call_error_mm', [f2(cmp.meanErr)]) : '']);
       }
       if (shared) meta = '<span class="rec-shtag">' + esc(s.sharedOwner ? wrT('app.rec_shared_from', [s.sharedOwner]) : wrT('app.rec_shared')) + '</span> ' + meta;
-      div.innerHTML = wrT('app.x_8', [recPick[s.id] ? ' checked' : '', ana ? 'b-ana' : gho ? 'b-gh' : 'b-fc', ana ? wrT('app.analysis_2') : gho ? wrT('app.ghost') : wrT('app.call_2'), esc(fmtTW(s.created)), t.name, isCur && !shared ? wrT('app.current') : '', meta]);
+      div.innerHTML = wrT('app.x_8', [recPick[s.id] ? ' checked' : '', ana ? 'b-ana' : 'b-fc', ana ? wrT('app.analysis_2') : wrT('app.call_2'), esc(fmtTW(s.created)), t.name, isCur && !shared ? wrT('app.current') : '', meta]);
       div.querySelector('.rec-chk').onchange = function () { if (this.checked) recPick[s.id] = 1; else delete recPick[s.id]; updateCmpBtn(); };
       var name = document.createElement('input'); name.className = 'rec-name'; name.placeholder = wrT('app.custom_name'); name.value = s.name != null && s.name !== '' ? s.name : (s.note || ''); name.setAttribute('aria-label', wrT('app.record_name'));
       if (locked) { name.readOnly = true; name.setAttribute('aria-readonly', 'true'); name.addEventListener('pointerdown', function (e) { e.preventDefault(); App.lockToast(s); }, true); name.addEventListener('focus', function () { name.blur(); }, true); }
@@ -174,7 +171,6 @@
       open.onclick = function () {
         if (shared) { openSharedRec(s); return; } // v2.9.0 好友分享：一律用唯讀檢視打開（不會變成可編輯的分析／預報）
         if (ana) { App.acur = s; App.anaPhotos = {}; App.anaSel = 'all'; store.set(LS_ACUR, s.id); fillAnaCalRing(); renderAnalysis(); showTab('analysis'); }
-        else if (gho) { App.gcur = s; App.ghView = null; App.ghPrev = null; store.set(LS_GCUR, s.id); showTab('ghost'); window.scrollTo(0, 0); }
         else { App.cur = s; store.set(LS_CUR, s.id); $('targetSel').value = s.targetId; photo.reset(); App.renderAll(); showTab('predict'); }
       };
       var del = document.createElement('button'); del.textContent = shared ? wrT('app.rec_remove') : wrT('app.delete'); del.className = 'warn';
@@ -189,8 +185,7 @@
           App.sessions = App.sessions.filter(function (x) { return x.id !== s.id; }); delete recPick[s.id];
           try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(s.id); } catch (e) {}
           if (ana && s.id === App.acur.id) { App.acur = newAnalysis(App.acur.targetId); App.anaPhotos = {}; App.anaSel = 'all'; }
-          if (gho && App.gcur && s.id === App.gcur.id) { App.gcur = null; App.ghView = null; }
-          if (!ana && !gho && s.id === App.cur.id) { App.cur = App.sessions.filter(function (x) { return !isAna(x) && !G.isGhost(x) && !App.isShared(x); })[0] || newSession(); if (App.sessions.indexOf(App.cur) < 0) App.sessions.push(App.cur); }
+          if (!ana && s.id === App.cur.id) { App.cur = App.sessions.filter(function (x) { return !isAna(x) && !App.isShared(x); })[0] || newSession(); if (App.sessions.indexOf(App.cur) < 0) App.sessions.push(App.cur); }
           persist(); App.renderAll();
         });
       };
@@ -247,8 +242,7 @@
     var before = App.sessions.length;
     App.sessions = App.sessions.filter(function (x) { return !m[x.id]; }); Object.keys(m).forEach(function (id) { delete recPick[id]; try { if (window.WRCloud && window.WRCloud.remove) window.WRCloud.remove(id); } catch (e) {} });
     if (m[App.acur.id]) { App.acur = newAnalysis(App.acur.targetId); App.anaPhotos = {}; App.anaSel = 'all'; }
-    if (App.gcur && m[App.gcur.id]) { App.gcur = null; App.ghView = null; }
-    if (m[App.cur.id]) { App.cur = App.sessions.filter(function (x) { return !isAna(x) && !G.isGhost(x) && !App.isShared(x); })[0] || newSession(); if (App.sessions.indexOf(App.cur) < 0) App.sessions.push(App.cur); }
+    if (m[App.cur.id]) { App.cur = App.sessions.filter(function (x) { return !isAna(x) && !App.isShared(x); })[0] || newSession(); if (App.sessions.indexOf(App.cur) < 0) App.sessions.push(App.cur); }
     persist(); App.renderAll();
     return before - App.sessions.length;
   }
@@ -308,7 +302,7 @@
     rd.onload = function () {
       if (!App.rcOk()) return; // 讀檔期間權限被撤銷也不匯入
       try { var data = JSON.parse(rd.result); var add = (data.sessions || []).filter(function (s) { return s.id && T[s.targetId] && (isAna(s) ? Array.isArray(s.sheets) : Array.isArray(s.preds)) && !App.sessions.some(function (x) { return x.id === s.id; }); });
-        add.forEach(function (s) { if (!isAna(s)) { s.actuals = s.actuals || []; } if (!s.updated) s.updated = new Date().toISOString(); });
+        add.forEach(function (s) { if (App.unGhost) App.unGhost(s); if (!isAna(s)) { s.actuals = s.actuals || []; } if (!s.updated) s.updated = new Date().toISOString(); });
         App.sessions = App.sessions.concat(add); saveSessions(App.sessions); renderRecords(); toast(wrT('app.imported_sets', [add.length])); } catch (e) { toast(wrT('app.invalid_file_format')); }
     };
     rd.readAsText(f); this.value = '';

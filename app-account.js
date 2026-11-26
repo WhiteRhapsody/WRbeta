@@ -55,7 +55,7 @@
       return p.month + '/' + p.day + ' ' + WEEK[wd] + ' ' + (p.hour === '24' ? '00' : p.hour) + ':' + p.minute;
     } catch (e) { return fmtTW(iso); }
   }
-  /* 我的統計：全部用這台裝置的紀錄（登入後也包含從雲端同步下來的）。發數＝實際彈著（分析的彈孔、預報／鬼影的實際落點；預報點不算）。
+  /* 我的統計：全部用這台裝置的紀錄（登入後也包含從雲端同步下來的）。發數＝實際彈著（分析的彈孔、預報的實際落點；預報點不算）。
    * 最佳成績：10 發以上的紀錄裡平均最高的那筆（沒有 10 發以上就看全部），顯示「總分 /滿分」。 */
   function profileStats() {
     var out = { records: 0, shots: 0, best: null, last: null };
@@ -199,7 +199,7 @@
     if (W && W.init) W.init({
       getSessions: function () { return App.sessions; },
       setSessions: function (list) { // 雲端合併後的結果寫回本機，畫面重畫
-        App.sessions = list; store.set(LS_SESS, JSON.stringify(App.sessions));
+        App.sessions = list.map(function (x) { return App.unGhost ? App.unGhost(x) : x; }); store.set(LS_SESS, JSON.stringify(App.sessions));
         App.cur = App.sessions.filter(function (x) { return x.id === App.cur.id; })[0] || App.cur; if (App.sessions.indexOf(App.cur) < 0) App.sessions.unshift(App.cur);
         App.acur = App.sessions.filter(function (x) { return x.id === App.acur.id; })[0] || App.acur;
         renderAll();

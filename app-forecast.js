@@ -74,7 +74,7 @@
   $('clearPred').onclick = function () { if (App.cur.preds.length) ask(wrT('app.clear_all_calls_in_this', [App.cur.preds.length]), function () { App.cur.preds = []; persist(); App.renderAll(); }); };
   function startNew() { App.cur = newSession(App.cur.targetId); App.sessions.unshift(App.cur); persist(); photo.reset(); App.renderAll(); toast(wrT('app.new_set_started')); showTab('predict'); }
   $('newSession').onclick = startNew; $('newSession2').onclick = startNew;
-  // 「落點上移」從預報頁移到「說明 › 介面設定」（同一個設定，Pro／Lite／鬼影共用）
+  // 「落點上移」從預報頁移到「說明 › 介面設定」（同一個設定，Pro／Lite 共用）
   $('liftCursor').checked = !!prefs.lift; $('liftCursor').onchange = function () { prefs.lift = this.checked; savePrefs(); };
 
   // ---------- 對照分頁：照片校正 ----------

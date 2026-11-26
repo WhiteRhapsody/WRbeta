@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f2ecdd">
 <title>WRbeta Privacy Policy</title>
-<link rel="icon" href="icon.svg?v=v2.9.5">
+<link rel="icon" href="icon.svg?v=v3.0">
 <style>
 :root{color-scheme:light}
 body{margin:0;background:#f2ecdd;color:#1d1d1b;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -26,19 +26,19 @@ a{color:#c24d0c}
 <main>
 <a class="lang" href="privacy.html" hreflang="zh-Hant-TW" lang="zh-Hant-TW">繁體中文</a>
 <h1>WRbeta Privacy Policy</h1>
-<p class="meta">Effective date: November 20, 2026 (beta v2.5)</p>
+<p class="meta">Effective date: November 27, 2026 (v3.0 beta)</p>
 <p>WRbeta is a web app (beta) for ISSF 10m Air Pistol / Air Rifle shooters, maintained by an individual developer. This page explains what data the app stores, where it is stored, who can see it, and how to delete it.</p>
 <p class="meta">This is an English translation. If it differs from the <a href="privacy.html">Traditional Chinese version</a>, the Chinese version applies.</p>
 
 <h2>1. You can use it without signing in</h2>
-<p>When you are not signed in, your records (calls, analyses, ghost training), settings and theme are stored only in <b>this device's browser</b> (localStorage) and are not uploaded to any server.</p>
+<p>When you are not signed in, your records (calls and analyses), settings and theme are stored only in <b>this device's browser</b> (localStorage) and are not uploaded to any server.</p>
 
 <h2>2. Data stored after you sign in</h2>
 <p>You can choose to sign in with a Google account; sign-in is handled by Google's Firebase Authentication. After you sign in, the following data is stored in Google Firebase's Cloud Firestore database (region: <b>asia-east1, Taiwan</b>):</p>
 <table>
 <tr><th>Data</th><th>Content</th><th>Who can see it</th></tr>
 <tr><td>Account data</td><td>Name, email address and sign-in method provided by your Google account</td><td>Only you</td></tr>
-<tr><td>Records</td><td>Your calls, analyses and ghost records (shot hole coordinates, scores, names, times, etc.); <b>no photos are stored</b></td><td>Only you</td></tr>
+<tr><td>Records</td><td>Your calls and analyses (shot hole coordinates, scores, names, times, etc.); <b>no photos are stored</b></td><td>Only you</td></tr>
 <tr><td>Member ID</td><td>The member ID you choose</td><td>Other signed-in members (used to add friends; it will also be shown in the forum and comments later)</td></tr>
 <tr><td>Avatar (optional)</td><td>The photo you upload; it is first cropped to a square and reduced to about 256×256 on your phone before uploading. If you choose “No avatar”, nothing is uploaded</td><td>Other signed-in members</td></tr>
 <tr><td>Optional info (optional)</td><td>“Optional info” on the account page: shooter name, usual gun, pellets, birthday (<b>month and day only, no year</b>), gender, signature, and which fields are set to “Friends”</td><td>Only you</td></tr>
@@ -46,6 +46,7 @@ a{color:#c24d0c}
 <tr><td>Friends</td><td>Friend invitations and friendships (both accounts' IDs, status, time)</td><td>You and the other person</td></tr>
 <tr><td>Shared records</td><td>The record you choose to share (record code), who it is shared with, and your member ID</td><td>You and the friends you choose (read-only); you can withdraw it at any time</td></tr>
 <tr><td>Cheat code redemptions, groups</td><td>The redemption record after you enter a correct cheat code (member ID, status); groups set by the admin (e.g. judge, coach)</td><td>You and the admin</td></tr>
+<tr><td>Beta-test reports (optional, from v3.0 beta)</td><td>Sent only if you <b>opt in</b> (asked the first time you save a SIUS slip; you can turn it off any time in “Settings › Beta-test reports”) and are signed in: the value and light read for each shot on the SIUS slip, which fields you changed (from what to what), how many seconds each step took, the app version, the phone model (for example “Android 16; Pixel 9”, not the full browser string), and what you fill in the report form on the Analysis page (shots wrong, stars, error types, note). <b>Photos are not uploaded.</b> Used only to improve SIUS-slip reading.</td><td>You and the admin</td></tr>
 </table>
 <p>Your Google account profile picture is only displayed on your device and is not stored in WRbeta's database. The “Optional info” on the account page stays on this device while you are signed out; once you sign in it is synced to your own cloud account (only you can see it), and only the fields marked “Friends” are put on your friend card for friends to see (since v2.5.0).</p>
 
@@ -65,7 +66,7 @@ a{color:#c24d0c}
 
 <h2>5. How to delete your data</h2>
 <ul>
-<li><b>Delete account and cloud data</b>: in the app, go to “Settings › Account”, tap “Delete account and cloud data” at the bottom, and confirm twice. This deletes your cloud records, account data (including optional info), member ID, avatar, friend card, friendships, the records you shared, your name on recipient lists of others' shares, your pending or active cheat code redemptions, and your Firebase sign-in account.</li>
+<li><b>Delete account and cloud data</b>: in the app, go to “Settings › Account”, tap “Delete account and cloud data” at the bottom, and confirm twice. This deletes your cloud records, beta-test reports, account data (including optional info), member ID, avatar, friend card, friendships, the records you shared, your name on recipient lists of others' shares, your pending or active cheat code redemptions, and your Firebase sign-in account.</li>
 <li>Exception: cheat code redemptions that the admin <b>rejected or revoked</b> (including the member ID at that time) are kept for the admin to prevent repeated requests; the admin can delete them.</li>
 <li><b>Records others shared with you</b> belong to the person who shared them, who decides whether to withdraw them; when you remove a friend, the app also withdraws the shares between the two of you.</li>
 <li><b>Delete only your avatar</b>: turn off the avatar under “Account › Member profile”, and the avatar in the cloud is deleted.</li>

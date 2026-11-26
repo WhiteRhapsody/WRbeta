@@ -41,7 +41,10 @@
     get: function (k) { if (storageOK) { try { return window.localStorage.getItem(k); } catch (e) {} } return Object.prototype.hasOwnProperty.call(memStore, k) ? memStore[k] : null; },
     set: function (k, v) { memStore[k] = String(v); if (storageOK) { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } } return false; }
   };
-  function loadSessions() { try { return JSON.parse(store.get(LS_SESS)) || []; } catch (e) { return []; } }
+  // v3.0 beta【White 2026-11-27 指定拿掉鬼影】舊的鬼影紀錄（mode:'ghost'）一律當一般預報紀錄（多輪照留）；暫定做法，見 PROGRESS.md v3.0 beta
+  function unGhost(s) { if (s && s.mode === 'ghost') { delete s.mode; delete s.ghost; } return s; }
+  App.unGhost = unGhost;
+  function loadSessions() { try { return (JSON.parse(store.get(LS_SESS)) || []).map(unGhost); } catch (e) { return []; } }
   function saveSessions(list) { var ok = store.set(LS_SESS, JSON.stringify(list)); if (!ok && storageOK) toast(wrT('app.save_failed_out_of_storage')); cloudDirty(); }
   // 雲端同步（備註4）：本機 localStorage 永遠是主要資料；登入後才在背景上傳／下載（見 cloud.js）
   function cloudDirty() { try { if (window.WRCloud && window.WRCloud.markDirty) window.WRCloud.markDirty(); } catch (e) {} }
@@ -79,7 +82,7 @@
   var cur = null;
   (function initCur() {
     var id = store.get(LS_CUR);
-    cur = sessions.filter(function (s) { return s.id === id && !isAna(s) && s.mode !== 'ghost' && !isShared(s); })[0];
+    cur = sessions.filter(function (s) { return s.id === id && !isAna(s) && !isShared(s); })[0];
     if (!cur) { cur = newSession(); sessions.unshift(cur); }
   })();
   function persist(noTouch) {
@@ -278,6 +281,7 @@
   var curTab = 'predict'; // 啟動時先畫預報（Lite 用），Pro 初始化完成後切到「分析」（v1.8.0）
   function showTab(name) {
     var toCmp = name === 'compare'; if (toCmp) name = 'predict';
+    if (name === 'ghost') name = 'sius'; // v3.0 beta：鬼影拿掉，舊書籤／返回鍵歷史改到取代它的小白單
     if (!$('tab-' + name)) name = 'predict';
     var prevTab = curTab; curTab = name;
     if (prevTab !== name && App.onTab) try { App.onTab(name, prevTab); } catch (e) {} // v2.5.0 上一頁（app-back.js）記住分頁
@@ -288,15 +292,14 @@
     if (name === 'about' && App.stSub && App.stSub.cur === 'acct') { try { App.renderAcct(); } catch (e) {} }
     try { App.syncTargetSel(); } catch (e) {}
     document.body.classList.toggle('on-predict', name === 'predict');
-    document.body.classList.toggle('on-ghost', name === 'ghost');
+    document.body.classList.toggle('on-sius', name === 'sius');
     document.body.classList.toggle('on-analysis', name === 'analysis');
-    if (name !== 'ghost') { try { App.ghPrev = null; } catch (e) {} }
-    if (name === 'ghost') App.renderGhost();
+    if (name === 'sius' && App.renderSius) App.renderSius();
     if (window.WRDock) { if (name === 'analysis') WRDock.shown(); else WRDock.left(); }
+    if (window.WRDockXB) { if (name === 'sius') WRDockXB.shown(); else WRDockXB.left(); }
     document.querySelectorAll('#liteMoreSheet [data-act]').forEach(function (b) { b.classList.toggle('on', b.dataset.act === name); });
     if (document.body.classList.contains('lite')) App.renderLite();
     if (name === 'predict') App.liteLayout();
-    if (name === 'ghost') App.ghLayout();
     if (App.nav) App.nav.sync(name);
     if (toCmp && !document.body.classList.contains('lite')) { var hc = $('cmpHead'); if (hc && hc.scrollIntoView) hc.scrollIntoView({ block: 'start' }); }
   }
