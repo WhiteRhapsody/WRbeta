@@ -151,10 +151,19 @@
     var mc = ctr(main), side = l.filter(function (el) { return el !== main; });
     accs().forEach(function (el) { ma(el, [{ opacity: 1 }, { opacity: 0 }], { duration: 180, delay: T.fade, easing: 'cubic-bezier(.4,0,.2,1)' }); });
     if (xb && cfg.base) { var bs = cfg.base(); if (bs) ma(bs, [{ scale: '1 1', opacity: 1 }, { scale: '1.05 1.08', offset: .16 }, { scale: D.classList.contains('dk-col') ? '1 .86' : '.86 1', offset: .55 }, { scale: '.12 .6', opacity: 1, offset: .88 }, { scale: '.12 .6', opacity: 0 }], { duration: 440, delay: 40, easing: 'linear' }); }
+    var ivE = inV(edge), sideH = edge === 'left' || edge === 'right';
     side.forEach(function (el, i) {
       var c = ctr(el), dx = mc.x - c.x, dy = mc.y - c.y;
-      ma(el, [{ translate: '0px 0px', scale: 1, opacity: 1, easing: 'cubic-bezier(0.22,1.42,0.36,1)' }, { translate: (dx * .55).toFixed(1) + 'px ' + (dy * .55).toFixed(1) + 'px', scale: .92, opacity: 1, offset: .35, easing: 'cubic-bezier(0.22,1.42,0.36,1)' }, { translate: dx.toFixed(1) + 'px ' + dy.toFixed(1) + 'px', scale: .28, opacity: 0 }], { duration: T.gd, delay: T.gather + i * 70, easing: 'linear' });
+      if (xb) { ma(el, [{ translate: '0px 0px', scale: 1, opacity: 1, easing: 'cubic-bezier(0.22,1.42,0.36,1)' }, { translate: (dx * .55).toFixed(1) + 'px ' + (dy * .55).toFixed(1) + 'px', scale: .92, opacity: 1, offset: .35, easing: 'cubic-bezier(0.22,1.42,0.36,1)' }, { translate: dx.toFixed(1) + 'px ' + dy.toFixed(1) + 'px', scale: .28, opacity: 0 }], { duration: T.gd, delay: T.gather + i * 70, easing: 'linear' }); return; }
+      // v3.0.2（規格 A／B1／B2）：A 往收合邊的反側疊成一疊 → B1 從寶寶身後往兩側翻成耳朵（垂直於收合方向）→ B2 轉身時吸進身體
+      var stk = { x: mc.x + ivE[0] * mc.w * .32, y: mc.y + ivE[1] * mc.h * .32 }, ax = sideH ? [0, i % 2 ? 1 : -1] : [i % 2 ? 1 : -1, 0];
+      var ear = { x: mc.x + ax[0] * mc.w * .5, y: mc.y + ax[1] * mc.h * .5 }, es = sideH ? '.2 .72' : '.72 .2';
+      var tv = function (p) { return (p.x - c.x).toFixed(1) + 'px ' + (p.y - c.y).toFixed(1) + 'px'; };
+      ma(el, [{ translate: '0px 0px', scale: '1 1', opacity: 1 }, { translate: tv(stk), scale: '.9 .9', opacity: 1 }], { duration: T.gd, delay: T.gather + i * 70, easing: 'cubic-bezier(0.22,1.42,0.36,1)' });
+      ma(el, [{ translate: tv(stk), scale: '.9 .9', opacity: 1 }, { translate: tv(ear), scale: es, opacity: 1 }], { duration: 300, delay: T.gather + T.gd + 20, easing: 'cubic-bezier(0.32,1.28,0.44,1)' });
+      ma(el, [{ translate: tv(ear), scale: es, opacity: 1 }, { translate: tv({ x: mc.x, y: mc.y }), scale: '.1 .1', opacity: 0 }], { duration: 260, delay: T.swap, easing: 'cubic-bezier(0.45,0,0.15,1)' });
     });
+    if (!xb) puff(mc.x, mc.y, T.gather + T.gd + 120, 4, 'star');
     // 臉（跟邊邊的小圓同一個樣子）：先藏在中間那顆後面，翻面／擠一下之後接手
     var M = mEl = E.cloneNode(true); M.removeAttribute('id'); M.hidden = false; M.classList.remove('dk-eye-in', 'dk-eye-out'); M.classList.add('dk-morph'); M.dataset.edge = edge; M.setAttribute('aria-hidden', 'true'); M.tabIndex = -1;
     M.style.left = (mc.x - 29) + 'px'; M.style.top = (mc.y - 29) + 'px'; M.style.opacity = '0'; M.style.right = M.style.bottom = '';
@@ -168,9 +177,9 @@
       puff(mc.x, mc.y, T.swap - 40, 5, 'star');
     } else {
       // B2：中間那顆繞 Y 軸翻面（rotateY 只用在 rotate 屬性），背面就是寶寶的臉；同時吸成圓（clip-path）
-      ma(main, [{ rotate: 'y 0deg', clipPath: 'circle(75% at 50% 50%)' }, { rotate: 'y 90deg', clipPath: 'circle(24px at 50% 50%)' }], { duration: 280, delay: T.swap, easing: 'cubic-bezier(.55,0,.8,.4)' });
+      ma(main, [{ transform: 'perspective(420px) rotateY(0deg)', clipPath: 'circle(75% at 50% 50%)' }, { transform: 'perspective(420px) rotateY(90deg)', clipPath: 'circle(24px at 50% 50%)' }], { duration: 280, delay: T.swap, easing: 'cubic-bezier(.55,0,.8,.4)' });
       ma(main, [{ opacity: 1 }, { opacity: 0 }], { duration: 1, delay: T.swap + 279 });
-      ma(M, [{ opacity: 0, rotate: 'y -90deg', scale: k0 }, { opacity: 1, rotate: 'y -90deg', scale: k0, offset: .01 }, { opacity: 1, rotate: 'y 0deg', scale: k0 }], { duration: 280, delay: T.swap + 280, easing: 'cubic-bezier(.2,.7,.3,1)' });
+      ma(M, [{ opacity: 0, transform: 'perspective(420px) rotateY(-90deg)', scale: k0 }, { opacity: 1, transform: 'perspective(420px) rotateY(-90deg)', scale: k0, offset: .01 }, { opacity: 1, transform: 'perspective(420px) rotateY(0deg)', scale: k0 }], { duration: 280, delay: T.swap + 280, easing: 'cubic-bezier(.2,.7,.3,1)' });
       ma(M, [{ scale: k0 }, { scale: 1 }], { duration: 140, delay: T.swap + 560, easing: 'cubic-bezier(.4,0,.2,1)', composite: 'replace' });
     }
     // C：蓄力 → 小弧線跳到邊邊（擠壓伸展）→ 停在探頭起點
@@ -320,7 +329,7 @@
   if (HB) HB.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); home(); });
   ['pointerup', 'focusin', 'change'].forEach(function (t) { D.addEventListener(t, function () { if (!drag) arm(); }); });
   // 捲動、轉向、功能列出現／隱藏時，小圓跟著重新對齊
-  function relayout() { cancelAnimationFrame(raf); raf = requestAnimationFrame(function () { if (st.edge !== 'home' && !drag) { var keep = hidden; place(st.edge, hidden || livePos == null ? st.pos : livePos); if (keep) { items().forEach(function (el) { el.style.transition = 'none'; tr(el, 0, 0); var o = offFor(el, hideEdge()); tr(el, o[0], o[1]); }); } } if (hidden && !E.hidden) placeEye(); }); }
+  function relayout() { cancelAnimationFrame(raf); raf = requestAnimationFrame(function () { if (mEl || mT.length || B.classList.contains('dk-hiding')) { if (hidden && !E.hidden) placeEye(); return; } /* v3.0.2：收合動畫進行中不碰 translate（之前停在右邊等非 home 邊時會蓋掉 Web Animations） */ if (st.edge !== 'home' && !drag) { var keep = hidden; place(st.edge, hidden || livePos == null ? st.pos : livePos); if (keep) { items().forEach(function (el) { el.style.transition = 'none'; tr(el, 0, 0); var o = offFor(el, hideEdge()); tr(el, o[0], o[1]); }); } } if (hidden && !E.hidden) placeEye(); }); }
   window.addEventListener('resize', relayout); window.addEventListener('scroll', relayout, { passive: true });
   new MutationObserver(relayout).observe(B, { attributes: true, attributeFilter: ['class'] });
   place(st.edge, st.pos);

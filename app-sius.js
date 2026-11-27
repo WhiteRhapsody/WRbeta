@@ -63,7 +63,8 @@
     if (built) return; built = true;
     root.innerHTML =
       '<div class="x-head"><div class="x-title"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 3.5h11v17l-2.2-1.4-2.2 1.4-2.2-1.4-2.2 1.4-2.2-1.4z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/></svg><span><b>' + esc(wrT('sius.title_short')) + '</b><small>' + esc(wrT('sius.v3_sub')) + '</small></span></div>' +
-        '<button type="button" class="wr-pill" id="siusNew" hidden>' + esc(wrT('sius.new')) + '</button></div>' +
+        '<span class="x-hbtn"><button type="button" class="wr-pill sius-trash" id="siusClear" hidden aria-label="' + esc(wrT('sius.clear')) + '" title="' + esc(wrT('sius.clear')) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9.5 7V4.8h5V7M6.5 7l1 12.2h9L17.5 7M10.3 10.5v5.6M13.7 10.5v5.6"/></svg></button>' +
+        '<button type="button" class="wr-pill" id="siusNew" hidden>' + esc(wrT('sius.new')) + '</button></span></div>' +
       '<div class="sius-photos" id="siusPhotos" hidden></div>' +
       '<div class="sius-prog" id="siusProg" hidden role="status" aria-live="polite"><div class="sius-pbar"><i id="siusPbar"></i></div><span id="siusPtx"></span><button type="button" class="wr-pill" id="siusStop">' + esc(wrT('sius.ocr_cancel')) + '</button></div>' +
       '<div class="sius-gun" id="siusGun" hidden>' +
@@ -71,10 +72,12 @@
         '<p class="sius-gnote" id="siusGnote"></p><p class="sius-warn" id="siusWarn" role="alert" hidden>' + esc(wrT('sius.gun_pistol_warn')) + '</p>' +
       '</div>' +
       '<div id="siusBody"></div>' +
-      '<div class="sius-edit" id="siusEdit" hidden></div>' +
+      '<div class="sius-scrim" id="siusScrim" hidden></div><div class="sius-edit" id="siusEdit" hidden></div>' +
       '<div class="sius-bar" hidden><button type="button" class="sius-nav" id="siusPrev" aria-label="' + esc(wrT('sius.prev_problem')) + '">‹</button><span class="sius-cnt" id="siusCnt" aria-live="polite"></span><button type="button" class="sius-nav" id="siusNext" aria-label="' + esc(wrT('sius.next_problem')) + '">›</button><button type="button" class="sius-save" id="siusSave">' + esc(wrT('sius.save')) + '</button></div>';
     ['siusCam', 'siusPick', 'siusFile'].forEach(function (id) { var i = $(id); if (i) i.onchange = onFiles; });
     $('siusStop').onclick = function () { if (!st || !st.busy) return; st.cancel = true; if (st.abort) st.abort(); stopAll(); };
+    $('siusClear').onclick = function () { if (!st || st.busy) return; ask(wrT('sius.clear_q'), function () { fresh(); render(); }); }; // v3.0.2：垃圾桶＝清除這次資料（先確認）
+    $('siusScrim').onclick = function () { if (!st) return; st.sel = null; render(); }; // v3.0.2：點外面收回
     $('siusNew').onclick = function () { if (st && st.model && !st.recId && !st.saved) ask(wrT('sius.new_q'), function () { fresh(); render(); }); else { fresh(); render(); } };
     $('siusTg').querySelectorAll('button').forEach(function (b) { b.onclick = function () { if (st.busy) return; st.tgUser = b.dataset.v; if (st.model) { st.model.targetId = b.dataset.v; st.model.gun.unverified = b.dataset.v === 'ap10'; } recheck(); }; });
     $('siusPrev').onclick = function () { step(-1); }; $('siusNext').onclick = function () { step(1); };
@@ -158,9 +161,9 @@
   function logEd(what, from, to) { if (!st) return; if (st.log.length < 400) st.log.push({ k: what, from: from == null ? null : from, to: to == null ? null : to, at: Date.now() - st.t0 }); }
   function edit(q, f, v) {
     logEd((q.n != null ? keyOf(q) : '?') + '.' + f, q[f], v);
-    q[f] = v; q.fb = false; q.ed = 1;
+    q[f] = v; q.fb = false; q.ed = 1; q.okd = 0; // v3.0.2：改了值就要再按一次「保存」才算綠燈
     if (q.ocr) { q.ocr.conflict = (q.ocr.conflict || []).filter(function (c) { return c !== f && !(f === 'inner' && c === 'dec'); }); q.ocr.missing = false; }
-    if (q.n != null) { var k = keyOf(q); (st.edits[k] = st.edits[k] || {})[f] = v; st.edits[k].ed = 1; }
+    if (q.n != null) { var k = keyOf(q); (st.edits[k] = st.edits[k] || {})[f] = v; st.edits[k].ed = 1; st.edits[k].okd = 0; }
   }
 
   /* ---------- 看不出是什麼靶：寶寶對話框 v1（White 2026-11-27 指定；概念圖 v296_bubble/bubble_v1.html） ----------
@@ -246,13 +249,13 @@
     var nos = qs.map(function (q) { return q.n; }).filter(function (n) { return n != null; }), a = nos[0], b = nos[nos.length - 1];
     var h = '<div class="x-card' + (c.sighter ? ' sg' : '') + (k === st.cur ? ' cur' : '') + '" data-card="' + k + '" role="group" aria-label="' + esc(wrT('sius.card_no', [k + 1, N])) + '">';
     h += '<div class="x-ch"><span>' + esc(wrT('sius.card_no', [k + 1, N])) + '</span>・<span>' + esc(c.sighter ? wrT('sius.card_sg', [c.grp]) : wrT('sius.card_mt', [c.grp])) + '</span><span class="no">' + (a == null ? '' : esc(a === b ? wrT('sius.shot_a', [a]) : wrT('sius.shots_ab', [a, b]))) + '</span></div>';
-    h += '<div class="x-tg"><svg class="target x-svg" data-card="' + k + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(wrT('sius.target_aria')) + '"></svg>';
+    h += '<div class="x-tg"><svg class="target x-svg" data-xh="off" data-card="' + k + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(wrT('sius.target_aria')) + '"></svg>';
     h += '<div class="x-cat ' + (c.sighter ? 'sg' : 'mt') + '"><b>' + (c.sighter ? 'Sighting' : 'Match') + '</b>' + esc(c.sighter ? wrT('sius.cat_sg') : wrT('sius.cat_mt')) + '</div>';
     if (c.sighter) h += '<div class="x-sub"><small>' + esc(wrT('sius.sub_wr')) + '</small><b class="wr">' + fS(wr, pis) + '</b><i>' + wrIn + '*</i><span class="chk">' + esc(wrT('sius.sub_wr_n', [ok.length])) + '</span></div>';
     else {
       var s = c.s, pr = s.printed, same = pr && Math.abs(pr.dec - wr) < 0.05;
       h += '<button type="button" class="sius-gh sub x-sub' + (s.status === 'bad' ? ' bad' : s.status === 'ok' ? ' ok' : '') + (st.sel && st.sel.type === 'sub' && st.sel.k === s.k ? ' sel' : '') + '" data-sub="' + s.k + '"><small>' + esc(wrT('sius.sub_printed')) + '</small>' + (pr ? '<b>' + fS(pr.dec, pis) + '</b><i>' + pr.inner + '*</i>' : '<b class="na2">' + esc(wrT('sius.not_shot')) + '</b>') +
-        '<span class="chk' + (same ? '' : ' w') + '">' + esc(same ? wrT('sius.sub_match') : wrT('sius.sub_diff', [ok.length, fS(wr, pis), pr ? fS(pr.dec - wr, pis) : '—'])) + '</span></button>';
+        '<span class="chk' + (same ? '' : ' w') + '">' + esc(same ? wrT('sius.sub_match') : wrT('sius.sub_diff', [ok.length, fS(wr, pis), pr ? fS(pr.dec - wr, pis) : '—'])) + '</span>' + (s.innerWarn && pr ? '<span class="x-iw">' + esc(wrT('sius.inner_warn', [s.sumPrinted.inner, pr.inner])) + '</span>' : '') + '</button>';
     }
     if (miss > 0) h += '<div class="x-miss">' + esc(wrT('sius.miss_n', [miss])) + '</div>';
     h += '</div>';
@@ -267,12 +270,12 @@
     var q = st.model.shots[r.i], sel = st.sel && st.sel.type === 'row' && st.sel.i === r.i ? ' sel' : '';
     var cf = function (f) { return r.conflict && r.conflict.indexOf(f) >= 0 ? ' cf' : ''; };
     var v = function (f, txt) { return q[f] == null || q[f] === '' ? NA() : '<span class="e">' + txt + '</span>'; };
-    var lt = r.status === 'ok' ? '<i class="g"></i>' : r.status === 'near' ? '<button type="button" class="x-ym" data-why="' + r.i + '" aria-label="' + esc(wrT('sius.yellow_aria')) + '">!</button>' : '<i class="r"></i>';
+    var lt = r.status === 'ok' ? '<i class="g"></i>' : r.status === 'near' ? '<button type="button" class="x-ym' + (r.orange ? ' o' : '') + '" data-why="' + r.i + '" aria-label="' + esc(wrT('sius.yellow_aria')) + '">!</button>' : '<i class="r"></i>';
     var lbl = wrT('sius.row_aria', [q.n == null ? '—' : q.n, q.dec == null ? '—' : f1(q.dec), (r.status === 'ok' ? wrT('sius.st_ok') : r.status === 'near' ? wrT('sius.st_near') : wrT('sius.st_bad'))]);
     return '<div class="sius-row x-r ' + r.status + sel + (r.sighter ? ' sg' : '') + (r.missing ? ' miss' : '') + (q.fb ? ' fb' : '') + '" data-row="' + r.i + '" role="listitem" tabindex="0" aria-label="' + esc(lbl) + '">' +
       '<span class="lt">' + lt + '</span><span class="n" data-f="n">' + (q.n == null ? '–' : q.n) + '</span>' +
-      '<span class="tm' + cf('t') + (r.tWarn ? ' cf' : '') + '" data-f="t">' + v('t', esc(q.t)) + '</span>' +
-      '<span class="sc' + cf('dec') + '" data-f="dec">' + v('dec', (q.dec == null ? '' : f1(q.dec)) + (q.inner ? '*' : '')) + '</span>' +
+      '<span class="tm' + cf('t') + '" data-f="t">' + v('t', esc(q.t)) + '</span>' +
+      '<span class="sc' + cf('dec') + '" data-f="dec">' + v('dec', (q.dec == null ? '' : f1(q.dec)) + (q.inner ? '*' : '') + (r.orange && r.calc ? '<small class="x-oc">' + esc(calcTx(q, r.calc)) + '</small>' : '')) + '</span>' +
       '<span class="xy' + cf('x') + '" data-f="x">' + v('x', q.x == null ? '' : f2(q.x)) + '</span><span class="xy' + cf('y') + '" data-f="y">' + v('y', q.y == null ? '' : f2(q.y)) + '</span>' +
       '<span class="ar">' + dirCell(t, q) + '</span><span class="pe">' + PEN + '</span></div>';
   }
@@ -311,7 +314,7 @@
     if (!built || !st) return;
     var m = st.model, ck = st.ck;
     D.body.classList.toggle('sius-has', !!m); D.body.classList.toggle('sius-busy', !!st.busy);
-    $('siusNew').hidden = !m || st.busy;
+    $('siusNew').hidden = !m || st.busy; $('siusClear').hidden = !m || st.busy;
     var ph = $('siusPhotos'), hp = st.files.length && !st.recId;
     ph.hidden = !hp;
     if (hp) ph.innerHTML = '<span class="sius-pn">' + esc(wrT('sius.photos_n', [st.files.length])) + '</span>' + st.urls.map(function (u, i) { return u ? '<img src="' + esc(u) + '" alt="' + (i + 1) + '">' : ''; }).join('') + (st.busy ? '' : '<label class="sius-add">' + esc(wrT('sius.add_more')) + '<input type="file" id="siusAdd" accept="image/*" multiple hidden></label>');
@@ -447,6 +450,7 @@
     if (r.missing) return wrT('sius.why_missing');
     if (r.miss && r.miss.indexOf('xy') >= 0) return wrT('sius.why_noxy');
     if (r.miss && r.miss.indexOf('dec') >= 0) return wrT('sius.why_nodec');
+    if (r.orange && r.calc) return wrT('sius.why_orange', [q.decInt ? String(q.dec) : f1(q.dec), calcTx(q, r.calc)]); // v3.0.2 橘燈：兩個分數都列出
     if (r.diff >= 0.2) return wrT('sius.why_diff', [q.decInt ? String(q.dec) : f1(q.dec), calcTx(q, r.calc), q.decInt ? String(Math.round(r.diff)) : f1(r.diff)]);
     if (r.diff === 0.1) return wrT('sius.why_near', [f1(q.dec), calcTx(q, r.calc)]);
     if (r.innerOk === false) return wrT('sius.why_inner');
@@ -455,60 +459,60 @@
     if (r.miss && r.miss.indexOf('t') >= 0) return wrT('sius.why_notime');
     return wrT('sius.why_time');
   }
+  function SAVEB() { return '<button type="button" class="sius-done" id="siusEDone">' + esc(wrT('sius.save_one')) + '</button>'; }
   var META = { athlete: 'sius.f_athlete', event: 'sius.f_event', date: 'sius.f_date', lane: 'sius.f_lane' };
   function renderEdit() {
     var box = $('siusEdit'), m = st && st.model, sel = st && st.sel;
+    var scr0 = $('siusScrim'); if (scr0) scr0.hidden = true; document.body.classList.remove('sius-ed');
     if (!m || !sel || st.busy) { box.hidden = true; box.innerHTML = ''; D.body.classList.remove('sius-editing'); return; }
     var h = '';
     if (sel.type === 'row') {
       var r = st.ck.rows[sel.i], q = m.shots[sel.i]; if (!r) { st.sel = null; box.hidden = true; return; }
-      h += '<div class="sius-eh"><b>' + esc(r.sighter ? wrT('sius.edit_sighter', [st.ck.rows.filter(function (x) { return x.sighter && x.i <= r.i; }).length]) : wrT('sius.edit_shot', [r.no])) + '</b><small class="' + r.status + '">' + esc(why(r, q)) + '</small></div>';
+      h += '<div class="sius-eh"><b>' + esc(r.sighter ? wrT('sius.edit_sighter', [st.ck.rows.filter(function (x) { return x.sighter && x.i <= r.i; }).length]) : wrT('sius.edit_shot', [r.no])) + '</b><small class="' + (r.orange ? 'or' : r.status) + '">' + esc(why(r, q)) + '</small></div>';
       var bad = function (f) { return (r.conflict || []).indexOf(f) >= 0 || (f === 'x' || f === 'y') && (r.miss || []).indexOf('xy') >= 0 && q[f] == null || f === 'dec' && q.dec == null; };
-      h += '<div class="sius-fs">' + fld('siusFDec', wrT('sius.col_score'), q.dec == null ? '' : f1(q.dec), 'decimal', bad('dec')) + fld('siusFT', wrT('sius.col_time'), q.t, 'decimal', bad('t') || r.tWarn) + fld('siusFX', 'X (mm)', q.x == null ? '' : f2(q.x), 'text', bad('x')) + fld('siusFY', 'Y (mm)', q.y == null ? '' : f2(q.y), 'text', bad('y')) + '</div>';
+      h += '<div class="sius-fs">' + fld('siusFDec', wrT('sius.col_score'), q.dec == null ? '' : f1(q.dec), 'decimal', bad('dec')) + fld('siusFT', wrT('sius.col_time'), q.t, 'decimal', bad('t')) + fld('siusFX', 'X (mm)', q.x == null ? '' : f2(q.x), 'text', bad('x')) + fld('siusFY', 'Y (mm)', q.y == null ? '' : f2(q.y), 'text', bad('y')) + '</div>';
       var alt = q.ocr && q.ocr.alt, ah = '';
       if (alt) ['dec', 'x', 'y'].forEach(function (f) { (alt[f] || []).forEach(function (v) { if (v == null || v === q[f]) return; ah += '<button type="button" class="sius-alt" data-f="' + f + '" data-v="' + v + '">' + esc((f === 'dec' ? wrT('sius.cf_dec') : f.toUpperCase()) + ' ' + (f === 'dec' ? f1(v) : f2(v))) + '</button>'; }); });
       if (ah) h += '<div class="sius-alts"><small>' + esc(wrT('sius.alt_label')) + '</small>' + ah + '</div>';
-      h += '<div class="sius-ea">' + tgl('siusFIn', wrT('sius.inner'), q.inner) + (r.calc && r.status !== 'ok' && (r.diff == null || r.diff > 0 || r.innerOk === false) ? '<button type="button" class="sius-use" id="siusUse">' + esc(wrT('sius.use_calc', [calcTx(q, r.calc) + (r.calc.inner ? '*' : '')])) + '</button>' : '') + (r.status === 'near' ? '<button type="button" class="sius-use ok" id="siusOk">' + esc(wrT('sius.confirm_ok')) + '</button>' : '') + '<button type="button" class="sius-del" id="siusDelRow">' + esc(wrT('sius.del_row')) + '</button></div>';
+      // v3.0.2 B 版（White 2026-11-27）：拿掉內十、刪除這發、上一個、下一個；只留「改成重算的 N」＋「保存」（保存＝當綠燈）
+      h += '<div class="sius-ea">' + (r.calc && r.status !== 'ok' && (r.diff == null || r.diff > 0 || r.innerOk === false) ? '<button type="button" class="sius-use" id="siusUse">' + esc(wrT('sius.use_calc', [calcTx(q, r.calc) + (r.calc.inner ? '*' : '')])) + '</button>' : '<span></span>') + SAVEB() + '</div>';
     } else if (sel.type === 'meta') {
       h += '<div class="sius-eh"><b>' + esc(wrT(META[sel.f] || 'sius.f_event')) + '</b><small class="ok">' + esc(wrT('sius.meta_hint')) + '</small></div>';
-      h += '<div class="sius-fs one">' + fld('siusFMeta', wrT(META[sel.f] || 'sius.f_event'), metaVal(sel.f), 'text') + '</div>';
+      h += '<div class="sius-fs one">' + fld('siusFMeta', wrT(META[sel.f] || 'sius.f_event'), metaVal(sel.f), 'text') + '</div><div class="sius-ea"><span></span>' + SAVEB() + '</div>';
     } else {
       var s = sel.type === 'sub' ? st.ck.series[sel.k] : st.ck.total; if (!s) { st.sel = null; box.hidden = true; return; }
       var pr = s.printed || { dec: null, inner: null };
       h += '<div class="sius-eh"><b>' + esc(sel.type === 'sub' ? wrT('sius.series_head', [s.k + 1, s.from, s.to]) : wrT('sius.total_head')) + '</b><small class="' + (s.status === 'ok' ? 'ok' : 'bad') + '">' + esc(s.status === 'ok' ? wrT('sius.why_sub_ok') : wrT('sius.why_sub', [subTx(s.printed), subTx(s.sumPrinted), subTx(s.calc)])) + '</small></div>';
       h += '<div class="sius-fs two">' + fld('siusFSD', wrT('sius.sub_score'), pr.dec == null ? '' : f1(pr.dec)) + fld('siusFSI', wrT('sius.sub_inner'), pr.inner == null ? '' : pr.inner, 'numeric') + '</div>';
-      h += '<div class="sius-ea"><button type="button" class="sius-use" id="siusUseSum">' + esc(wrT('sius.use_sum', [subTx(s.sumPrinted)])) + '</button></div>';
+      h += '<div class="sius-ea"><button type="button" class="sius-use" id="siusUseSum">' + esc(wrT('sius.use_sum', [subTx(s.sumPrinted)])) + '</button>' + SAVEB() + '</div>';
     }
-    h += '<div class="sius-eb"><button type="button" class="sius-nav2" id="siusEPrev">' + esc(wrT('sius.prev_item')) + '</button><button type="button" class="sius-nav2" id="siusENext">' + esc(wrT('sius.next_item')) + '</button><button type="button" class="sius-done" id="siusEDone">' + esc(wrT('sius.done')) + '</button></div>';
-    box.innerHTML = h; box.hidden = false; D.body.classList.add('sius-editing');
+    box.className = 'sius-edit compact b'; box.innerHTML = '<i class="grab" aria-hidden="true"></i>' + h; box.hidden = false; D.body.classList.add('sius-editing');
+    var scr = $('siusScrim'); if (scr) scr.hidden = false; document.body.classList.add('sius-ed'); // 編輯時寶寶先退到後面
     var re = function () { var keep = st.sel; st.ck = CHK(m); st.sel = keep; render(); };
-    var bind = function (id, fn) { $(id).onchange = function () { fn(this.value); re(); }; $(id).onkeydown = function (e) { if (e.key === 'Enter') this.blur(); }; };
+    var bind = function (id, fn) { $(id).onchange = function (ev) { fn(this.value); if (!(ev && ev.noRender)) re(); }; $(id).onkeydown = function (e) { if (e.key === 'Enter') this.blur(); }; };
     if (sel.type === 'row') {
       var q2 = m.shots[sel.i];
       bind('siusFDec', function (v) { edit(q2, 'dec', num(v)); }); bind('siusFT', function (v) { edit(q2, 't', normT(v)); });
       bind('siusFX', function (v) { edit(q2, 'x', num(v)); }); bind('siusFY', function (v) { edit(q2, 'y', num(v)); });
-      $('siusFIn').onclick = function () { edit(q2, 'inner', !q2.inner); re(); };
       box.querySelectorAll('.sius-alt').forEach(function (b) { b.onclick = function () { edit(q2, b.dataset.f, +b.dataset.v); re(); }; });
       if ($('siusUse')) $('siusUse').onclick = function () { var c = st.ck.rows[sel.i].calc; edit(q2, 'dec', q2.decInt ? c.ring : c.dec); edit(q2, 'inner', c.inner); re(); };
-      if ($('siusOk')) $('siusOk').onclick = function () { logEd(keyOf(q2) + '.ok', 'near', 'ok'); q2.ed = 1; if (q2.n != null) { var k = keyOf(q2); (st.edits[k] = st.edits[k] || {}).ed = 1; } re(); };
-      $('siusDelRow').onclick = function () { ask(wrT('sius.del_row_q'), function () { logEd(keyOf(q2) + '.del', 1, null); if (q2.n != null) st.edits[keyOf(q2)] = { del: true }; m.shots.splice(sel.i, 1); st.sel = null; recheck(); }); };
     } else if (sel.type === 'meta') {
       bind('siusFMeta', function (v) { v = String(v).trim().slice(0, 60); logEd('meta.' + sel.f, m[sel.f] || '', v); m[sel.f] = v; st.metaEd[sel.f] = v; });
     } else {
       var tgtObj = function () { if (sel.type === 'sub') { while (m.subs.length <= sel.k) m.subs.push(null); if (!m.subs[sel.k]) m.subs[sel.k] = { dec: 0, inner: 0 }; return m.subs[sel.k]; } if (!m.total) m.total = { dec: 0, inner: 0 }; return m.total; };
       var keepEd = function (o, f, from) { logEd((sel.type === 'sub' ? 'S' + (sel.k + 1) : 'T') + '.' + f, from, o[f]); if (sel.type === 'sub') st.subEd[sel.k] = { dec: o.dec, inner: o.inner }; else st.totEd = { dec: o.dec, inner: o.inner }; };
-      $('siusFSD').onchange = function () { var o = tgtObj(), a = o.dec; o.dec = num(this.value) || 0; keepEd(o, 'dec', a); re(); };
-      $('siusFSI').onchange = function () { var o = tgtObj(), a = o.inner; o.inner = Math.round(num(this.value) || 0); keepEd(o, 'inner', a); re(); };
+      $('siusFSD').onchange = function (ev) { var o = tgtObj(), a = o.dec; o.dec = num(this.value) || 0; keepEd(o, 'dec', a); if (!(ev && ev.noRender)) re(); };
+      $('siusFSI').onchange = function (ev) { var o = tgtObj(), a = o.inner; o.inner = Math.round(num(this.value) || 0); keepEd(o, 'inner', a); if (!(ev && ev.noRender)) re(); };
       $('siusUseSum').onclick = function () { var s2 = sel.type === 'sub' ? st.ck.series[sel.k] : st.ck.total, o = tgtObj(), a = o.dec; o.dec = s2.sumPrinted.dec; o.inner = s2.sumPrinted.inner; keepEd(o, 'dec', a); re(); };
     }
-    $('siusEDone').onclick = function () { st.sel = null; render(); };
-    var seq = function (d) { // 依畫面順序：試射、每組（10 發＋小計）、總分
-      var list = []; st.ck.rows.filter(function (r) { return r.sighter; }).forEach(function (r) { list.push({ type: 'row', i: r.i }); });
-      st.ck.series.forEach(function (s3) { s3.rows.forEach(function (i) { list.push({ type: 'row', i: i }); }); list.push({ type: 'sub', k: s3.k }); }); list.push({ type: 'total' });
-      var cur = st.sel, j = -1; list.forEach(function (p, x) { if (p.type === cur.type && p.i === cur.i && p.k === cur.k) j = x; });
-      pick(list[Math.max(0, Math.min(list.length - 1, j + d))]);
+    // 保存：先把輸入框裡還沒送出的值套上（按下去的那一刻輸入框才失焦，不能等 change），再收起；逐發＝當綠燈（okd）
+    var saved = false, doSave = function (e) {
+      if (saved) return; saved = true; if (e && e.preventDefault) e.preventDefault();
+      box.querySelectorAll('input').forEach(function (inp) { if (inp.value !== inp.defaultValue && inp.onchange) { var f0 = inp.onchange; inp.onchange = null; try { f0.call(inp, { noRender: 1 }); } catch (er) {} } });
+      if (sel.type === 'row') { var q3 = m.shots[sel.i]; if (q3) { logEd((q3.n != null ? keyOf(q3) : '?') + '.ok', st.ck.rows[sel.i] ? st.ck.rows[sel.i].status : '', 'ok'); q3.ed = 1; q3.okd = 1; if (q3.n != null) { var k3 = keyOf(q3); (st.edits[k3] = st.edits[k3] || {}).ed = 1; st.edits[k3].okd = 1; } } }
+      st.sel = null; st.ck = CHK(m); render();
     };
-    $('siusEPrev').onclick = function () { seq(-1); }; $('siusENext').onclick = function () { seq(1); };
+    $('siusEDone').onpointerdown = doSave; $('siusEDone').onclick = doSave;
   }
 
   /* ---------- 存成一般紀錄（分析頁）：紅燈要先改好；黃燈不擋 ---------- */

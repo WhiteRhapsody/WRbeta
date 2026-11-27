@@ -75,6 +75,8 @@
   // 找出這一下按到的是什麼：{ el, mode, poly }；不需要十字線時回傳 null
   function classify(t, e) {
     if (!t || !t.closest) return null;
+    // v3.0.2（White 11:29）：小白單頁面整個停用觸碰十字線，其他頁面不動
+    if (document.body.classList.contains('on-sius') || t.closest('#tab-sius,#xbDock,#xbEye,#siusEdit')) return null;
     if (t.closest(SKIP)) return null;
     if (t.closest('#wrXh')) return null;
     var tg = t.closest(TARGET);

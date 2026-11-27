@@ -11,10 +11,11 @@
 (function (root) {
   'use strict';
   var isNode = typeof module !== 'undefined' && module.exports && typeof require === 'function';
+  function C0() { return root.BMCore || (isNode ? require('./core.js') : null); }
   function X() { return root.WRSiusXCore || (isNode ? require('./sius-x-core.js') : null); }
   function S0() { return root.WRSius || (isNode ? require('./sius.js') : null); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
-  var RULES = { dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 1, signFlip: 1, fbCap: 0 };
+  var RULES = { dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 0, signFlip: 1, fbCap: 0 };
   function key(q) { return (q.sighter ? 'Q' : 'M') + q.n; }
   function down(r, why) { if (r._ed) return; if (r.status === 'ok') { r.status = 'near'; (r.why = r.why || []).push(why); } }
   function flip(a, b) { return a != null && b != null && a !== 0 && Math.abs(a + b) < 1e-9; }
@@ -38,14 +39,16 @@
       if (grp.filter(function (r) { return shots[r.i].inner; }).length !== sb.inner) grp.filter(function (r) { return shots[r.i].dec >= 10; }).forEach(function (r) { down(r, 'inner'); });
     });
     if (opt.signFlip) rows.forEach(function (r) {
-      var q = shots[r.i], o = q.ocr; if (!o) return;
+      var q = shots[r.i], o = q.ocr; if (!o || o.xyPick) return;
       ['x', 'y'].forEach(function (f) {
         var vals = [].concat(o.alt && o.alt[f] || []); (o.rd || []).forEach(function (d) { if (d[f] != null) vals.push(d[f]); });
         if (vals.some(function (v) { return flip(v, q[f]); })) down(r, 'sign:' + f);
       });
     });
-    if (opt.fbCap) rows.forEach(function (r) { if (shots[r.i].fb) down(r, 'fb'); });
-    else rows.forEach(function (r) { var q = shots[r.i]; if (q.fb && q.fbSt !== 'ok') down(r, 'fb'); }); // v3.0.1：備援列只有備援引擎自己也核對成綠燈時才給綠
+    if (opt.fbCap) rows.forEach(function (r) { if (shots[r.i].fb) down(r, 'fb'); }); // v3.0.2（White 2026-11-27 11:07）：拿掉 v3.0.1 的「備援自己也核對綠」護欄，備援列只要座標跟單上分數對得上就綠
+    // v3.0.2（White 2026-11-27）：逐發編輯按「保存」＝當綠燈
+    rows.forEach(function (r) { if (shots[r.i] && shots[r.i].okd) { r.status = 'ok'; r.orange = false; r.why = []; } });
+    ck.bad = rows.filter(function (r) { return r.status === 'bad'; }).length + ck.series.filter(function (x) { return x.status === 'bad'; }).length + (ck.total && ck.total.status === 'bad' ? 1 : 0);
     ck.near = rows.filter(function (r) { return r.status === 'near'; }).length;
     return ck;
   }
@@ -61,10 +64,29 @@
     if (on) model.shots.forEach(function (q) { if (q.dec == null || !isFinite(q.dec) || Math.abs(q.dec - Math.round(q.dec)) < 1e-9) q.decInt = true; });
     return on;
   }
-  function check(model, opt) { stampInt(model); var ck = X().check(model); return rules(model, ck, opt); }
+  /* v3.0.2（White 2026-11-27）：X／Y 有兩種以上讀法 → 用單上分數反推：只有一組 (X, Y) 算出來跟單上分數一樣 → 採用、不打燈；
+   * 全部都一樣 → 維持現行（黃燈請核對）；全部都不一樣 → 照舊提示。使用者改過的發不動。 */
+  function xyPick(model) {
+    var C = C0(); if (!C || !C.TARGETS) return;
+    var T = C.TARGETS[model.targetId] || C.TARGETS.ar10;
+    model.shots.forEach(function (q) {
+      var o = q.ocr; if (!o || !o.alt || q.ed || q.dec == null || o.xyPick) return;
+      var xs = (o.alt.x && o.alt.x.length ? o.alt.x : [q.x]).filter(function (v) { return v != null; });
+      var ys = (o.alt.y && o.alt.y.length ? o.alt.y : [q.y]).filter(function (v) { return v != null; });
+      if (xs.length < 2 && ys.length < 2) return;
+      var hit = [], n = 0;
+      xs.forEach(function (x) { ys.forEach(function (y) { n++; var sc = C.scoreShot(T, x, y); var v = q.decInt ? sc.ring : sc.dec; if (Math.round(v * 10) === Math.round(q.dec * 10)) hit.push({ x: x, y: y }); }); });
+      if (hit.length !== 1 || n < 2) return;
+      q.x = hit[0].x; q.y = hit[0].y; o.xyPick = 1;
+      o.alt = { x: [q.x], y: [q.y], dec: o.alt.dec };
+      o.conflict = (o.conflict || []).filter(function (c) { return c !== 'x' && c !== 'y'; });
+      if (o.w) { o.w.x = Math.max(o.w.x || 0, 2); o.w.y = Math.max(o.w.y || 0, 2); }
+    });
+  }
+  function check(model, opt) { stampInt(model); xyPick(model); var ck = X().check(model); return rules(model, ck, opt); }
   // 紅燈（要改完才能存）：紅燈的列、對不上的小計／總分
   function blocking(ck) { return ck ? ck.bad : 0; }
-  function needFallback(model, ck) { return ck.rows.some(function (r) { return r.status === 'bad' || r.missing; }); }
+  function needFallback(model, ck) { return ck.rows.some(function (r) { return r.status === 'bad' || r.orange || r.missing; }); }
   /* 備援補列：主模型裡紅燈／沒讀到的列，現有引擎有讀到而且自己核對不是紅燈 → 用它的值（標 fb；v3.0.1 起對得上就可以綠燈）。
    * 對應方式：試射／比賽＋發序相同；同一發序有好幾發時挑時間最接近的。回傳補了幾列。 */
   function fill(model, fbModel, opt) {
@@ -73,7 +95,7 @@
     fck.rows.forEach(function (r) { fst[r.i] = r.status; });
     var sec = X().secOf;
     ck.rows.forEach(function (r) {
-      if (!(r.status === 'bad' || r.missing)) return;
+      if (!(r.status === 'bad' || r.orange || r.missing)) return;
       var q = model.shots[r.i], best = -1, bd = 1e9;
       fbModel.shots.forEach(function (f, j) {
         if (used[j] || !!f.sighter !== !!q.sighter || f.n !== q.n || fst[j] === 'bad') return;

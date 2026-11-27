@@ -1384,6 +1384,11 @@
   "sius.prev_item": "‹ Previous",
   "sius.next_item": "Next ›",
   "sius.done": "Done",
+  "sius.save_one": "Save",
+  "sius.clear": "Clear this session",
+  "sius.clear_q": "Clear this session's data?",
+  "sius.why_orange": "Slip {0} · from X/Y {1}: the coordinates are certain but the score differs (saving is not blocked)",
+  "sius.inner_warn": "Inner 10s {0} / slip {1}",
   "sius.del_row_q": "Delete this shot?",
   "sius.saved": "Saved: {0} sighters, {1} match shots",
   "sius.save_with_bad_q": "{0} items still don't match. Save anyway? (You can fix them later from “Open check sheet” on the analysis page.)",
@@ -1571,7 +1576,10 @@
   "home.v300_3": "Buttons tuck away after 1.8 s with new animations; the baby asks when it can’t tell the target",
   "home.v300_4": "Choose a font (Zev Hei) in Settings; send beta-test reports to improve reading",
   "home.v301_1": "Pistol qualification compares whole numbers: the X/Y score is rounded down (8.0–8.9 counts as 8), subtotals too; backup-engine shots can go green when they match",
-  "home.v301_2": "Opening a shot to edit no longer pops up the keyboard; tap a field when you want to type"
+  "home.v301_2": "Opening a shot to edit no longer pops up the keyboard; tap a field when you want to type",
+  "home.v302_1": "Sighters and match shots are separated by time and no longer mixed; when X/Y has two readings, the printed score picks the right one",
+  "home.v302_2": "Certain coordinates with a different score now show orange and don't block saving; time gaps and inner-10 counts no longer flag every shot",
+  "home.v302_3": "Compact shot editor (tap outside to close, Save = green); trash button to clear this session; the baby animates on any edge"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["en"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -199,6 +199,108 @@
 
   function f1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
 
+  /* v3.0.2：試射／正式依時間分開（White 2026-11-27 11:02「只有落在試射時間範圍內的才算試射；每一發只能配對一次」）
+   * 1) 同一個時間字串＝同一發：分散在不同槽位（例如同一發被一張照片當試射、另一張當正式）的讀法全部收到同一個槽位。
+   *    有正式讀法、而且時間不在試射範圍（第 1 發正式之前 25 分鐘內）或接得上正式前後發 → 歸正式；否則歸權重最大的槽位。
+   * 2) 試射照發序把時間攤平（跨整點接上），晚於第 1 發正式的「試射」改成正式同一發序（只在讀到小計／總分時；只有試射的單不做）。 */
+  function splitByTime(groups, P, realMatch) {
+    var secOf = P.secOf, gapSec = P.gapSec, WIN = 1500, MAXG = 600;
+    var majT = function (g) { var v = voteWeighted(g.reads.map(function (r) { return { v: r.p.t, w: r.ew }; })); return v.length ? v[0].v : null; };
+    var mList = function () { return Object.keys(groups).filter(function (k) { return groups[k].sec === 'M' && groups[k].reads.length; }).map(function (k) { return groups[k]; }).sort(function (a, b) { return a.n - b.n; }); };
+    var M = mList(), m1 = null;
+    // 第 1 發正式的時間：從第 1 發往後找，要接得上下一發（第 1 發被別的發混進來、主流時間錯了也不會帶歪）
+    var mts = M.map(function (g) { var t = majT(g); return t ? secOf(t) : null; });
+    for (var i = 0; i < M.length && m1 == null; i++) {
+      if (mts[i] == null) continue;
+      var nx = null; for (var j2 = i + 1; j2 < M.length; j2++) if (mts[j2] != null) { nx = j2; break; }
+      if (nx == null) { m1 = mts[i]; break; }
+      var gg = gapSec(mts[i], mts[nx]); if (gg != null && gg <= Math.min(MAXG * (M[nx].n - M[i].n), 1799)) m1 = mts[i];
+    }
+    if (m1 == null) for (i = 0; i < M.length && m1 == null; i++) if (mts[i] != null) m1 = mts[i];
+    if (m1 == null) return;
+    var inWin = function (t) { var s = secOf(t); if (s == null) return true; var g = gapSec(s, m1); return g != null && g <= WIN; };
+    var mT = {}; M.forEach(function (g) { var t = majT(g); if (t) mT[g.n] = secOf(t); });
+    var fitsM = function (n, t) {
+      var s = secOf(t); if (s == null) return false;
+      if (mT[n] != null && Math.abs(mT[n] - s) < 0.005) return true;
+      var a = null, b = null, k;
+      var da = 0, db = 0;
+      for (k = n - 1; k >= 1 && k >= n - 12; k--) if (mT[k] != null) { a = mT[k]; da = n - k; break; }
+      for (k = n + 1; k <= n + 12; k++) if (mT[k] != null) { b = mT[k]; db = k - n; break; }
+      if (a == null && b == null) return false;
+      var ga = a == null ? 0 : gapSec(a, s), gb = b == null ? 0 : gapSec(s, b);
+      return ga != null && gb != null && ga <= Math.min(MAXG * da, 1799) && gb <= Math.min(MAXG * db, 1799);
+    };
+    var get = function (sec, n) { var k = sec + n; return groups[k] || (groups[k] = { sec: sec, n: n, reads: [] }); };
+    // 0) 同一個槽位裡時間差很多的讀法要分開（例：試射 1＝6 分 44:30.00 被塞進正式 1＝9 分 50:55.06 當「其他讀法」）：
+    //    槽位內依時間分群；接不上自己這一段前後發、卻接得上另一段同號前後發（而且符合試射範圍）的那一群 → 搬過去
+    var secT = function (sec) { var o = {}; Object.keys(groups).forEach(function (k) { var g = groups[k]; if (g.sec !== sec) return; var t = majT(g); if (t && secOf(t) != null) o[g.n] = secOf(t); }); return o; };
+    var QT = secT('Q'), MT = secT('M');
+    var tdist = function (a, b) { var d = Math.abs(a - b) % 3600; return Math.min(d, 3600 - d); };
+    var fitsNb = function (sec, n, sv) { // 只看前後發（不看自己那一號）
+      var o = sec === 'Q' ? QT : MT, k, a = null, b = null, da = 0, db = 0;
+      for (k = n - 1; k >= 1 && k >= n - 5; k--) if (o[k] != null) { a = o[k]; da = n - k; break; }
+      for (k = n + 1; k <= n + 5; k++) if (o[k] != null) { b = o[k]; db = k - n; break; }
+      if (a == null && b == null) return sec === 'Q' && n <= 2;
+      var ga = a == null ? 0 : gapSec(a, sv), gb = b == null ? 0 : gapSec(sv, b);
+      return ga != null && gb != null && ga <= Math.min(MAXG * da, 1799) && gb <= Math.min(MAXG * db, 1799);
+    };
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k], cl = [];
+      g.reads.forEach(function (r) {
+        var sv = r.p.t ? secOf(r.p.t) : null; if (sv == null) return;
+        var c = cl.filter(function (x) { return tdist(x.s, sv) <= 90; })[0];
+        if (c) { c.reads.push(r); c.w += r.ew; } else cl.push({ s: sv, t: r.p.t, reads: [r], w: r.ew });
+      });
+      if (cl.length < 2) return;
+      var to = g.sec === 'M' ? 'Q' : 'M';
+      cl.forEach(function (c) {
+        if (fitsNb(g.sec, g.n, c.s)) return;
+        var w = inWin(c.t); if (!(g.sec === 'M' ? w : !w) || !fitsNb(to, g.n, c.s)) return;
+        g.reads = g.reads.filter(function (r) { return c.reads.indexOf(r) < 0; });
+        var tg = get(to, g.n); tg.reads = tg.reads.concat(c.reads);
+      });
+    });
+    // 1) 同時間＝同一發
+    var byT = {};
+    Object.keys(groups).forEach(function (k) { groups[k].reads.forEach(function (r) { if (r.p.t) (byT[r.p.t] = byT[r.p.t] || {})[k] = (byT[r.p.t][k] || 0) + r.ew; }); });
+    Object.keys(byT).forEach(function (t) {
+      var ks = Object.keys(byT[t]); if (ks.length < 2) return;
+      var hasM = ks.some(function (k) { return groups[k].sec === 'M'; });
+      var pool = ks;
+      if (hasM) {
+        var mks = ks.filter(function (k) { return groups[k].sec === 'M'; });
+        var toM = !inWin(t) || mks.some(function (k) { return fitsM(groups[k].n, t); });
+        if (toM) pool = mks;
+      }
+      var best = pool.slice().sort(function (a, b) { return byT[t][b] - byT[t][a]; })[0];
+      ks.forEach(function (k) {
+        if (k === best) return;
+        var g = groups[k], mv = g.reads.filter(function (r) { return r.p.t === t; });
+        g.reads = g.reads.filter(function (r) { return r.p.t !== t; });
+        groups[best].reads = groups[best].reads.concat(mv);
+      });
+    });
+    // 2) 試射時間範圍：試射照發序排、時間攤平（跨整點 +3600），以第一發試射為基準算出第 1 發正式的時間；
+    //    晚於第 1 發正式的「試射」都是正式的發 → 搬到正式同一發序（同一發序已有讀法就合併投票，不會變成兩發）
+    if (realMatch) {
+      var Q = Object.keys(groups).filter(function (k) { return groups[k].sec === 'Q' && groups[k].reads.length; }).map(function (k) { return groups[k]; }).sort(function (a, b) { return a.n - b.n; });
+      var prev = null, base = null, m1u = null;
+      Q.forEach(function (g) {
+        var t = majT(g), sv = t ? secOf(t) : null; if (sv == null) { g._u = null; return; }
+        if (base == null) { base = sv; m1u = sv + ((m1 - sv) % 3600 + 3600) % 3600; prev = sv; g._u = sv; return; }
+        var d = ((sv - prev) % 3600 + 3600) % 3600, u = d > 3000 ? prev - (3600 - d) : prev + d; // 往回 10 分鐘內（讀錯／順序亂）不算跨整點
+        g._u = u; prev = Math.max(prev, u);
+      });
+      Q.forEach(function (g) {
+        var u = g._u; delete g._u;
+        if (u == null || m1u == null || u <= m1u) return;
+        var tg = get('M', g.n); tg.reads = tg.reads.concat(g.reads); g.reads = [];
+      });
+    }
+    Object.keys(groups).forEach(function (k) { if (!groups[k].reads.length) delete groups[k]; });
+  }
+
   function alignPasses(passes, opt) {
     opt = opt || {};
     var P = parser();
@@ -275,6 +377,9 @@
         return true;
       });
     });
+
+    // v3.0.2【White 2026-11-27 11:02】試射／正式依時間分開、每一發只配對一次
+    if (opt.splitByTime !== false) splitByTime(groups, P, Object.keys(subs).length > 0 || totals.length > 0 || Object.keys(groups).filter(function (k) { return groups[k].sec === 'M'; }).length >= 10);
 
     // 槍種、發數、日期投票與格式推斷
     var gv = voteWeighted(hdr.filter(function (h) { return h.kind === 'event'; }).map(function (h) { return { v: h.gun, w: 1 }; }));

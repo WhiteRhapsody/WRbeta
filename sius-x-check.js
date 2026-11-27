@@ -22,7 +22,7 @@
     maxGapSec: 600,              // 同段相鄰每發最大合理間隔秒數（上限 1799s）
     arrowCheck: true,            // 8 方向箭頭與方向字形（含第一象限對角 ↗ 字形一致性）對 (X, Y) 否決
     arrowAxisDeg: 11,            // 直向箭頭（→↑←↓）離軸角度門檻（度）
-    subInnerRadiusGuard: true,   // 小計內十數不符時，依多算／少算方向精準標黃可疑 10 環（不連坐無關 10 環）
+    subInnerRadiusGuard: false,  // v3.0.2 關（White 2026-11-27：內十數跟小計對不上不逐發報錯，只在小計旁輕提示）；原： 小計內十數不符時，依多算／少算方向精準標黃可疑 10 環（不連坐無關 10 環）
     subInnerMarginMm: 0.6,       // 內十臨界半徑容差帶（mm）
     subAlgebraInfer: true,       // 全單僅缺 1 個小計且 TOTAL 與其餘小計皆對上時，代數反推該組小計輔助核對
     singlePhotoLastDigit: true,  // 單一照片（無跨照重疊佐證）同一座標出現整數與十分位相同、僅百分位末碼不同之多讀值時降黃（擋 -4.08/-4.09 等）
@@ -143,6 +143,13 @@
       var cmp = sc ? (q.decInt ? sc.ring : sc.dec) : null;
       var dd = sc && q.dec != null ? Math.abs(tenths(cmp) - tenths(q.dec)) : null;
       var st = miss.indexOf('dec') >= 0 || miss.indexOf('xy') >= 0 ? 'bad' : dd >= 2 ? 'bad' : dd === 1 ? 'near' : 'ok';
+      // v3.0.2（White 2026-11-27）：座標確定（沒有 X／Y 衝突、只有一種讀法）但分數跟單子不符 → 橘燈（near＋orange），兩個分數都列出，不擋保存
+      var orange = false;
+      if (st === 'bad' && dd >= 2 && okXY && q.dec != null) {
+        var oc0 = q.ocr, cf0 = oc0 && oc0.conflict || [], al0 = oc0 && oc0.alt;
+        var sure = cf0.indexOf('x') < 0 && cf0.indexOf('y') < 0 && !(al0 && ((al0.x && al0.x.length > 1) || (al0.y && al0.y.length > 1)));
+        if (sure) { st = 'near'; orange = true; }
+      }
       var innerOk = !sc || q.dec == null || sc.inner === !!q.inner;
       if (st === 'ok' && !innerOk) st = 'near';
 
@@ -176,7 +183,7 @@
         }
       }
 
-      if (st === 'ok' && (miss.length || tw)) st = 'near';
+      if (st === 'ok' && miss.length) st = 'near'; // v3.0.2：時間跟前一發接不上不報錯（照讀到的寫），tWarn 只留資料
       if (st === 'ok' && cfl.length) st = 'near';
 
       var rowObj = {
@@ -193,6 +200,7 @@
         missing: !!(q.ocr && q.ocr.missing),
         status: st
       };
+      if (orange) rowObj.orange = true;
       if (tHint) rowObj.tHint = true;
       rows.push(rowObj);
     });
@@ -300,7 +308,7 @@
           cIn += r.calc.inner ? 1 : 0;
         } else cOk = false;
       });
-      var ok = !!pr && part.length === 10 && tenths(pr.dec) === pSum && pr.inner === pIn && cOk && cSum === pSum;
+      var ok = !!pr && part.length === 10 && tenths(pr.dec) === pSum; // v3.0.2：內十數、X/Y 重算對不上不算小計錯（逐發已有燈；小計旁輕提示）
       series.push({
         k: k,
         from: k * 10 + 1,
@@ -310,7 +318,9 @@
         printed: pr,
         sumPrinted: { dec: pSum / 10, inner: pIn },
         calc: { dec: cSum / 10, inner: cIn },
-        status: !pr ? (part.length ? 'nosub' : 'bad') : ok ? 'ok' : 'bad'
+        status: !pr ? (part.length ? 'nosub' : 'bad') : ok ? 'ok' : 'bad',
+        innerWarn: !!pr && pr.inner !== pIn,
+        calcWarn: !cOk || cSum !== pSum
       });
     }
 
@@ -325,7 +335,8 @@
       }
     });
     var tot = { printed: model.total, sumPrinted: { dec: pT / 10, inner: pTi }, calc: { dec: cT / 10, inner: cTi } };
-    tot.status = !model.total ? 'nototal' : tenths(model.total.dec) === pT && model.total.inner === pTi && cT === pT ? 'ok' : 'bad';
+    tot.status = !model.total ? 'nototal' : tenths(model.total.dec) === pT ? 'ok' : 'bad'; // v3.0.2：同小計
+    tot.innerWarn = !!model.total && model.total.inner !== pTi; tot.calcWarn = cT !== pT;
 
     // 7) Policy: subAlgebraInfer — 全單僅缺 1 個小計且 TOTAL 與其餘小計齊全時，代數反推該組應有分數與內十數
     var nosubs = series.filter(function (s) { return s.status === 'nosub'; });

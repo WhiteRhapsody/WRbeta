@@ -2228,7 +2228,7 @@ body.lt-piano .sius-save{background:var(--w-camBd,#1f6feb)}
 .sius-rh.faster{color:#2fb46a}.sius-rh.slower{color:#ff8a00}
 .sius-chl{font-size:12px;font-weight:800;color:var(--w-tx2,#777);margin:8px 0 2px}
 /* 小白單面板打開時：確認視窗、提示要在面板上面 */
-body.sius-open .modal-bg{z-index:210}
+body.sius-open .modal-bg,body.on-sius .modal-bg{z-index:260}
 body.sius-open #toast{z-index:220}
 /* v2.9.3 小白單：時間印到 1/100 秒（mm:ss.ss）比較長 → 窄螢幕（130% 字級、360 以下）表格縮緊 */
 .sius-row .tm{white-space:nowrap}
@@ -2463,7 +2463,7 @@ body.fx-anim .tr-face{animation:dkLook 9.3s ease-in-out 1.2s infinite}
 #xbDock .tr-tag{position:absolute;left:50%;bottom:-11px;translate:-50% 0;z-index:5;display:flex;align-items:center;gap:4px;padding:2px 9px 2px 6px;border-radius:999px;background:#fffdf6;border:1px solid color-mix(in srgb,var(--w-camB) 40%,transparent);font-size:11px;font-weight:800;color:color-mix(in srgb,var(--w-camB) 70%,#1a1a18);white-space:nowrap;pointer-events:none}
 #xbDock.dk-col[data-edge="left"] .tr-tag{left:100%;bottom:8px;translate:8px 0}
 #xbDock.dk-col[data-edge="right"] .tr-tag{left:0;bottom:8px;translate:calc(-100% - 8px) 0}
-#xbDock .tr-tag .wrx-hat.sm{position:relative;width:11px;height:14px;left:auto;top:auto;margin:0;rotate:0deg;opacity:1;visibility:visible;animation:none}
+#xbDock .tr-tag .wrx-hat.sm{position:relative;width:11px;height:14px;left:auto;top:auto;margin:0;rotate:0deg;opacity:1;visibility:inherit;animation:none}
 #xbDock .dk-home{left:-6px;bottom:-6px}
 /* 小白單帽（紙白＋主題色線條） */
 .wrx-hat{position:absolute;pointer-events:none;width:22px;height:27px;z-index:7;transform-origin:50% 100%}
@@ -2566,3 +2566,34 @@ body.ff-loading #fontSeg{opacity:.7}
 .ana-rep-card textarea{width:100%;box-sizing:border-box;min-height:64px;font-size:15px;padding:8px 10px;border-radius:10px;border:1px solid var(--w-inBd);background:var(--w-inBg);color:var(--w-tx)}
 .ana-rep-card .rp-go{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
 .ana-rep-card .rp-st{font-size:12px;color:var(--w-tx2)}
+
+/* ---------- v3.0.2 逐發編輯 B 版（White 2026-11-27；設計稿 v30_work/editpanel_preview new_b）：點外面收回、四欄一排、改成重算＋保存 ---------- */
+#siusRoot .sius-scrim{position:fixed;inset:0;z-index:229;background:rgba(6,8,16,.45)}
+#siusRoot .sius-scrim[hidden]{display:none}
+#siusEdit.sius-edit.compact{max-height:34dvh;overflow-y:auto;padding:8px 12px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--w-popBd,rgba(217,191,138,.5));box-shadow:0 -8px 28px rgba(0,0,0,.45),0 -1px 0 rgba(239,220,176,.12)}
+#siusEdit.compact .grab{display:block;width:36px;height:4px;border-radius:2px;margin:0 auto 8px;background:var(--w-acc,rgba(217,191,138,.55));opacity:.6}
+#siusEdit.compact .sius-eh{display:flex;align-items:center;gap:8px;min-height:22px}
+#siusEdit.compact .sius-eh b{font-size:15px;font-weight:900;color:var(--w-popTx);flex:none}
+#siusEdit.compact .sius-eh small{flex:1 1 auto;min-width:0;margin:0;font-size:11.5px;line-height:1.3;font-weight:700}
+#siusEdit.compact .sius-eh small.bad{color:#ff8a80}#siusEdit.compact .sius-eh small.near{color:var(--w-warn,#ffb340)}#siusEdit.compact .sius-eh small.ok{color:var(--w-good,#5fe08f)}#siusEdit.compact .sius-eh small.or{color:#ff9a4d}
+#siusEdit.compact .sius-fs{display:grid;grid-template-columns:.9fr 1.35fr 1fr 1fr;gap:6px;margin-top:8px}
+#siusEdit.compact .sius-fs.two{grid-template-columns:1fr 1fr}#siusEdit.compact .sius-fs.one{grid-template-columns:1fr}
+#siusEdit.compact .sius-f span{font-size:10.5px;font-weight:800;color:var(--w-tx2,#a49a86)}
+#siusEdit.compact .sius-f input{height:40px;font-size:15px;font-weight:700;padding:0 6px;border-radius:9px;background:var(--w-paper,#f1ece1);color:#1a1a18;border:1px solid rgba(46,46,44,.28)}
+#siusEdit.compact .sius-f.bad input{border-color:#e5192b;box-shadow:0 0 0 1.5px #e5192b inset;background:#fff5f5}
+#siusEdit.compact .sius-alts{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 6px;margin:4px 0 0}
+#siusEdit.compact .sius-alts small{display:none}
+#siusEdit.compact .sius-alt{min-height:40px;padding:0 12px;border-radius:20px;font:800 12px/1 var(--w-sans,inherit);border:1px solid rgba(217,138,0,.65);background:#fff8e1;color:#5c3b00;cursor:pointer}
+#siusEdit.compact .sius-ea{display:grid;grid-template-columns:1.35fr .85fr;gap:8px;margin:8px 0 0}
+#siusEdit.compact .sius-ea button{min-height:40px;height:40px;border-radius:20px}
+#siusEdit.compact .sius-done{background:var(--w-acc,#16202b);color:var(--w-accTx,#fff);border:1px solid var(--w-camBd,var(--w-acc,#16202b));box-shadow:0 2px 8px var(--w-accSh,rgba(0,0,0,.2));font:900 14px/1 var(--w-sans,inherit)}
+/* v3.0.2 橘燈（座標確定、分數跟單子不同；不擋保存）、內十輕提示、垃圾桶 */
+#siusRoot .x-ym.o{background:#ff7a1a;color:#fff}
+#siusRoot .x-r.near .x-oc{display:block;font-size:10px;font-weight:800;color:#ff7a1a;line-height:1}
+#siusRoot .x-iw{display:block;font-size:10.5px;font-weight:700;opacity:.7;margin-top:1px}
+#siusRoot .x-hbtn{display:flex;align-items:center;gap:8px}
+#siusRoot .sius-trash{width:40px;min-width:40px;height:40px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+#siusRoot .sius-trash svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* v3.0.2：逐發編輯時三隻寶寶不要蓋在面板／清單上 */
+body.sius-ed #xbDock,body.sius-ed #xbEye{opacity:0!important;pointer-events:none!important;transition:opacity .15s}
