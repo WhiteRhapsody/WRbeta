@@ -775,9 +775,16 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
   }
 
   // ---------- 8) 隱私權政策（內容在 privacy.html，App 內用同一份） ----------
-  var PRIV_URL = 'https://whiterhapsody.github.io/WRbeta/' + (wrT.isEn() ? 'privacy-en.html' : 'privacy.html'); // v2.2.0：英文版
-  var PRIV_FILE = wrT.isEn() ? 'privacy-en.html' : 'privacy.html';
+  /* v3.2.0（v3.1.4 Gemini 審查 P0：上架要包成原生 App，WebView 的網址可能不是 http(s)，例如 capacitor://、file:、app://）：
+   * App 內附的頁面一律先在本地讀（fetch → service worker 快取 → XHR，file: 只有 XHR 讀得到），三種都讀不到才顯示「到網站看」的連結。 */
+  function loadLocal(file) {
+    var viaXHR = function () { return new Promise(function (ok, no) { try { var x = new XMLHttpRequest(); x.open('GET', file, true); x.onload = function () { if ((x.status === 200 || x.status === 0) && x.responseText) ok(x.responseText); else no(0); }; x.onerror = function () { no(0); }; x.send(); } catch (e) { no(e); } }); };
+    var viaCache = function () { return root.caches && caches.match ? caches.match(file, { ignoreSearch: true }).then(function (r) { if (!r) throw 0; return r.text(); }) : Promise.reject(0); };
+    var viaFetch = function () { if (typeof fetch !== 'function') return Promise.reject(0); return fetch(file, /^https?:$/.test(location.protocol) ? { cache: 'no-cache' } : {}).then(function (r) { if (!r.ok) throw 0; return r.text(); }); };
+    return viaFetch().catch(viaCache).catch(viaXHR);
+  }
   function openPrivacy() {
+    var PRIV_FILE = wrT.isEn() ? 'privacy-en.html' : 'privacy.html', PRIV_URL = 'https://whiterhapsody.github.io/WRbeta/' + PRIV_FILE; // v2.2.0：英文版；v3.2.0 每次開都看目前語言
     if (D.querySelector('.mb-priv')) return;
     var bg = D.createElement('div'); bg.className = 'mb-view mb-priv'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-label', wrT('member.privacy_policy'));
     bg.innerHTML = wrT('member.back_open_in_browser_loading', [PRIV_URL]);
@@ -785,10 +792,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     bg.querySelector('.x').onclick = function () { closeView(bg); };
     var body = bg.querySelector('#mbPrivBody');
     function fallback() { body.innerHTML = wrT('member.privacy_policy_this_version_single', [PRIV_URL, PRIV_URL]); }
-    if (!/^https?:$/.test(location.protocol)) { fallback(); return; }
-    fetch(PRIV_FILE, { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (t) {
-      var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1];
-    }).catch(function () { caches && caches.match ? caches.match(PRIV_FILE, { ignoreSearch: true }).then(function (r) { if (!r) throw 0; return r.text(); }).then(function (t) { var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1]; }).catch(fallback) : fallback(); });
+    loadLocal(PRIV_FILE).then(function (t) { var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1]; }).catch(fallback);
   }
 
   // ---------- v3.1.4 開源授權（內容在 licenses.html／licenses-en.html，由 tools/make_licenses.py 產生；App 內用同一份，樣式跟隱私權政策頁＝跟主題） ----------
@@ -802,8 +806,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     var body = bg.querySelector('#mbOssBody');
     function show(t) { var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1]; }
     function fallback() { body.innerHTML = wrT('member.oss_offline', [OSS_URL, OSS_URL]); }
-    if (!/^https?:$/.test(location.protocol)) { fallback(); return; }
-    fetch(OSS_FILE, { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(show).catch(function () { caches && caches.match ? caches.match(OSS_FILE, { ignoreSearch: true }).then(function (r) { if (!r) throw 0; return r.text(); }).then(show).catch(fallback) : fallback(); });
+    loadLocal(OSS_FILE).then(show).catch(fallback);
   }
   function ossCard() { var c = D.getElementById('ossCard'); if (c && !c.firstChild) c.innerHTML = wrT('member.oss_row', ['<svg class="pf-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>']); }
   try { ossCard(); } catch (e) {}

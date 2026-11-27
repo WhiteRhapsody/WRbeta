@@ -2645,5 +2645,7 @@ body.sius-ed #xbDock,body.sius-ed #xbEye{opacity:0!important;pointer-events:none
 /* v3.1.3 時間記號（時間的問題不亮燈，只在時間旁打記號；顏色跟主題） */
 .sius-row .tm .x-tmk,#siusRoot .x-r .tm .x-tmk{display:inline-flex;vertical-align:-2px;margin-left:3px;width:13px;height:13px;color:var(--w-acc,#d98a00);opacity:.9}
 .x-tmk svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* v3.2.0：另一套辨識（Paddle）補上／決定的值：綠燈旁的小菱形（不影響燈號） */
+#siusRoot .x-r .lt .x-ppm{font-style:normal;font-size:7px;line-height:1;vertical-align:super;margin-left:1px;color:var(--w-acc,#2a8bd8);opacity:.85}
 .sius-edit .sius-tmk-n,#siusEdit .sius-tmk-n{color:var(--w-acc,#d98a00);opacity:1}
 #siusEdit.compact .sius-eh:has(.sius-wc){flex-wrap:wrap;row-gap:0}#siusEdit.compact .sius-eh .sius-wc{flex-basis:100%;margin:0}

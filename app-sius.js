@@ -57,16 +57,17 @@
     build(); if (!st) fresh();
     if (st.busy || st.recId) return;
     fs.forEach(function (f) { st.files.push(f); try { st.urls.push(URL.createObjectURL(f)); } catch (e) { st.urls.push(''); } });
-    st.sel = null; render();
+    st.sel = null; xbHoldOn(); render();
     toast(wrT('sius.queued', [st.files.length - (st.nDone || 0)]), 2600);
   }
-  function startAnalysis() { if (!st || st.busy) return; var n0 = st.nDone || 0; if (st.files.length <= n0) { toast(wrT('sius.need_photo'), 2400); return; } addFiles(null); }
+  function startAnalysis() { if (!st || st.busy) return; var n0 = st.nDone || 0; if (st.files.length <= n0) { toast(wrT('sius.need_photo'), 2400); return; } xbGo(); addFiles(null); }
   function dropPhoto(i) { if (!st || st.busy || i < (st.nDone || 0)) return; try { URL.revokeObjectURL(st.urls[i]); } catch (e) {} st.files.splice(i, 1); st.urls.splice(i, 1); render(); }
   function fresh() {
     if (st && st.busy) { st.cancel = true; stopAll(); }
     freeUrls();
     st = { model: null, ck: null, sel: null, recId: null, files: [], urls: [], passes: [], fbPasses: [], ppPasses: [], tgUser: null, edits: {}, subEd: {}, totEd: null, metaEd: {}, log: [], busy: false, cancel: false, gunAsked: false, timing: null, cur: 0, scope: 'all', t0: Date.now(), nDone: 0 };
     var a = $('siusAsk'); if (a) a.remove();
+    xbHoldOn();
   }
 
   /* ---------- 畫面骨架（第一次進小白單畫面時建立） ---------- */
@@ -270,8 +271,10 @@
     if (c.sighter) h += '<div class="x-sub"><small>' + esc(wrT('sius.sub_wr')) + '</small><b class="wr">' + fS(wr, pis) + '</b><i>' + wrIn + '*</i><span class="chk">' + esc(wrT('sius.sub_wr_n', [ok.length])) + '</span></div>';
     else {
       var s = c.s, pr = s.printed, same = pr && Math.abs(pr.dec - wr) < 0.05;
-      h += '<button type="button" class="sius-gh sub x-sub' + (s.status === 'bad' ? ' bad' : s.status === 'ok' ? ' ok' : '') + (st.sel && st.sel.type === 'sub' && st.sel.k === s.k ? ' sel' : '') + '" data-sub="' + s.k + '"><small>' + esc(wrT('sius.sub_printed')) + '</small>' + (pr ? '<b>' + fS(pr.dec, pis) + '</b><i>' + pr.inner + '*</i>' : '<b class="na2">' + esc(wrT('sius.not_shot')) + '</b>') +
-        '<span class="chk' + (same ? '' : ' w') + '">' + esc(same ? wrT('sius.sub_match') : wrT('sius.sub_diff', [ok.length, fS(wr, pis), pr ? fS(pr.dec - wr, pis) : '—'])) + '</span>' + (s.innerWarn && pr ? '<span class="x-iw">' + esc(wrT('sius.inner_warn', [s.sumPrinted.inner, pr.inner])) + '</span>' : '') + '</button>';
+      // v3.2.0（White 2026-11-28）：每張靶紙都要有小計 → 單子沒印（或沒拍到）這組小計時，WR 依 X/Y 自己算（跟試射一樣標「by WR」），不顯示「未拍到」
+      if (!pr) h += '<button type="button" class="sius-gh sub x-sub' + (st.sel && st.sel.type === 'sub' && st.sel.k === s.k ? ' sel' : '') + '" data-sub="' + s.k + '"><small>' + esc(wrT('sius.sub_wr')) + '</small><b class="wr">' + fS(wr, pis) + '</b><i>' + wrIn + '*</i><span class="chk">' + esc(wrT('sius.sub_wr_n', [ok.length])) + '</span></button>'; // 還是可以點開手動補上印出來的小計（Carbon 審查）
+      else h += '<button type="button" class="sius-gh sub x-sub' + (s.status === 'bad' ? ' bad' : s.status === 'ok' && same ? ' ok' : '') + (st.sel && st.sel.type === 'sub' && st.sel.k === s.k ? ' sel' : '') + '" data-sub="' + s.k + '"><small>' + esc(wrT('sius.sub_printed')) + '</small><b>' + fS(pr.dec, pis) + '</b><i>' + pr.inner + '*</i>' +
+        '<span class="chk' + (same && s.status !== 'bad' ? '' : ' w') + '">' + esc(s.status === 'bad' ? wrT('sius.sub_bad', [fS(s.sumPrinted.dec, pis), fS(pr.dec, pis)]) : same ? wrT('sius.sub_match') : wrT('sius.sub_diff', [ok.length, fS(wr, pis), fS(pr.dec - wr, pis)])) + '</span>' + (s.innerWarn ? '<span class="x-iw">' + esc(wrT('sius.inner_warn', [s.sumPrinted.inner, pr.inner])) + '</span>' : '') + '</button>';
     }
     if (miss > 0) h += '<div class="x-miss">' + esc(wrT('sius.miss_n', [miss])) + '</div>';
     h += '</div>';
@@ -284,13 +287,18 @@
   }
   // v3.1.3（White 2026-11-27 20:46）：時間的問題不亮燈，只在時間旁打一個小時鐘記號（顏色跟主題；點那一發，編輯框會寫時間記號的原因）
   var TMK = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3"/><path d="M8 4.6V8l2.4 1.6"/></svg>';
-  function tMarkTx(r) { return (r.tMark || []).map(function (c) { return wrT({ tWarn: 'sius.tmk_twarn', 'miss:t': 'sius.tmk_miss', 'conflict:t': 'sius.tmk_cfl', dupT: 'sius.tmk_dup', tFix: 'sius.tmk_fix', notime: 'sius.tmk_miss', ppT: 'sius.tmk_pp' }[c] || 'sius.tmk_twarn'); }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join('、'); }
+  function SSEP() { return wrT.isEn && wrT.isEn() ? '; ' : '；'; }
+  function LSEP() { return wrT.isEn && wrT.isEn() ? ', ' : '、'; } // 英文介面不用中文頓號（審查建議）
+  function tMarkTx(r) { return (r.tMark || []).map(function (c) { return wrT({ tWarn: 'sius.tmk_twarn', 'miss:t': 'sius.tmk_miss', 'conflict:t': 'sius.tmk_cfl', dupT: 'sius.tmk_dup', tFix: 'sius.tmk_fix', notime: 'sius.tmk_miss', ppT: 'sius.tmk_pp' }[c] || 'sius.tmk_twarn'); }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join(LSEP()); }
+  // v3.2.0：另一套辨識（Paddle）補上／決定的值 → 綠燈旁的小記號（不影響燈號）
+  function ppMarkTx(r) { return (r.ppMark || []).map(function (c) { return wrT({ ppFill: 'sius.ppm_fill', ppDec: 'sius.ppm_dec', ppD: 'sius.ppm_d' }[c] || 'sius.ppm_fill'); }).join(LSEP()); }
+  function ppMarkHTML(r) { var tx = wrT('sius.ppm', [ppMarkTx(r)]); return '<i class="x-ppm" role="img" title="' + esc(tx) + '" aria-label="' + esc(tx) + '">◆</i>'; }
   function tMarkHTML(r) { var tx = wrT('sius.tmk', [tMarkTx(r)]); return '<i class="x-tmk" role="img" title="' + esc(tx) + '" aria-label="' + esc(tx) + '">' + TMK + '</i>'; }
   function rowHTML(r, t) {
     var q = st.model.shots[r.i], sel = st.sel && st.sel.type === 'row' && st.sel.i === r.i ? ' sel' : '';
     var cf = function (f) { return r.conflict && r.conflict.indexOf(f) >= 0 ? ' cf' : ''; };
     var v = function (f, txt) { return q[f] == null || q[f] === '' ? NA() : '<span class="e">' + txt + '</span>'; };
-    var lt = r.status === 'ok' ? '<i class="g"></i>' : r.status === 'near' ? '<button type="button" class="x-ym' + (r.orange ? ' o' : '') + '" data-why="' + r.i + '" aria-label="' + esc(wrT('sius.yellow_aria')) + '">!</button>' : '<i class="r"></i>';
+    var lt = r.status === 'ok' ? '<i class="g"></i>' + (r.ppMark && r.ppMark.length ? ppMarkHTML(r) : '') : r.status === 'near' ? '<button type="button" class="x-ym' + (r.orange ? ' o' : '') + '" data-why="' + r.i + '" aria-label="' + esc(wrT('sius.yellow_aria')) + '">!</button>' : '<i class="r"></i>';
     var lbl = wrT('sius.row_aria', [pnOf(q) == null ? '—' : pnOf(q), q.dec == null ? '—' : f1(q.dec), (r.status === 'ok' ? wrT('sius.st_ok') : r.status === 'near' ? wrT('sius.st_near') : wrT('sius.st_bad'))]);
     return '<div class="sius-row x-r ' + r.status + sel + (r.sighter ? ' sg' : '') + (r.missing ? ' miss' : '') + (q.fb ? ' fb' : '') + '" data-row="' + r.i + '" data-why="' + esc(whyCodes(r, q)) + '" role="listitem" tabindex="0" aria-label="' + esc(lbl) + '">' +
       '<span class="lt">' + lt + '</span><span class="n" data-f="n">' + (pnOf(q) == null ? '–' : pnOf(q)) + '</span>' +
@@ -364,14 +372,20 @@
       if (O.connected()) O.uploadText(name, txt).then(function (dir) { ownMsg(wrT('sius.own_up_file_ok', [name, dir])); }, function (e) { ownMsg(wrT('sius.own_up_fail', [String(e && e.message || e).slice(0, 60)])); });
     });
   }
+  function strHash(t) { var h = 5381; t = String(t || ''); for (var i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0; return h.toString(36) + ':' + t.length; }
+  function filesFp(fs) { return fs.map(function (f) { return [f.name || '', f.size || 0, f.lastModified || 0].join('/'); }).join('|'); }
   function ownUpload() {
     var O = OWN(); if (!O || !st.files.length) return;
     if (!O.hasClient()) { toast(wrT('sius.own_drive_pending'), 4200); return; }
+    if (st.upBusy) return;
     var files = st.files.slice(), b = $('siusOwnUp'); if (b) b.disabled = true;
     ownMsg(wrT('sius.own_connecting'));
-    O.token(true).then(function () { return O.uploadPhotos(files, function (i, n) { ownMsg(wrT('sius.own_uploading', [i + 1, n])); }); }).then(function (r) {
-      ownMsg(wrT('sius.own_up_ok', [r.n, r.dir])); toast(wrT('sius.own_up_ok', [r.n, r.dir]), 3600); if ($('siusOwnUp')) $('siusOwnUp').disabled = false;
-    }, function (e) { var msg = String(e && e.message || e); ownMsg(wrT('sius.own_up_fail', [msg.slice(0, 60)])); if ($('siusOwnUp')) $('siusOwnUp').disabled = false; });
+    var my = st, fp = filesFp(files), rs = my.upFail && my.upFail.fp === fp ? my.upFail : null; // v3.2.0：上次沒傳完、照片也沒換 → 同一批續傳（已上去的跳過）
+    my.upBusy = true;
+    O.token(true).then(function () { return O.uploadPhotos(files, function (i, n) { if (st === my) ownMsg(wrT('sius.own_uploading', [i + 1, n])); }, rs ? { base: rs.base, date: rs.date } : null); }).then(function (r) {
+      my.upFail = null; my.upBusy = false; var tx = wrT('sius.own_up_ok', [r.n, r.dir]) + (r.skipped ? wrT('sius.own_resumed', [r.skipped]) : '');
+      toast(tx, 3600); if (st !== my) return; ownMsg(tx); if ($('siusOwnUp')) $('siusOwnUp').disabled = false;
+    }, function (e) { my.upBusy = false; if (e && e.base) my.upFail = { base: e.base, date: e.date, fp: fp }; var msg = wrT('sius.own_up_fail', [String(e && e.message || e).slice(0, 60)]); if (st !== my) { toast(msg, 3600); return; } ownMsg(msg); if ($('siusOwnUp')) $('siusOwnUp').disabled = false; });
   }
   function bindOwn() {
     if (!$('siusOwn')) return;
@@ -428,21 +442,30 @@
       var old = $('siusScans'); if (old) old.remove();
       var bg = D.createElement('div'); bg.className = 'modal-bg sius-own-bg'; bg.id = 'siusScans';
       var fmt = function (t) { var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; }; return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
-      var li = a.map(function (d) { var l = d.lights || {}; return '<li data-id="' + esc(d.id) + '"><b>' + esc(d.name || '') + '</b><small>' + esc(fmt(d.updated) + '・' + wrT('sius.own_scan_meta', [l.g || 0, l.y || 0, l.r || 0, (d.photos || []).length]) + (d.sent ? '・' + wrT('sius.own_scan_sent') : '')) + '</small><div class="sius-scan-b"><button type="button" class="wr-pill" data-act="open">' + esc(wrT('sius.own_scan_open')) + '</button><button type="button" class="wr-pill" data-act="ana">' + esc(wrT('sius.own_scan_ana')) + '</button><button type="button" class="wr-pill sius-scan-del" data-act="del">' + esc(wrT('sius.own_scan_del')) + '</button></div></li>'; }).join('');
+      var PG = 12, shown = 0; // v3.2.0：清單只讀小的摘要；一次先畫 PG 筆，其餘按「顯示更多」
+      var liOf = function (d) { var l = d.lights || {}; return '<li data-id="' + esc(d.id) + '"><b>' + esc(d.name || '') + '</b><small>' + esc(fmt(d.updated) + '・' + wrT('sius.own_scan_meta', [l.g || 0, l.y || 0, l.r || 0, d.nPhotos != null ? d.nPhotos : (d.photos || []).length]) + (d.sent ? '・' + wrT('sius.own_scan_sent') : '')) + '</small><div class="sius-scan-b"><button type="button" class="wr-pill" data-act="open">' + esc(wrT('sius.own_scan_open')) + '</button><button type="button" class="wr-pill" data-act="ana">' + esc(wrT('sius.own_scan_ana')) + '</button><button type="button" class="wr-pill sius-scan-del" data-act="del">' + esc(wrT('sius.own_scan_del')) + '</button></div></li>'; };
+      var more = function () {
+        var ul = bg.querySelector('ul'), mb = bg.querySelector('.sius-scan-more'); if (mb) mb.remove();
+        ul.insertAdjacentHTML('beforeend', a.slice(shown, shown + PG).map(liOf).join('')); shown = Math.min(a.length, shown + PG);
+        if (shown < a.length) ul.insertAdjacentHTML('beforeend', '<li class="sius-scan-more"><button type="button" class="wr-pill" data-more="1">' + esc(wrT('sius.own_list_more', [a.length - shown])) + '</button></li>');
+      };
       bg.innerHTML = '<div class="modal sius-own-modal sius-scans" role="dialog" aria-modal="true"><p></p><small class="sius-own-tip"></small><ul class="sius-scan-l"></ul><div class="row"><button type="button" class="no"></button></div></div>';
       bg.querySelector('p').textContent = wrT('sius.own_list_h'); bg.querySelector('.sius-own-tip').textContent = wrT('sius.own_list_tip', [O.MAX_SCANS]);
-      bg.querySelector('ul').innerHTML = li || '<li class="empty">' + esc(wrT('sius.own_list_empty')) + '</li>';
+      if (a.length) more(); else bg.querySelector('ul').innerHTML = '<li class="empty">' + esc(wrT('sius.own_list_empty')) + '</li>';
       bg.querySelector('.no').textContent = wrT('h.close') || wrT('h.cancel');
       bg.querySelector('.no').onclick = function () { bg.remove(); };
       bg.addEventListener('click', function (e) {
         if (e.target === bg) { bg.remove(); return; }
+        if (e.target.closest && e.target.closest('[data-more]')) { more(); return; }
         var b = e.target.closest && e.target.closest('[data-act]'); if (!b) return;
         var row = b.closest('li'), id = row && row.dataset.id; if (!id) return;
         if (b.dataset.act === 'del') {
+          if (row.dataset.del) return;
           ask(wrT('sius.own_scan_del_q'), function () {
+            if (row.dataset.del || !row.parentNode) return; row.dataset.del = '1';
             O.scanDel(id).then(function () {
               row.remove(); if (st && st.scanId === id) { st.scanId = null; var kb = $('siusOwnKeep'); if (kb) kb.textContent = wrT('sius.own_keep'); }
-              var ul = bg.querySelector('ul'); if (ul && !ul.children.length) ul.innerHTML = '<li class="empty">' + esc(wrT('sius.own_list_empty')) + '</li>';
+              a = a.filter(function (o) { return o.id !== id; }); shown = Math.max(0, shown - 1); var mb0 = bg.querySelector('.sius-scan-more button'); if (mb0) mb0.textContent = wrT('sius.own_list_more', [a.length - shown]); if (!bg.querySelector('li[data-id]') && shown < a.length) more(); var ul = bg.querySelector('ul'); if (ul && !ul.querySelector('li[data-id]') && !a.length) ul.innerHTML = '<li class="empty">' + esc(wrT('sius.own_list_empty')) + '</li>';
             }, function (e) { toast(wrT('sius.own_keep_fail', [String(e && e.message || e).slice(0, 60)]), 3600); });
           });
           return;
@@ -480,14 +503,18 @@
   function ownReview() {
     var O = OWN(); if (!O || !st || !st.model || st.busy || st.rvBusy) return;
     if (!O.hasClient()) { toast(wrT('sius.own_drive_pending'), 4200); return; }
-    var base = 'rv' + O.stamp(), pack, files = st.files.slice(), my = st;
-    try { pack = reviewPack(O, base); } catch (e) { ownMsg(wrT('sius.own_up_fail', [String(e && e.message || e).slice(0, 60)])); return; }
+    var my = st, files = st.files.slice(), pack, base0 = 'rv' + O.stamp();
+    try { pack = reviewPack(O, base0); } catch (e) { ownMsg(wrT('sius.own_up_fail', [String(e && e.message || e).slice(0, 60)])); return; }
+    // v3.2.0：上次沒傳完、照片跟列表內容都沒變（指紋一樣）→ 同一個前綴續傳（已上去的跳過）；有變就用新前綴整批重傳
+    var fp = filesFp(files) + '|' + strHash(pack.csv.replace(/rv\d{4}_\d{6}/g, '')) + '|' + strHash(pack.json.replace(/rv\d{4}_\d{6}/g, '').replace(/"created": "[^"]*"/, '')), rf = my.rvFail && my.rvFail.fp === fp ? my.rvFail : null, base = rf ? rf.base : base0;
+    if (rf) pack = reviewPack(O, base);
     var b = $('siusOwnRv'); if (b) b.disabled = true; my.rvBusy = true;
     var fin = function () { my.rvBusy = false; if (st === my && $('siusOwnRv')) $('siusOwnRv').disabled = false; };
     ownMsg(wrT('sius.own_connecting'));
-    O.token(true).then(function () { return O.uploadReview(base, pack, files, function (i, n) { if (st === my) ownMsg(wrT('sius.own_uploading', [i + 1, n])); }); }).then(function (r) {
-      fin(); if (st === my) ownMsg(wrT('sius.own_rv_ok', [r.base, r.dir])); toast(wrT('sius.own_rv_ok', [r.base, r.dir]), 4200);
-    }, function (e) { fin(); var t = wrT('sius.own_up_fail', [String(e && e.message || e).slice(0, 60)]); if (st === my) ownMsg(t); else toast(t, 3600); });
+    O.token(true).then(function () { return O.uploadReview(base, pack, files, function (i, n) { if (st === my) ownMsg(wrT('sius.own_uploading', [i + 1, n])); }, rf ? { resume: true, date: rf.date } : null); }).then(function (r) {
+      my.rvFail = null; fin(); var tx = wrT('sius.own_rv_ok', [r.base, r.dir]) + (r.skipped ? wrT('sius.own_resumed', [r.skipped]) : '');
+      if (st === my) ownMsg(tx); toast(tx, 4200);
+    }, function (e) { if (e && e.base) my.rvFail = { base: e.base, date: e.date, fp: fp }; fin(); var t = wrT('sius.own_up_fail', [String(e && e.message || e).slice(0, 60)]); if (st === my) ownMsg(t); else toast(t, 3600); });
   }
   function metaVal(f) { var m = st.model; return m ? (m[f] || '') : ''; }
   function metaHTML(t) {
@@ -643,11 +670,12 @@
   function num(v) { v = String(v).replace(/,/g, '.').replace(/[−–—]/g, '-').replace(/\s+/g, '').trim(); return v === '' || isNaN(+v) ? null : +v; }
   // 時間輸入：「1234.56」「12:34.56」「12.34.56」都接受 → mm:ss.ss；看不懂就照原樣（會標黃）
   function normT(v) { v = String(v).trim(); var m = v.replace(/[^\d]/g, ''); if (/^\d{6}$/.test(m)) return m.slice(0, 2) + ':' + m.slice(2, 4) + '.' + m.slice(4); if (/^\d{5}$/.test(m)) return '0' + m.slice(0, 1) + ':' + m.slice(1, 3) + '.' + m.slice(3); return v; }
-  var WHY3 = { dupT: 'sius.why3_dupt', sReads: 'sius.why3_sreads', fieldW: 'sius.why3_fieldw', sub: 'sius.why3_sub', xyAlt: 'sius.why3_xyalt', inner: 'sius.why3_inner', 'sign:x': 'sius.why3_sign', 'sign:y': 'sius.why3_sign', fb: 'sius.why3_fb', arrow: 'sius.why3_arrow', arrowFix: 'sius.why3_arrowfix', demo: 'sius.why3_demo', miss: 'sius.why3_miss', practiceGap: 'sius.why3_pgap', tFix: 'sius.why3_tfix', xyFix: 'sius.why3_xyfix', decSub: 'sius.why3_decsub', decCalc: 'sius.why3_deccalc', noxy: 'sius.why_noxy', scoreWins: 'sius.why3_scorewins', notime: 'sius.why3_notime', soft: 'sius.why3_soft' };
+  var WHY3 = { tgMis: 'sius.why3_tgmis', dupT: 'sius.why3_dupt', sReads: 'sius.why3_sreads', fieldW: 'sius.why3_fieldw', sub: 'sius.why3_sub', xyAlt: 'sius.why3_xyalt', inner: 'sius.why3_inner', 'sign:x': 'sius.why3_sign', 'sign:y': 'sius.why3_sign', fb: 'sius.why3_fb', arrow: 'sius.why3_arrow', arrowFix: 'sius.why3_arrowfix', demo: 'sius.why3_demo', miss: 'sius.why3_miss', practiceGap: 'sius.why3_pgap', tFix: 'sius.why3_tfix', xyFix: 'sius.why3_xyfix', decSub: 'sius.why3_decsub', decCalc: 'sius.why3_deccalc', noxy: 'sius.why_noxy', subBad: 'sius.why3_subbad', dupRow: 'sius.why3_duprow', decXY: 'sius.why3_decxy', ppConf: 'sius.why3_ppconf', scoreWins: 'sius.why3_scorewins', notime: 'sius.why3_notime', soft: 'sius.why3_soft' };
   function whyArg(w, q) { // v3.0.3：箭頭改值要列出原本讀到的
     if (w === 'arrowFix') { var o = q && q.ocr && q.ocr.arrowFix, f = o && o.from || {}; return [f.x == null ? '–' : f2(f.x), f.y == null ? '–' : f2(f.y), q.x == null ? '–' : f2(q.x), q.y == null ? '–' : f2(q.y)]; }
     if (w === 'xyFix') { var xf = q && q.ocr && q.ocr.xyFix, fr = xf && xf.from || {}; return [fr.x == null ? '–' : f2(fr.x), fr.y == null ? '–' : f2(fr.y), q.x == null ? '–' : f2(q.x), q.y == null ? '–' : f2(q.y)]; }
     if (w === 'tFix') { var tf = q && q.ocr && q.ocr.tFix; return [tf && tf.from || '–', q.t || '–']; }
+    if (w === 'decXY') { var dx = q && q.ocr && q.ocr.decXY; return [dx ? (q.decInt ? String(dx.from) : f1(dx.from)) + (dx.inner ? '*' : '') : '–', q.dec == null ? '–' : (q.decInt ? String(q.dec) : f1(q.dec)) + (q.inner ? '*' : '')]; }
     if (w === 'arrow') { var a = q && q.ocr && q.ocr.arw; var ix = a && a.dir ? ['→', '↗', '↑', '↖', '←', '↙', '↓', '↘'].indexOf(a.dir) : -1; return [ix >= 0 ? a.dir + ' ' + DW8(ix) : '?']; }
     return [w.slice(5).toUpperCase()];
   }
@@ -663,24 +691,25 @@
     if (od && r.status !== 'ok') {
       var r2 = {}; for (var k in r) r2[k] = r[k]; r2.why = r.why.filter(function (w) { return !/^ocrDiff:/.test(w); });
       var more = r2.why.length || (r.conflict && r.conflict.length) || r.orange || (r.diff != null && r.diff >= 0.1) || r.innerOk === false || r.missing || (r.miss && r.miss.some(function (c) { return c !== 't'; }));
-      var pt = ppTx(q); return pt ? pt + (more ? '；' + why0(r2, q) : '') : why0(r2, q);
+      var pt = ppTx(q); return pt ? pt + (more ? SSEP() + why0(r2, q) : '') : why0(r2, q);
     }
     return why0(r, q);
   }
   function why0(r, q) {
-    if (r.status === 'ok') return r.cons && r.cons.length ? wrT('sius.why_cons') : wrT('sius.why_ok');
+    if (r.status === 'ok') return r.ppMark && r.ppMark.length ? wrT('sius.why_ppmark', [ppMarkTx(r)]) : r.cons && r.cons.length ? wrT('sius.why_cons') : wrT('sius.why_ok');
     if (r.missing) return wrT('sius.why_missing');
     if (r.miss && r.miss.indexOf('xy') >= 0) return wrT('sius.why_noxy');
     if (r.miss && r.miss.indexOf('dec') >= 0) return wrT('sius.why_nodec');
     if (r.orange && r.calc) return wrT('sius.why_orange', [q.decInt ? String(q.dec) : f1(q.dec), calcTx(q, r.calc)]); // v3.0.2 橘燈：兩個分數都列出
+    if ((r.why || []).indexOf('tgMis') >= 0) return wrT('sius.why3_tgmis') + ' ' + wrT('sius.why_diff', [q.decInt ? String(q.dec) : f1(q.dec), calcTx(q, r.calc), q.decInt ? String(Math.round(r.diff)) : f1(r.diff)]); // v3.2.0 靶種可能選錯（審查建議：不要被下一行截走）
     if (r.diff >= 0.2) return wrT('sius.why_diff', [q.decInt ? String(q.dec) : f1(q.dec), calcTx(q, r.calc), q.decInt ? String(Math.round(r.diff)) : f1(r.diff)]);
     if (r.diff === 0.1) return wrT('sius.why_near', [f1(q.dec), calcTx(q, r.calc)]);
     if (r.innerOk === false) return wrT('sius.why_inner');
-    if (r.conflict && r.conflict.length) return wrT('sius.why_conflict', [r.conflict.map(function (c) { return { x: wrT('sius.cf_x'), y: wrT('sius.cf_y'), dec: wrT('sius.cf_dec'), t: wrT('sius.cf_t') }[c] || c; }).join('、')]);
+    var cfN = (r.conflict || []).filter(function (c) { return c !== 't'; }); // v3.2.0：黃燈說明不再寫「時間」（時間只打記號）
+    if (cfN.length) return wrT('sius.why_conflict', [cfN.map(function (c) { return { x: wrT('sius.cf_x'), y: wrT('sius.cf_y'), dec: wrT('sius.cf_dec'), t: wrT('sius.cf_t') }[c] || c; }).join(LSEP())]);
     if (r.arrowWarn && !(r.why && r.why.length)) return wrT('sius.why3_arrow', whyArg('arrow', q));
-    if (r.why && r.why.length) return r.why.map(function (w) { return wrT(WHY3[w] || WHY3[String(w).split(':')[0]] || 'sius.why_time', whyArg(w, q)); }).join('；');
-    if (r.miss && r.miss.indexOf('t') >= 0) return wrT('sius.why_notime');
-    return wrT('sius.why_time');
+    if (r.why && r.why.length) return r.why.map(function (w) { return wrT(WHY3[w] || WHY3[String(w).split(':')[0]] || 'sius.why_check', whyArg(w, q)); }).join(SSEP()); // 未知原因不寫成時間（Carbon 審查）
+    return wrT('sius.why_check'); // v3.2.0：不再用「時間接不上」當預設說明
   }
   function SAVEB() { return '<button type="button" class="sius-done" id="siusEDone">' + esc(wrT('sius.save_one')) + '</button>'; }
   var META = { athlete: 'sius.f_athlete', event: 'sius.f_event', date: 'sius.f_date', lane: 'sius.f_lane' };
@@ -745,6 +774,7 @@
     (r.conflict || []).forEach(function (c) { w.push('conflict:' + c); });
     (r.miss || []).forEach(function (c) { w.push('miss:' + c); });
     (r.tMark || []).forEach(function (c) { w.push(c); }); // v3.1.3：時間記號的原因
+    (r.ppMark || []).forEach(function (c) { w.push(c); }); // v3.2.0：Paddle 補上／決定的記號
     if (r.tWarn) w.push('tWarn'); if (r.missing) w.push('missing'); if (r.innerOk === false) w.push('inner'); if (r.diff != null && r.diff > 0) w.push('diff:' + r.diff);
     if (r.orange) w.push('orange'); if (q && q.okd) w.push('userOk');
     if (r.cons && r.cons.length) w.push('cons:' + r.cons.join('+'));
@@ -813,16 +843,21 @@
     keepScan: ownKeep, openScan: openScan, scanList: ownList, reviewPack: function (base) { var O = window.WRSiusOwner; return O && st && st.model ? reviewPack(O, base || 'rvtest') : null; } };
 
   /* ---------- 小白單三寶寶：自動收邊（跟分析頁寶寶同一套 dock.js；FIG-19 收合動畫） ---------- */
-  var XD = null;
+  var XD = null, xbHold = false; // v3.2.0：打開小白單 → 寶寶回預設位置、保持展開（拍照／選檔都不縮），按「開始分析」才縮
   if (window.WRDockMake) {
     XD = window.WRDockMake({ key: 'wr_dock_sius_v1', idle: 1800, dock: $('xbDock'), eye: $('xbEye'), home: $('xbHome'), morph: 'xb',
       main: function () { return $('siusPickBtn'); }, base: function () { return D.querySelector('#xbDock .tr-base'); },
       acc: '.tr-bub, .tr-tag, .tr-arm',
-      busy: function () { return !!(st && (st.sel || st.busy)) || !!$('siusAsk'); },
+      busy: function () { return xbHold || !!(st && (st.sel || st.busy)) || !!$('siusAsk'); },
       homeMsg: function () { return wrT('sius.dock_home'); } });
     window.WRDockXB = XD;
+    // v3.2.0（White 2026-11-28）：跟分析頁不一樣——每次打開小白單都回到預設位置、展開，直到按下「開始分析」（先包 shown 再 init；Carbon 審查）
+    if (XD) { var shown0 = XD.shown; XD.shown = function () { xbHold = true; try { XD.home(true); } catch (e) {} shown0(); }; }
     if (XD) XD.init({ enabled: !(App.prefs && App.prefs.dockAutoHide === false), active: function () { return App.curTab === 'sius'; }, toast: toast });
+    if (XD && App.curTab === 'sius') try { XD.shown(); } catch (e) {}
   }
+  function xbHoldOn() { if (XD && App.curTab === 'sius') xbHold = true; } // 排了照片還沒分析／清空 → 保持展開
+  function xbGo() { if (!XD) return; xbHold = false; if (!(App.prefs && App.prefs.dockAutoHide === false)) try { XD.hide(); } catch (e) {} }
   /* ---------- 分析頁：小白單核對卡＋射擊節奏卡（App.siusCards 由 app-analysis.js 的 anaExtraHTML 呼叫） ---------- */
   App.siusCards = function (t, set, single, sh) {
     var M = App.mods, acur = App.acur, h = '', card = function (title, body, cls, id) { return '<div class="ana-card ' + (cls || '') + '" data-mod="' + id + '" data-mod-name="' + esc(M.plain(title)) + '"><div class="ana-ct">' + M.plain(title) + '</div>' + body + '</div>'; };

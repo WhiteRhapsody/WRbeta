@@ -9,8 +9,9 @@
 (function (root) {
   'use strict';
   var VENDOR = 'vendor/ppocr/', CANCEL = { cancel: true };
-  var CFG = { on: 1, proxy: 1, detMax: 3200, detPx: 3200000, detMin: 736, thresh: 0.3, boxThresh: 0.5, unclip: 1.6, textScore: 0.5, recH: 48, recMinW: 320, recMaxW: 1600, batch: 8, loadTimeout: 90000 };
+  var CFG = { on: 1, proxy: 1, detMax: 3200, detPx: 3200000, detTile: 1664, detOv: 320, detMin: 736, thresh: 0.3, boxThresh: 0.5, unclip: 1.6, textScore: 0.5, recH: 48, recMinW: 320, recMaxW: 1600, batch: 8, loadTimeout: 90000 };
   var F = { det: 'PP-OCRv6_det_tiny.onnx', rec: 'PP-OCRv6_rec_tiny.onnx', keys: 'ppocrv6_tiny_keys.txt', ort: 'ort.wasm.min.js' };
+  function lowMem() { try { var m = root.navigator && root.navigator.deviceMemory; return !!m && m <= 3; } catch (e) { return false; } }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
   function base() { return new URL(VENDOR, root.location.href).href; }
   function loadScript(src) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.async = true; s.onload = res; s.onerror = function () { rej(new Error('load ' + src)); }; document.head.appendChild(s); }); }
@@ -87,16 +88,39 @@
     var ort = root.ort, r = Math.min(1, CFG.detMax / Math.max(G.w, G.h)); if (Math.min(G.w, G.h) * r < CFG.detMin) r = Math.min(CFG.detMax / Math.max(G.w, G.h), CFG.detMin / Math.min(G.w, G.h));
     r = Math.min(r, Math.sqrt(CFG.detPx / (G.w * G.h))); // 手機記憶體：偵測圖最多約 320 萬像素（裁好的小白單本來就在這以內；沒裁到紙的整張照片才會縮）
     var W = Math.max(32, Math.round(G.w * r / 32) * 32), H = Math.max(32, Math.round(G.h * r / 32) * 32), rx = W / G.w, ry = H / G.h;
-    var n = W * H, inp = new Float32Array(3 * n), x, y;
-    for (y = 0; y < H; y++) { var sy = Math.min(G.h - 1, (y + 0.5) / ry - 0.5), y0 = Math.max(0, Math.floor(sy)), y1 = Math.min(G.h - 1, y0 + 1), fy = Math.max(0, sy - y0);
-      for (x = 0; x < W; x++) { var sx = Math.min(G.w - 1, (x + 0.5) / rx - 0.5), x0 = Math.max(0, Math.floor(sx)), x1 = Math.min(G.w - 1, x0 + 1), fx = Math.max(0, sx - x0);
-        var v = (G.g[y0 * G.w + x0] * (1 - fx) + G.g[y0 * G.w + x1] * fx) * (1 - fy) + (G.g[y1 * G.w + x0] * (1 - fx) + G.g[y1 * G.w + x1] * fx) * fy, z = v / 127.5 - 1, p = y * W + x;
-        inp[p] = z; inp[n + p] = z; inp[2 * n + p] = z; } }
-    var feeds = {}; feeds[S.det.inputNames[0]] = new ort.Tensor('float32', inp, [1, 3, H, W]);
-    return S.det.run(feeds).then(function (out) {
-      try { feeds[S.det.inputNames[0]].dispose(); } catch (e) {} feeds = null;
-      if (my !== gen) throw CANCEL; inp = null;
-      var pr = out[S.det.outputNames[0]].data, bm = new Uint8Array(n), i;
+    var n = W * H, x, y;
+    // v3.2.0（v3.1.4 Gemini 審查 P0：detMax 3200 在手機上一次推論太吃記憶體）：解析度不降（小字才讀得到）。
+    //   切塊推論（沿長邊每塊 detTile 列、前後各多 detOv 列重疊，只取中間那段）實測會讓讀法變差（11/13 三張：正解 10/10 → 8~9/10），
+    //   所以平常照舊整張一次推論；只有「記憶體小的裝置（navigator.deviceMemory ≤ 3）」或「整張推論失敗過（多半是記憶體不夠）」才改用切塊，失敗那張自動用切塊重跑。
+    var tiled = !!CFG.detTile && H > CFG.detTile && (S.detTiled || lowMem());
+    var TL = tiled ? CFG.detTile : H, OV = tiled ? CFG.detOv || 0 : 0, tiles = [];
+    for (var t0 = 0; t0 < H; t0 += TL) { var a0 = Math.max(0, t0 - OV), a1 = Math.min(H, t0 + TL + OV); tiles.push({ k0: t0, k1: Math.min(H, t0 + TL), a0: a0, a1: Math.min(H, a0 + Math.ceil((a1 - a0) / 32) * 32) }); }
+    var pr = new Float32Array(n);
+    var runTile = function (tl) {
+      var th = tl.a1 - tl.a0, tn = W * th, inp = new Float32Array(3 * tn);
+      for (y = 0; y < th; y++) { var sy = Math.min(G.h - 1, (y + tl.a0 + 0.5) / ry - 0.5), y0 = Math.max(0, Math.floor(sy)), y1 = Math.min(G.h - 1, y0 + 1), fy = Math.max(0, sy - y0);
+        for (x = 0; x < W; x++) { var sx = Math.min(G.w - 1, (x + 0.5) / rx - 0.5), x0 = Math.max(0, Math.floor(sx)), x1 = Math.min(G.w - 1, x0 + 1), fx = Math.max(0, sx - x0);
+          var v = (G.g[y0 * G.w + x0] * (1 - fx) + G.g[y0 * G.w + x1] * fx) * (1 - fy) + (G.g[y1 * G.w + x0] * (1 - fx) + G.g[y1 * G.w + x1] * fx) * fy, z = v / 127.5 - 1, p = y * W + x;
+          inp[p] = z; inp[tn + p] = z; inp[2 * tn + p] = z; } }
+      var feeds = {}; feeds[S.det.inputNames[0]] = new ort.Tensor('float32', inp, [1, 3, th, W]); inp = null;
+      var free = function () { if (feeds) { try { feeds[S.det.inputNames[0]].dispose(); } catch (e) {} feeds = null; } };
+      return S.det.run(feeds).then(function (out) {
+        free();
+        var o = out[S.det.outputNames[0]];
+        if (my !== gen) { try { o.dispose(); } catch (e) {} throw CANCEL; }
+        var d = o.data, yy0 = tl.k0 - tl.a0, yy1 = Math.min(th, tl.k1 - tl.a0);
+        pr.set(d.subarray(yy0 * W, yy1 * W), tl.k0 * W);
+        try { o.dispose(); } catch (e) {}
+      }, function (e) { free(); throw e; }); // 推論失敗（多半是記憶體不夠）也先放掉輸入，再改用切塊重跑（審查建議）
+    };
+    var chain = Promise.resolve(); tiles.forEach(function (tl) { chain = chain.then(function () { return runTile(tl); }); });
+    return chain.then(function () { return 0; }, function (e) { // 整張推論失敗（記憶體不夠）→ 這張跟之後都改用切塊
+      if (e === CANCEL || tiled || !CFG.detTile || H <= CFG.detTile) throw e;
+      S.detTiled = true; pr = null; return 1;
+    }).then(function (redo) {
+      if (redo) return detect(S, G, my);
+      if (my !== gen) throw CANCEL;
+      var bm = new Uint8Array(n), i;
       for (i = 0; i < n; i++) if (pr[i] > CFG.thresh) bm[i] = 1;
       var dm = new Uint8Array(n); // 2×2 膨脹（use_dilation）
       for (y = 0; y < H; y++) for (x = 0; x < W; x++) { var q = y * W + x; if (bm[q] || (x > 0 && bm[q - 1]) || (y > 0 && bm[q - W]) || (x > 0 && y > 0 && bm[q - W - 1])) dm[q] = 1; }
@@ -199,8 +223,10 @@
   function norm(t) {
     return String(t || '')
       .replace(/(\d),(\d)/g, '$1.$2')
-      .replace(/(^|[^\d.:])10\s?[FΦφ×✱](?![A-Za-z])/g, '$1' + '10*')
-      .replace(/[ΡР]/g, 'P').replace(/[－−–—]/g, '-').replace(/[：]/g, ':').replace(/[／]/g, '/');
+      .replace(/[ΡРр]/g, 'P')
+      // v3.2.0：Paddle 把內十的 * 讀成 x／×／F／Φ，常跟 P 黏在一起（「10xP」「10*xP」「10×P」「10x」）→ 10*P／10*（rv1127_230254 有 10 發分數因此讀不出來）
+      .replace(/(^|[^\d.:])(10(?:\.\d)?)\s?\*?\s?[xX×FΦφ✱](?=\s?[pP]?(?:\s|$|-))/g, '$1$2*')
+      .replace(/(^|\s)(\d{1,2}(?:\.\d)?\*?)\s?[pP](?=\s|$|-)/g, '$1$2P').replace(/[－−–—]/g, '-').replace(/[：]/g, ':').replace(/[／]/g, '/');
   }
   /* files：File[]；opt：{ imgBase, rot:{ img→0/90/180/270（原引擎已經轉正的角度） }, onProgress(p), cancelled() }
    * 回傳 { passes:[{ img, kind:'pp', lines, ppRaw }], timing:{ load, decode, det, rec, total }, info } */

@@ -18,23 +18,29 @@
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
   var RULES = { consist: 1, lenient: 1, dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 0, signFlip: 1, fbCap: 0, arrow: 1, pp: 1 };
   function key(q) { return (q.sighter ? 'Q' : 'M') + q.n; }
-  function down(r, why) { if (r._ed) return; if (r.status === 'ok') { r.status = 'near'; (r.why = r.why || []).push(why); } }
-  var CONS_OK = /^(fieldW:[xy]+|xyAlt|sign:[xy]|sReads|arrowFix)$/; // v3.1.2：只代表「OCR 沒把握」的黃燈原因（arrow＝箭頭跟座標對不上，不在內）
+  function down(r, why) { if (r._ed) return; r.why = r.why || []; if (r.status === 'ok') r.status = 'near'; else if (r.status !== 'near') return; if (r.why.indexOf(why) < 0) r.why.push(why); } // v3.2.0：每個原因都記（以前只記第一個）
+  var CONS_OK = /^(fieldW:[xy]+|xyAlt|sign:[xy]|sReads|arrowFix|ppConf)$/; // v3.2.0 ppConf＝原引擎照片之間讀得不一樣，但 Paddle 讀到的跟目前值一樣 // v3.1.2：只代表「OCR 沒把握」的黃燈原因（arrow＝箭頭跟座標對不上，不在內）
   var TIME_W = /^(dupT|tFix|notime)$/; // v3.1.3：只跟時間有關的黃燈原因
   function flip(a, b) { return a != null && b != null && a !== 0 && Math.abs(a + b) < 1e-9; }
   // check 之後的規則（只降綠）
   function rules(model, ck, opt) {
     opt = opt || RULES; var rows = ck.rows, shots = model.shots;
-    rows.forEach(function (r) { if (shots[r.i] && shots[r.i].ed) r._ed = 1; }); // 使用者親手改過（或確認過）的發：規則不再降成黃燈
+    rows.forEach(function (r) { if (shots[r.i] && shots[r.i].ed) r._ed = 1; });
+    // v3.2.0：Paddle 也讀到同一個值（o.ppOk）的欄位，原引擎照片之間的衝突不算（rv1127_230254 試#3、#40、#45 誤報）
+    rows.forEach(function (r) { var o = shots[r.i] && shots[r.i].ocr; if (!o || !o.ppOk || r._ed || !r.conflict || !r.conflict.length) return;
+      var n0 = r.conflict.length; r.conflict = r.conflict.filter(function (c) { return !o.ppOk[c]; });
+      if (r.conflict.length < n0 && r.status === 'near') (r.why = r.why || []).push('ppConf'); }); // 使用者親手改過（或確認過）的發：規則不再降成黃燈
     if (opt.dupTime) { var m = {}; rows.forEach(function (r) { var t = shots[r.i].t; if (t) (m[t] = m[t] || []).push(r); }); Object.keys(m).forEach(function (t) { if (m[t].length > 1) m[t].forEach(function (r) { down(r, 'dupT'); }); }); }
     if (opt.sighterReads) rows.forEach(function (r) { var q = shots[r.i]; if (q.sighter && q.ocr && q.ocr.reads < opt.sighterReads) down(r, 'sReads'); });
     if (opt.fieldW) rows.forEach(function (r) { var q = shots[r.i], w = q.ocr && q.ocr.w; if (!w) return; var f = opt.fields.filter(function (k) { return w[k] < opt.fieldW; }); if (f.length) down(r, 'fieldW:' + f.join('')); });
+    // v3.2.0（White 2026-11-28）：拿掉「小計對得上，抽查讀到最少次的 2 發」（sub）。改成：單子印的小計跟這組加總真的對不上 → 這組每一發都黃（subBad）
     if (opt.subGuard) ck.series.forEach(function (s) {
-      if (s.status !== 'bad' && s.status !== 'nosub') return;
-      var rs = s.rows.map(function (i) { return rows.filter(function (r) { return r.i === i; })[0]; }).filter(Boolean);
-      if (rs.some(function (r) { return r.status !== 'ok'; })) return;
-      (opt.subGuard === 'all' ? rs : rs.slice().sort(function (a, b) { return ((shots[a.i].ocr || {}).reads || 0) - ((shots[b.i].ocr || {}).reads || 0); }).slice(0, 2)).forEach(function (r) { down(r, 'sub'); });
+      if (s.status !== 'bad' || !s.printed) return;
+      s.rows.forEach(function (i) { var r = rows.filter(function (x) { return x.i === i; })[0]; if (r && r.status !== 'bad') down(r, 'subBad'); });
     });
+    // v3.2.0：原引擎整行抄別行（兩發 X、Y 一模一樣）→ 兩發都黃（dupRow）；混合引擎能用 Paddle 換掉的在 hybrid() 已經換掉
+    if (opt.dupRow !== 0) { var dm = {}; rows.forEach(function (r) { var q = shots[r.i]; if (!q || q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) return; var k = q.x.toFixed(2) + '|' + q.y.toFixed(2); (dm[k] = dm[k] || []).push(r); });
+      Object.keys(dm).forEach(function (k) { if (dm[k].length > 1) dm[k].forEach(function (r) { down(r, 'dupRow'); }); }); }
     if (opt.xyUnanimous) rows.forEach(function (r) { var a = shots[r.i].ocr && shots[r.i].ocr.alt; if (a && ((a.x && a.x.length > 1) || (a.y && a.y.length > 1))) down(r, 'xyAlt'); });
     if (opt.innerGuard) (model.subs || []).forEach(function (sb, j) {
       if (!sb) return;
@@ -57,16 +63,21 @@
     if (model.practice) rows.forEach(function (r) { var q = shots[r.i]; if (r.status === 'bad' && r.missing && q.x == null && q.dec == null) { r.status = 'near'; (r.why = r.why || []).push('practiceGap'); } });
     if (opt.fbCap) rows.forEach(function (r) { if (shots[r.i].fb) down(r, 'fb'); }); // v3.0.2（White 2026-11-27 11:07）：拿掉 v3.0.1 的「備援自己也核對綠」護欄，備援列只要座標跟單上分數對得上就綠
     // v3.1.0 紅黃燈新規則（White 2026-11-27）：紅燈＝這發沒有分數（整行沒讀到、分數讀不到也算不出來）；有分數的發最多黃燈、不擋存檔
+    // v3.2.0：很多發「分數跟座標差 ≥0.2」＝多半是靶種選錯（例：步槍單用手槍靶面算）→ 這些發維持紅燈（tgMis），不放寬成黃燈
+    var nMisR = rows.filter(function (r) { var q = shots[r.i]; return r.status === 'bad' && q && q.dec != null && q.x != null && q.y != null && r.diff != null && r.diff >= 0.2; }).length;
+    var tgMis = nMisR > Math.max(2, Math.floor(rows.length * 0.08)); ck.tgMis = tgMis ? nMisR : 0;
     if (opt.lenient) rows.forEach(function (r) {
       var q = shots[r.i], o = q.ocr || {};
       if (o.tFix) down(r, 'tFix');
       if (o.xyFix) { if (r.status === 'ok') r.status = 'near'; r.orange = false; (r.why = r.why || []).push('xyFix'); }
+      if (o.decXY) { if (r.status === 'ok') r.status = 'near'; r.orange = false; (r.why = r.why || []).push('decXY'); }
       if (q.decSub) { r.status = 'near'; (r.why = r.why || []).push('decSub'); }
       if (q.decCalc) { var sr = ck.series.filter(function (s) { return s.rows.indexOf(r.i) >= 0; })[0]; if (!sr || sr.status !== 'ok') down(r, 'decCalc'); }
       if (r.status !== 'bad' || q.dec == null || !isFinite(q.dec)) return;
       var Rd = o.rd || [], weak = Rd.length === 1 && (Rd[0].kind === 'col' || (Rd[0].rawW != null ? Rd[0].rawW : Rd[0].w) < 1);
       if (weak && !q.decSub && !q.ed) return; // 只有一次很弱的讀法：分數本身沒把握 → 維持紅燈
       var noxy = q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y);
+      if (tgMis && !noxy && r.diff != null && r.diff >= 0.2 && !q.ed) { (r.why = r.why || []).push('tgMis'); return; }
       r.status = 'near'; r.soft = 1; (r.why = r.why || []).push(noxy ? 'noxy' : (r.diff != null && r.diff >= 0.2) ? 'scoreWins' : (r.miss || []).indexOf('t') >= 0 ? 'notime' : 'soft');
       if (!noxy && r.diff != null && r.diff >= 0.2) r.orange = true;
     });
@@ -94,7 +105,7 @@
         if (w.length && !(opt.consist && w.every(function (c) { return CONS_OK.test(c) || c === 'soft'; }))) return;
         if ((r.conflict || []).some(function (c) { return c !== 't' || !tm.length; }) || (r.miss || []).some(function (c) { return c !== 't' || !tm.length; }) || r.innerOk === false || r.tWarn && !tm.length) return;
         if (q.dec == null || !isFinite(q.dec) || q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) return;
-        if (!r.calc || r.diff !== 0 || q.decCalc || q.decSub || o.xyFix || o.scoreWins || o.demo || o.miss || o.arrowBad) return;
+        if (!r.calc || r.diff !== 0 || q.decCalc || q.decSub || o.xyFix || o.decXY || o.scoreWins || o.demo || o.miss || o.arrowBad) return;
         if (ck.series.some(function (sr) { return sr.status !== 'ok' && sr.status !== 'nosub' && sr.rows.indexOf(r.i) >= 0; })) return;
         var A0 = AR(); if (A0 && o.arw && A0.sure(o.arw) && !A0.compat(q.x, q.y, o.arw.dir)) return; // 箭頭有把握卻跟 X/Y 不同方向
         // down() 只記第一個原因，所以自己重查正負號備選：換號分數不變，要方向箭頭確定且同方向才算對得上
@@ -108,6 +119,14 @@
       var q = shots[r.i], o = q && q.ocr; if (!o || r._ed) return;
       if (o.ppT && opt.tMark !== 0) { r.tMark = (r.tMark || []).concat(r.tMark && r.tMark.indexOf('ppT') >= 0 ? [] : ['ppT']); }
       if (!o.ppDiff || !o.ppDiff.length) return;
+      // v3.2.0（White 2026-11-28）：一邊沒讀到、另一邊讀到而且分數座標對得上（ppFill）；小數不一樣、用 Paddle 的而且對得上（ppDec）；
+      //   分數不一樣但 Paddle 的分數跟座標對不上、原引擎的對得上（ppD）→ 不因為兩套不一樣而亮黃，只打小記號（r.ppMark）
+      if (o.ppGreen && o.ppGreen.length) {
+        r.ppMark = o.ppGreen.slice();
+        // 補進來的欄位只有 Paddle 一次讀法 → 原本會因為「這一欄讀法太少」（fieldW）亮黃；需求 2b：一邊沒讀到、另一邊讀到又對得上＝綠＋◆
+        var fk = o.ppFillK || []; if (r.status === 'near' && fk.length && !r.orange && !r.missing && (r.why || []).length && r.why.every(function (c) { var m = /^fieldW:([dxy]+)$/.exec(c); return !!m && m[1].split('').every(function (f) { return fk.indexOf(f) >= 0; }); })) { r.status = 'ok'; r.why = []; }
+        return;
+      }
       var code = 'ocrDiff:' + o.ppDiff.join(''); r.why = (r.why || []).filter(function (c) { return !/^ocrDiff:/.test(c); }); r.why.unshift(code);
       if (r.status === 'ok') { r.status = 'near'; r.cons = null; }
       else if (r.status === 'bad' && o.ppAlt && o.ppAlt.ok && q.dec != null && isFinite(q.dec) && q.x != null && q.y != null) { r.status = 'near'; r.soft = 1; } // 只有「用了 Paddle 的值之後分數、座標重算對得上」的紅才降黃（Gemini 審查：不可一律降）
@@ -126,8 +145,10 @@
     return n > 0 && allInt && (ni * 2 > n || (ni === 0 && model.targetId === 'ap10'));
   }
   function stampInt(model) {
+    // v3.2.0（換槍種不殘留）：上一次蓋上去的 decInt（decIntS）先拿掉再重算，換回步槍時不會因為自己蓋的章一直被當成整數單
+    model.shots.forEach(function (q) { if (q.decIntS) { delete q.decInt; delete q.decIntS; } });
     var on = intSheet(model); model.intSheet = on;
-    if (on) model.shots.forEach(function (q) { if (q.dec == null || !isFinite(q.dec) || Math.abs(q.dec - Math.round(q.dec)) < 1e-9) q.decInt = true; });
+    if (on) model.shots.forEach(function (q) { if ((q.dec == null || !isFinite(q.dec) || Math.abs(q.dec - Math.round(q.dec)) < 1e-9) && !q.decInt) { q.decInt = true; q.decIntS = 1; } });
     return on;
   }
   /* v3.0.2（White 2026-11-27）：X／Y 有兩種以上讀法 → 用單上分數反推：只有一組 (X, Y) 算出來跟單上分數一樣 → 採用、不打燈；
@@ -273,11 +294,53 @@
       if (q0.ocr) q0.ocr.missing = false;
     }
   }
+  function solidF(o, k, v) { // 這一欄有把握：票數 ≥2、沒有衝突；有備選讀法時，跟目前值一樣的讀法要 ≥2 次而且至少是其他讀法的 2 倍
+    var w = o.w || {}, wk = k === 'dec' ? 'd' : k; if ((w[wk] || 0) < 2 || (o.conflict || []).indexOf(k) >= 0) return false;
+    if (!(o.alt && o.alt[k] && o.alt[k].length > 1)) return true;
+    var rk = k === 'dec' ? 'd' : k, a = 0, b = 0; (o.rd || []).forEach(function (d) { if (d[rk] == null) return; if (v != null && Math.abs(d[rk] - v) < 0.005) a++; else b++; });
+    return a >= 2 && a >= 2 * b;
+  }
+  function ringMargin(T, x, y, dec, decInt) { // 落點往內、往外各移 0.25 mm 分數都不變（不是壓線）；靠近中心時往內最多移到中心（審查建議：拿掉 r<0.3 一律算安全）
+    var C = C0(), r = Math.sqrt(x * x + y * y), ok = true;
+    [-0.25, 0.25].forEach(function (e) { var r2 = Math.max(0, r + e), px = r > 1e-9 ? x * r2 / r : r2, py = r > 1e-9 ? y * r2 / r : 0, sc = C.scoreShot(T, px, py), v = decInt ? sc.ring : sc.dec; if (Math.round(v * 10) !== Math.round(dec * 10)) ok = false; });
+    [-0.01, 0.01].forEach(function (e) { var r2 = Math.max(0, r + e), px = r > 1e-9 ? x * r2 / r : r2, py = r > 1e-9 ? y * r2 / r : 0; if (!!C.scoreShot(T, px, py).inner !== !!C.scoreShot(T, x, y).inner) ok = false; }); // 內十線：座標印到 0.01 mm，±0.1 mm 內不能跨過內十線（Carbon 審查）
+    return ok ? 1 : 0; }
+  function misread(a, b, decInt) { // 單上分數 a、座標算的 b：差 1 環（只限整數計分；Carbon 審查）或只差一個常見誤讀的數字
+    if (a == null || b == null) return false; if (decInt && Math.abs(a - b) <= 1.0001) return true;
+    var sa = String(a), sb = String(b); if (sa.length !== sb.length) return false; var d = 0, okc = true;
+    for (var i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) { d++; if (!CONF[sa[i]] || CONF[sa[i]].indexOf(sb[i]) < 0) okc = false; }
+    return d === 1 && okc;
+  }
+  function decByXY(T, q, o, sc0, rc) {
+    if (q.decSub || q.decCalc || !o) return false;
+    if (!solidF(o, 'x', q.x) || !solidF(o, 'y', q.y)) return false;
+    var rd = (o.rd || []).filter(function (d) { return d.d != null; }), dWeak = !solidF(o, 'dec', q.dec) || rd.length < 2 || (o.alt && o.alt.dec && o.alt.dec.indexOf(rc) >= 0);
+    if (!dWeak) return false;
+    if (!ringMargin(T, q.x, q.y, rc, q.decInt)) return false;
+    var A = AR(); if (A && A.sure(o.arw) && !A.compat(q.x, q.y, o.arw.dir)) return false;
+    return misread(q.dec, rc, q.decInt);
+  }
   function xyRepair(model) {
     var C = C0(), A = AR(), T = C.TARGETS[model.targetId] || C.TARGETS.ar10;
+    // 很多發都對不上＝多半是靶種選錯（例：步槍單用手槍靶面算），不是個別讀錯 → 不用座標改分數（decXY），照舊標出來
+    var nHas = 0, nMis = 0; model.shots.forEach(function (q) { if (q.dec == null || q.x == null || q.y == null || q.decCalc) return; nHas++; if (!fits(T, q, q.x, q.y, false)) nMis++; });
+    var xyOk = nMis <= Math.max(2, Math.floor(nHas * 0.08));
+    // v3.2.0（Carbon 審查）：換靶種 → 上一個靶種做的座標／分數修正還原、重新判斷（不殘留 rpXY／scoreWins／xyFix／decXY）
     model.shots.forEach(function (q) {
-      var o = q.ocr; if (!o || q.ed || o.rpXY || q.dec == null || q.decCalc || q.x == null || q.y == null) return; o.rpXY = 1;
+      var o = q.ocr; if (!o || q.ed || !o.rpTg || o.rpTg === model.targetId) return;
+      if (o.xyFix && o.xyFix.from) { q.x = o.xyFix.from.x; q.y = o.xyFix.from.y; o.xyFix = null; }
+      if (o.decXY) { q.dec = o.decXY.from; q.inner = !!o.decXY.inner; o.decXY = null; }
+      if (!o.ppDone || o.pp == null) o.rpXY = 0; o.scoreWins = 0; o.rpTg = null;
+    });
+    model.shots.forEach(function (q) {
+      var o = q.ocr; if (!o || q.ed || o.rpXY || q.dec == null || q.decCalc || q.x == null || q.y == null) return; o.rpXY = 1; o.rpTg = model.targetId;
       if (fits(T, q, q.x, q.y, false)) return;
+      if (!xyOk) { o.scoreWins = 1; return; } // 很多發對不上（靶種多半選錯）→ 座標也不改（Carbon 審查）
+      // v3.2.0（White 2026-11-28；11/13 試#11 正解 9P、-3.82／8.63，單上讀成 8）：分數跟座標對不上時不再一律以分數為準，用環距判斷哪一欄比較可信：
+      //   座標兩軸都有 ≥2 次讀法支持、沒有備選／衝突，落點離環線 ≥0.25 mm（不是壓線），分數卻只有一種弱讀法或有備選，
+      //   而且「單上分數 → 座標算出的環」是常見誤讀（8↔9、3↔8…或差 1 環）→ 座標比較可信：分數改成座標算的（黃燈 decXY，原本的分數留在 o.decXY.from）
+      //   （先試「座標只錯一個常見數字」的修法；修不出唯一一組才考慮分數讀錯，所以 rv1127 試#64 的 Y 17.42→7.42 照舊修座標）
+      var sc0 = C.scoreShot(T, q.x, q.y), rc = q.decInt ? sc0.ring : sc0.dec;
       var ad = A && A.sure(o.arw) ? o.arw.dir : null, hit = {}, add = function (x, y) { if (Math.abs(x) > 80 || Math.abs(y) > 80) return; if (!fits(T, q, x, y, true)) return; if (ad && !A.compat(x, y, ad)) return; hit[x.toFixed(2) + ',' + y.toFixed(2)] = { x: x, y: y }; };
       var xs = [q.x].concat(o.alt && o.alt.x || []), ys = [q.y].concat(o.alt && o.alt.y || []);
       xs.forEach(function (x) { ys.forEach(function (y) { if (x !== q.x || y !== q.y) add(x, y); }); }); // OCR 其他讀法
@@ -285,7 +348,7 @@
       for (var tier = 1; tier <= 3 && !Object.keys(hit).length; tier++) { // 從最常見的誤讀開始找；同一層有兩種以上改法＝分不出來
         ex.forEach(function (e) { if (e.t === tier) add(e.v, q.y); }); ey.forEach(function (e) { if (e.t === tier) add(q.x, e.v); });
       }
-      var ks = Object.keys(hit); if (ks.length !== 1) { o.scoreWins = 1; return; }
+      var ks = Object.keys(hit); if (ks.length !== 1) { if (xyOk && decByXY(T, q, o, sc0, rc)) { o.decXY = { from: q.dec, inner: !!q.inner }; q.dec = rc; q.inner = !!sc0.inner; return; } o.scoreWins = 1; return; }
       var h = hit[ks[0]]; o.xyFix = { from: { x: q.x, y: q.y } }; q.x = h.x; q.y = h.y; o.xyPick = 1;
       o.alt = { x: [q.x], y: [q.y], dec: o.alt && o.alt.dec }; o.conflict = (o.conflict || []).filter(function (c) { return c !== 'x' && c !== 'y'; });
     });
@@ -341,9 +404,26 @@
    *   畫面顯示「用哪個值」：分數＝座標重算的組合優先（對得上的才採用）→ 箭頭方向對得上 → Paddle 的值（整行讀，比較不會整列抄到別列）。
    *   Paddle 常漏 Y（也會漏 X）的負號：原引擎是負、Paddle 是正 → 多一個「Paddle 數字＋原引擎負號」的選項。
    *   Paddle 沒讀到這一發（或某一欄）＝沒有證據，照原引擎；原引擎沒讀到的欄位 → 用 Paddle 補（黃燈）。使用者改過的發不動。 */
-  var PPF = ['d', 'x', 'y'];
+  var PPF = ['d', 'x', 'y'], PPSELF = 1;
+  function ti(v) { return v < 0 ? Math.ceil(v) : Math.floor(v); } // ES5（沒有 Math.trunc）
   function ppKey(q) { return q.pn != null ? q.pn : q.n; }
   function near1(a, b) { var s1 = Math.abs(a).toFixed(2), s2 = Math.abs(b).toFixed(2); if (s1 === s2) return true; if (s1.length !== s2.length) return false; var d = 0; for (var i = 0; i < s1.length; i++) if (s1[i] !== s2[i]) d++; return d <= 1; }
+  // v3.2.0：Paddle（另一套辨識）讀到的值跟最後用的值一樣、分數座標也對得上 → 原引擎兩張照片之間的不一致（conflict／備選讀法）算解決了
+  function ppConfirm(q, o, P, T, E, fo) {
+    if (!P || q.dec == null || q.x == null || q.y == null) return;
+    // Carbon 審查：只有「原引擎本來就讀到、而且跟 Paddle 一樣」的欄位才算互相印證（Paddle 補進來／改過的值不能自己印證自己）；Paddle 自己幾張照片之間也不一致的欄位不算
+    var selfC = function (k) { return !!(fo && (((fo.conflict || []).indexOf(k) >= 0) || (fo.alt && fo.alt[k] && fo.alt[k].length > 1))); };
+    var eqE = function (k) { var ek = k === 'dec' ? 'd' : k; if (!E || E[ek] == null) return false; return k === 'dec' ? Math.round(E.d * 10) === Math.round(q.dec * 10) : Math.abs(E[k] - q[k]) < 0.005; };
+    if (T && !fits(T, q, q.x, q.y, true)) return; // 分數跟座標對不上就不算解決（審查建議）
+    var ok = { dec: P.d != null && Math.round(P.d * 10) === Math.round(q.dec * 10) && (q.dec < 10 || !!P.inner === !!q.inner), x: P.x != null && Math.abs(P.x - q.x) < 0.005, y: P.y != null && Math.abs(P.y - q.y) < 0.005 };
+    var hit = 0; o.ppOk = {}; ['dec', 'x', 'y'].forEach(function (k) {
+      if (!ok[k] || !eqE(k) || (selfC(k) && PPSELF)) return; o.ppOk[k] = 1;
+      if ((o.conflict || []).indexOf(k) >= 0) { o.conflict = o.conflict.filter(function (c) { return c !== k; }); hit = 1; }
+      if (o.alt && o.alt[k] && o.alt[k].length > 1) { o.alt[k] = [q[k]]; hit = 1; }
+      var wk = k === 'dec' ? 'd' : k; if (o.w && (o.w[wk] || 0) < 2) { o.w[wk] = 2; hit = 1; }
+    });
+    if (hit) o.ppConf = 1;
+  }
   function hybrid(model, ppPasses) {
     if (!ppPasses || !ppPasses.length || !model || !model.shots) return null;
     var pm; try { pm = X().merge(ppPasses, { targetId: model.targetId }); } catch (e) { return null; }
@@ -383,9 +463,10 @@
       o.pp = P; if (q.ed) return;
       // Paddle 幾張照片（或同一張幾種讀法）讀到的所有值（f.ocr.alt）裡只要有一個跟原引擎一樣 → 算一樣（兩套各自讀到同一個值＝互相印證；不讓 Paddle 某一張讀歪、或多出來的假行把對的值改掉）
       var pa = f.ocr && f.ocr.alt || {}, inAlt = function (k, v) { var l = pa[k === 'd' ? 'dec' : k]; return !!(l && l.some(function (z) { return z != null && Math.abs(z - v) < 0.005; })); };
-      var same = function (k) { if (k === 'd') return E.d != null && P.d != null && (Math.round(E.d * 10) === Math.round(P.d * 10) || inAlt('d', E.d)) && (E.d < 10 || E.inner === P.inner); return E[k] != null && P[k] != null && (Math.abs(E[k] - P[k]) < 0.005 || inAlt(k, E[k])); };
+      // v3.2.0（White 2026-11-28）：任何一欄不一樣都算不一致（以前 Paddle 其他讀法裡有原引擎的值就算一樣 → rv1127_230254 正式 #9、#10 假綠燈）
+      var same = function (k) { if (k === 'd') return E.d != null && P.d != null && Math.round(E.d * 10) === Math.round(P.d * 10) && (E.d < 10 || E.inner === P.inner); return E[k] != null && P[k] != null && Math.abs(E[k] - P[k]) < 0.005; };
       var diff = PPF.filter(function (k) { return P[k] != null && !same(k); });
-      if (!diff.length) { st.same++; o.ppSame = 1; return; }
+      if (!diff.length) { st.same++; if (P.d != null && P.x != null && P.y != null) o.ppSame = 1; else o.ppPart = 1; ppConfirm(q, o, P, T, E, f.ocr); return; } // Paddle 只讀到一部分＝不算「兩套一樣」，燈號照原引擎自己的核對
       // 每個不一樣的欄位列出選項，挑分數＝座標重算的組合
       var opts = {}; PPF.forEach(function (k) {
         if (diff.indexOf(k) < 0) { opts[k] = [{ v: E[k] != null ? E[k] : P[k], inner: E[k] != null ? E.inner : P.inner, src: E[k] != null ? 'e' : 'p' }]; return; }
@@ -398,7 +479,8 @@
       opts.d.forEach(function (od) { opts.x.forEach(function (ox) { opts.y.forEach(function (oy) {
         var qq = { dec: od.v, inner: od.inner, decInt: q.decInt }, ok = od.v != null && ox.v != null && oy.v != null && fits(T, qq, ox.v, oy.v, true);
         var arr = ad && ox.v != null && oy.v != null && A.compat(ox.v, oy.v, ad) ? 1 : 0, np = [od, ox, oy].filter(function (z) { return z.src !== 'e'; }).length, sg = [ox, oy].filter(function (z) { return z.src === 'pn'; }).length;
-        var sc = (ok ? 100 : 0) + arr * 10 + sg * 3 + np * 2;
+        var ea = [['d', od], ['x', ox], ['y', oy]].filter(function (z) { return z[1].src === 'e' && z[1].v != null && inAlt(z[0], z[1].v); }).length; // v3.2.0：原引擎的值也出現在 Paddle 的其他讀法裡＝兩套互相印證，挑值時優先（燈號仍算不一致）
+        var sc = (ok ? 100 : 0) + arr * 10 + sg * 3 + np * 2 + ea * 5;
         if (!top || sc > top.sc) top = { sc: sc, d: od, x: ox, y: oy, ok: ok };
       }); }); });
       if (!top) return;
@@ -411,6 +493,17 @@
       if (top.x.src !== 'e' || top.y.src !== 'e') { o.xyPick = 1; o.rpXY = 1; o.conflict = (o.conflict || []).filter(function (c) { return c !== 'x' && c !== 'y'; }); o.alt = null; } // 已經用 Paddle 決定過 X/Y，原引擎不再拿備選讀法改回去
       if (top.d.src !== 'e') o.conflict = (o.conflict || []).filter(function (c) { return c !== 'dec'; });
       if (whole) o.conflict = (o.conflict || []).filter(function (c) { return c !== 't'; });
+      // v3.2.0：哪些不一樣可以不亮黃（見 rules 的 ppGreen）
+      var gr = [], fk = [], allG = top.ok && diff.every(function (k) {
+        var ch = top[k], ev = E[k], pv = P[k];
+        if (ev == null && ch.src === 'p' && q.x != null && q.y != null && ringMargin(T, q.x, q.y, q.dec, q.decInt)) { if (gr.indexOf('ppFill') < 0) gr.push('ppFill'); fk.push(k); return true; }
+        if (k !== 'd' && ev != null && pv != null && ch.src === 'p' && (ev < 0) === (pv < 0) && ti(ev) === ti(pv) && !solidF(o, k, ev) && ringMargin(T, q.x, q.y, q.dec, q.decInt)) { if (gr.indexOf('ppDec') < 0) gr.push('ppDec'); return true; }
+        // ppD：兩套 X、Y 完全一樣（或原引擎沒讀到 X、Y、用 Paddle 補的而且落點離環線 ≥0.25 mm，不是壓線），原引擎分數＝座標算的、Paddle 分數對不上座標 → 用原引擎的分數不亮黃（審查建議收緊）
+        if (k === 'd' && ch.src === 'e' && ((diff.indexOf('x') < 0 && diff.indexOf('y') < 0 && E.x != null && E.y != null) || (E.x == null && E.y == null)) && pv != null && q.x != null && q.y != null && ringMargin(T, q.x, q.y, q.dec, q.decInt) && q.y != null && !fits(T, { dec: pv, inner: P.inner, decInt: q.decInt }, q.x, q.y, true)) { if (gr.indexOf('ppD') < 0) gr.push('ppD'); return true; }
+        return false;
+      });
+      o.ppGreen = allG ? gr : null; o.ppFillK = allG ? fk : null;
+      ppConfirm(q, o, P, T, E, f.ocr);
     });
     // 時間再對一次：Paddle 某一行的 X/Y 跟這一發最後的 X/Y 兩個都一模一樣 → 那一行的時間就是這一發的（合併時時間可能被隔壁行拉走）。
     // 所有這樣的行時間都一樣、跟前後發接得上、也不是別發的時間，才換成 Paddle 的，並打時間記號 ppT（時間只打記號、不影響燈號）

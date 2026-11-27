@@ -2,7 +2,7 @@
 // 更新策略：網頁本體（HTML、JS、CSS、manifest）一律「先抓網路，失敗才用快取」→ 有網路時永遠是最新版；
 // 圖示等靜態檔才用快取優先。安裝時用 cache:'reload' 跳過 HTTP 快取（GitHub Pages 會快取 10 分鐘），避免把舊檔存進新快取。
 // 新版啟用後：刪掉所有舊快取（含 bm-v3/v4 時代的），接管頁面，並讓開著的舊頁面自動重新載入一次。
-var VERSION = 'v3.1.5';
+var VERSION = 'v3.2.0';
 var CACHE = 'wrbeta-' + VERSION;
 var SHELL = ['./', 'index.html', 'i18n/zh-TW.js', 'i18n/en.js', 'i18n/i18n.js', 'privacy-en.html', 'licenses.html', 'licenses-en.html', 'style.css', 'core.js', 'recordcode.js', 'liteflow.js', 'vision.js', 'firebase-config.js', 'cloud.js', 'member.js', 'member-friends.js', 'member-admin.js', 'press.js', 'crosshair.js', 'themes.css', 'themefx.js', 'layout.js', 'dock.js', 'app-base.js', 'app-forecast.js', 'app-lite.js', 'app-photo.js', 'app-mods.js', 'app-analysis.js', 'sius-img.js', 'sius.js', 'sius-ocr.js', 'sius-x-parse.js', 'sius-x-align.js', 'sius-x-check.js', 'sius-x-img.js', 'sius-x-core.js', 'sius-arrow.js', 'sius-reread.js', 'sius-x.js', 'sius-v3.js', 'sius-pp.js', 'sius-owner.js', 'app-sius.js', 'report.js', 'app-records.js', 'app-nav.js', 'app.js', 'app-account.js', 'app-back.js', 'app-coach.js', 'app-home.js', 'pdf-report.js', 'pdf-export.js', 'manifest.webmanifest', 'privacy.html'];
 // v2.9.3 小白單 OCR 引擎（vendor/tesseract/，約 7 MB）：第一次按「小白單」才下載，存在獨立的快取，換版時不刪（檔名不變＝內容不變；換 tesseract 版本就改 OCR_CACHE）

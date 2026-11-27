@@ -58,80 +58,124 @@
     var body = new Blob(['--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + meta + '\r\n--' + b + '\r\nContent-Type: ' + (type || blob.type || 'application/octet-stream') + '\r\n\r\n', blob, '\r\n--' + b + '--'], { type: 'multipart/related; boundary=' + b });
     return api(UP, { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body: body });
   }
-  // 照片 → Drive；onStep(i, n) 回報進度。回傳 { n, dir }
-  function uploadPhotos(files, onStep) {
-    var d = new Date(), base = stamp(d), dir = ROOT_DIR + '/' + dirName(d);
-    return dayFolder().then(function (fid) {
-      var i = 0, next = function () {
-        if (i >= files.length) return { n: files.length, dir: dir };
-        var f = files[i], ext = (/\.(\w{2,5})$/.exec(f.name || '') || [0, /png/i.test(f.type) ? 'png' : 'jpg'])[1].toLowerCase();
-        if (onStep) onStep(i, files.length);
-        return upload(fid, base + '_' + (++i) + '.' + ext, f, f.type || 'image/jpeg').then(next);
-      };
-      return next();
-    });
+  // v3.2.0（上傳中斷可以續傳）：網路斷線／429／5xx 自動重試（最多 RETRY 次、間隔加長）；
+  // 同一批（同一個檔名前綴）再按一次：先看資料夾裡已經有哪些檔名，只補傳還沒上去的（multipart 一個檔不是全有就是全無，不會留半個檔）
+  var RETRY = 3, WAIT = 1200;
+  function transient(e) { var m = String(e && e.message || e); return e instanceof TypeError || /^(429|5\d\d)\b/.test(m) || /network|failed to fetch|load failed/i.test(m); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function retry(fn, n) { n = n || 0; return fn().catch(function (e) { if (n >= RETRY || !transient(e)) throw e; return sleep(WAIT * (n + 1)).then(function () { return retry(fn, n + 1); }); }); }
+  function namesIn(fid) { // 資料夾裡（App 自己建的）現有的檔名；查不到就當作沒有（照常全部上傳）
+    var out = {}, page = function (tk) {
+      var qs = q(fid) + ' in parents and trashed=false';
+      return api(API + '?q=' + encodeURIComponent(qs) + '&fields=nextPageToken,files(name,size)&pageSize=1000&spaces=drive' + (tk ? '&pageToken=' + encodeURIComponent(tk) : '')).then(function (r) {
+        (r.files || []).forEach(function (f) { out[f.name] = 1; }); return r.nextPageToken ? page(r.nextPageToken) : out;
+      });
+    };
+    return retry(function () { out = {}; return page(); }); // 查不到就整批停（不要當成空資料夾而重傳造成重複檔；審查建議）
+  }
+  function sendAll(fid, jobs, onStep, have) { // jobs: [{ name, blob, type }]；回傳 { sent, skipped }
+    var i = 0, sent = 0, skipped = 0, next = function () {
+      if (i >= jobs.length) return { sent: sent, skipped: skipped };
+      var j = jobs[i]; if (onStep) onStep(i, jobs.length); i++;
+      if (have && have[j.name]) { skipped++; return next(); }
+      var tries = 0;
+      // 重送前先看資料夾裡是不是其實已經建好了（伺服器收到、回應斷掉）→ 不重複建檔（Carbon 審查）
+      return retry(function () { var k = tries++; return (k ? namesIn(fid).then(function (h) { return h[j.name] ? 'had' : upload(fid, j.name, j.blob, j.type); }) : upload(fid, j.name, j.blob, j.type)); }).then(function () { sent++; if (have) have[j.name] = 1; return next(); });
+    };
+    return next();
+  }
+  // 照片 → Drive；onStep(i, n) 回報進度。回傳 { n, dir, base }；opt.base＝上次沒傳完的那批（續傳）
+  function uploadPhotos(files, onStep, opt) {
+    opt = opt || {};
+    var d = opt.date ? new Date(opt.date) : new Date(), base = opt.base || stamp(d), dir = ROOT_DIR + '/' + dirName(d);
+    return retry(function () { return dayFolder(d); }).then(function (fid) {
+      var jobs = files.map(function (f, i) { return { name: base + '_' + (i + 1) + '.' + photoExt(f), blob: f, type: f.type || 'image/jpeg' }; });
+      return (opt.base ? namesIn(fid) : Promise.resolve(null)).then(function (have) { return sendAll(fid, jobs, onStep, have); });
+    }).then(function (r) { return { n: files.length, dir: dir, base: base, sent: r.sent, skipped: r.skipped }; }, function (e) { if (e && typeof e === 'object') { e.base = base; e.date = d.getTime(); } throw e; });
   }
   function uploadText(name, text) { return dayFolder().then(function (fid) { return upload(fid, name, new Blob([text], { type: 'application/json' }), 'application/json'); }).then(function () { return ROOT_DIR + '/' + dirName(); }); }
   // ---- v3.1.2 上傳檢視資料：base＝檔名前綴；pack＝{ json, csv }；files＝掃描用的照片 ----
   function photoExt(f) { return (/\.(\w{2,5})$/.exec(f.name || '') || [0, /png/i.test(f.type || '') ? 'png' : 'jpg'])[1].toLowerCase(); }
   function photoNames(base, files) { return files.map(function (f, i) { return base + '_p' + (i + 1) + '.' + photoExt(f); }); }
-  function uploadReview(base, pack, files, onStep) {
+  function uploadReview(base, pack, files, onStep, opt) {
     if (!isOwner()) return Promise.reject(new Error('owner'));
-    var d = new Date(), dir = ROOT_DIR + '/' + dirName(d), names = photoNames(base, files), n = files.length + 2;
-    return dayFolder(d).then(function (fid) {
-      if (onStep) onStep(0, n);
-      return upload(fid, base + '_list.json', new Blob([pack.json], { type: 'application/json' }), 'application/json').then(function () {
-        if (onStep) onStep(1, n);
-        return upload(fid, base + '_list.csv', new Blob(['\ufeff' + pack.csv], { type: 'text/csv' }), 'text/csv');
-      }).then(function () {
-        var i = 0, next = function () {
-          if (i >= files.length) return { n: n, dir: dir, base: base };
-          if (onStep) onStep(i + 2, n);
-          var f = files[i], nm = names[i]; i++;
-          return upload(fid, nm, f, f.type || 'image/jpeg').then(next);
-        };
-        return next();
-      });
-    });
+    opt = opt || {};
+    var d = opt.date ? new Date(opt.date) : new Date(), dir = ROOT_DIR + '/' + dirName(d), names = photoNames(base, files), n = files.length + 2;
+    return retry(function () { return dayFolder(d); }).then(function (fid) {
+      var jobs = [{ name: base + '_list.json', blob: new Blob([pack.json], { type: 'application/json' }), type: 'application/json' }, { name: base + '_list.csv', blob: new Blob(['\ufeff' + pack.csv], { type: 'text/csv' }), type: 'text/csv' }]
+        .concat(files.map(function (f, i) { return { name: names[i], blob: f, type: f.type || 'image/jpeg' }; }));
+      // 續傳（opt.resume）：已經在資料夾裡的檔名跳過（App 那邊只有在內容沒改過時才沿用同一個前綴）
+      return (opt.resume ? namesIn(fid) : Promise.resolve(null)).then(function (have) { return sendAll(fid, jobs, onStep, have); });
+    }).then(function (r) { return { n: n, dir: dir, base: base, sent: r.sent, skipped: r.skipped }; }, function (e) { if (e && typeof e === 'object') { e.base = base; e.date = d.getTime(); } throw e; });
   }
   function csvCell(v) { if (v == null) return ''; if (typeof v === 'string' && /^[=+@\t\r]|^-(?![\d.])/.test(v)) v = "'" + v; v = String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
   function toCsv(cols, rows) { return [cols.join(',')].concat(rows.map(function (r) { return cols.map(function (c) { return csvCell(r[c]); }).join(','); })).join('\r\n') + '\r\n'; }
   // ---- v3.1.2 原樣檔（只存在這台裝置的 IndexedDB；最多 MAXS 筆，舊的自動刪） ----
-  var DBN = 'wrbeta-sius-scans', OS = 'scans', MAXS = 30, dbP = null;
+  // v3.2.0：清單另外放一個小的 'list' store（只有名稱、燈號、照片張數、時間），開清單不用把每筆的照片和模型整個讀出來；
+  // 空間滿（QuotaExceededError）時先刪最舊的一筆再重試（最多 QUOTA_TRY 次），還是不行才回報失敗。
+  var DBN = 'wrbeta-sius-scans', OS = 'scans', LS = 'list', MAXS = 30, QUOTA_TRY = 5, dbP = null;
+  function brief(d) { return { id: d.id, name: d.name || '', lights: d.lights || {}, nPhotos: (d.photos || []).length, sent: d.sent || null, updated: d.updated || 0, created: d.created || 0, targetId: d.targetId || null }; }
   function idb() {
     if (!dbP) dbP = new Promise(function (res, rej) {
       if (!root.indexedDB) { rej(new Error('idb')); return; }
-      var r = root.indexedDB.open(DBN, 1);
-      r.onupgradeneeded = function () { if (!r.result.objectStoreNames.contains(OS)) r.result.createObjectStore(OS, { keyPath: 'id' }); };
+      var r = root.indexedDB.open(DBN, 2);
+      r.onupgradeneeded = function () {
+        var db = r.result, t = r.transaction;
+        if (!db.objectStoreNames.contains(OS)) db.createObjectStore(OS, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(LS)) {
+          var ls = db.createObjectStore(LS, { keyPath: 'id' });
+          var c = t.objectStore(OS).openCursor(); // 舊版（v1）留下的原樣檔補進清單
+          c.onsuccess = function () { var k = c.result; if (!k) return; try { ls.put(brief(k.value)); } catch (e) {} k.continue(); };
+        }
+      };
       r.onsuccess = function () { var db = r.result; db.onclose = function () { dbP = null; }; db.onversionchange = function () { try { db.close(); } catch (e) {} dbP = null; }; res(db); };
       r.onerror = function () { dbP = null; rej(r.error || new Error('idb')); }; r.onblocked = function () { dbP = null; rej(new Error('idb blocked')); };
     });
     return dbP;
   }
-  function tx(mode, fn) {
+  function tx(mode, fn, stores) {
+    stores = stores || [OS, LS];
     return idb().then(function (db) {
       return new Promise(function (res, rej) {
-        var t = db.transaction(OS, mode), out;
+        var t = db.transaction(stores, mode), out;
         t.oncomplete = function () { res(out && typeof out === 'object' && 'readyState' in out ? out.result : out); };
-        t.onerror = function () { rej(t.error || new Error('idb')); }; t.onabort = function () { rej(t.error || new Error('abort')); };
-        try { out = fn(t.objectStore(OS)); } catch (e) { try { t.abort(); } catch (e2) {} rej(e); }
+        var er = function (ev, d) { return t.error || (ev && ev.target && ev.target.error) || new Error(d); }; // 空間滿的 QuotaExceededError 在 request 上（交易還沒 abort 時 t.error 是 null；Carbon 審查）
+        t.onerror = function (ev) { rej(er(ev, 'idb')); }; t.onabort = function (ev) { rej(er(ev, 'abort')); };
+        // 只拿交易範圍內的 store（審查 P0：範圍外的 objectStore() 會丟 NotFoundError）
+        try { out = fn(stores.indexOf(OS) >= 0 ? t.objectStore(OS) : null, stores.indexOf(LS) >= 0 ? t.objectStore(LS) : null); } catch (e) { try { t.abort(); } catch (e2) {} rej(e); }
       });
     });
   }
   function own() { return isOwner() ? null : Promise.reject(new Error('owner')); }
-  function scanList() { return own() || tx('readonly', function (s) { return s.getAll(); }).then(function (a) { return (a || []).sort(function (x, y) { return (y.updated || 0) - (x.updated || 0); }); }); }
-  function scanGet(id) { return own() || tx('readonly', function (s) { return s.get(id); }); }
-  function scanDel(id) { return own() || tx('readwrite', function (s) { s.delete(id); }); }
+  function sortNew(a) { return (a || []).sort(function (x, y) { return (y.updated || 0) - (x.updated || 0); }); }
+  function scanList() { return own() || tx('readonly', function (s, l) { return l.getAll(); }, [LS]).then(sortNew); }
+  function scanGet(id) { return own() || tx('readonly', function (s) { return s.get(id); }, [OS]); }
+  function scanDel(id) { return own() || tx('readwrite', function (s, l) { s.delete(id); l.delete(id); }); }
+  function isQuota(e) { var n = e && (e.name || ''), m = String(e && e.message || ''); return n === 'QuotaExceededError' || /quota/i.test(n + ' ' + m); }
+  function putOnce(d) {
+    return tx('readwrite', function (s, l) { // 同一筆更新：保留原本的建立時間、已送分析（同一個交易裡讀再寫）
+      var g = s.get(d.id); g.onsuccess = function () { var p = g.result; if (p) { d.created = p.created || d.created; if (p.sent && d.sent == null) d.sent = p.sent; } if (!d.created) d.created = d.updated; s.put(d); l.put(brief(d)); };
+    });
+  }
   function scanPut(d) {
     if (!isOwner()) return Promise.reject(new Error('owner'));
     d.updated = Date.now();
-    return tx('readwrite', function (s) { // 同一筆更新：保留原本的建立時間、已送分析（同一個交易裡讀再寫）
-      var g = s.get(d.id); g.onsuccess = function () { var p = g.result; if (p) { d.created = p.created || d.created; if (p.sent && d.sent == null) d.sent = p.sent; } if (!d.created) d.created = d.updated; s.put(d); };
-    }).then(function () {
-      return scanList().then(function (a) { var old = a.slice(MAXS); return old.length ? tx('readwrite', function (s) { old.forEach(function (o) { s.delete(o.id); }); }) : null; });
+    var tries = 0, go = function () {
+      return putOnce(d).catch(function (e) {
+        if (!isQuota(e) || tries >= QUOTA_TRY) throw e;
+        tries++;
+        return scanList().then(function (a) { // 空間滿：刪最舊的一筆（不是正在存的這筆）再試
+          var old = a.filter(function (o) { return o.id !== d.id; }).pop();
+          if (!old) throw e;
+          return tx('readwrite', function (s, l) { s.delete(old.id); l.delete(old.id); }).then(go);
+        });
+      });
+    };
+    return go().then(function () {
+      return scanList().then(function (a) { var old = a.slice(MAXS); return old.length ? tx('readwrite', function (s, l) { old.forEach(function (o) { s.delete(o.id); l.delete(o.id); }); }) : null; });
     }).then(function () { return d.id; });
   }
-  function scanMark(id, f) { return own() || tx('readwrite', function (s) { var g = s.get(id); g.onsuccess = function () { var d = g.result; if (!d) return; for (var k in f) d[k] = f[k]; s.put(d); }; }); }
+  function scanMark(id, f) { return own() || tx('readwrite', function (s, l) { var g = s.get(id); g.onsuccess = function () { var d = g.result; if (!d) return; for (var k in f) d[k] = f[k]; s.put(d); l.put(brief(d)); }; }); }
   // ---- 解析檔 ----
   function serialize(m, ck, kind, extra) {
     var rows = (ck && ck.rows) || [];

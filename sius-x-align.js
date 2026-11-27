@@ -263,7 +263,7 @@
    * 1) 同一個時間字串＝同一發：分散在不同槽位（例如同一發被一張照片當試射、另一張當正式）的讀法全部收到同一個槽位。
    *    有正式讀法、而且時間不在試射範圍（第 1 發正式之前 25 分鐘內）或接得上正式前後發 → 歸正式；否則歸權重最大的槽位。
    * 2) 試射照發序把時間攤平（跨整點接上），晚於第 1 發正式的「試射」改成正式同一發序（只在讀到小計／總分時；只有試射的單不做）。 */
-  function splitByTime(groups, P, realMatch, dedupeOnly) {
+  function splitByTime(groups, P, realMatch, dedupeOnly, opt) {
     var secOf = P.secOf, gapSec = P.gapSec, WIN = 1500, MAXG = 600;
     var majT = function (g) { var v = voteWeighted(g.reads.map(function (r) { return { v: r.p.t, w: r.ew }; })); return v.length ? v[0].v : null; };
     if (dedupeOnly) { // v3.0.3：只做「同一個時間字串＝同一發」：散在好幾格的讀法收到權重最大的那格（不跨試射／正式）
@@ -293,6 +293,11 @@
     if (m1 == null) for (i = 0; i < M.length && m1 == null; i++) if (mts[i] != null) m1 = mts[i];
     if (m1 == null) return;
     var inWin = function (t) { var s = secOf(t); if (s == null) return true; var g = gapSec(s, m1); return g != null && g <= WIN; };
+    // v3.2.0（White 2026-11-28 00:44）：試射／正式以 P 為準，不看時間範圍。讀法看得到 P（col 讀法看不到、不投票）就是試射的證據；
+    //   OCR 常漏 P，所以「沒有 P」不當正式的證據。pOf(讀法)＝有 P 的權重比例（沒有能投票的讀法＝null）
+    var pOf = function (reads) { var a = 0, b = 0; reads.forEach(function (r) { if (r.kind === 'col') return; b += r.ew; if (r.p.P) a += r.ew; }); return b > 0 ? a / b : null; };
+    var isQ = function (reads) { var v = pOf(reads); return v != null && v >= 0.3; };
+    var byP = opt && opt.byP; if (byP) inWin = function () { return false; };
     var mT = {}; M.forEach(function (g) { var t = majT(g); if (t) mT[g.n] = secOf(t); });
     var fitsM = function (n, t) {
       var s = secOf(t); if (s == null) return false;
@@ -319,6 +324,7 @@
       var ga = a == null ? 0 : gapSec(a, sv), gb = b == null ? 0 : gapSec(sv, b);
       return ga != null && gb != null && ga <= Math.min(MAXG * da, 1799) && gb <= Math.min(MAXG * db, 1799);
     };
+    var copyOf = function (sec, n, t) { var g = groups[sec + n]; return !!(g && g.reads.length && majT(g) === t); }; // 跟另一段同號那格的主流時間一模一樣＝那一發被抄進來
     Object.keys(groups).forEach(function (k) {
       var g = groups[k], cl = [];
       g.reads.forEach(function (r) {
@@ -330,7 +336,8 @@
       var to = g.sec === 'M' ? 'Q' : 'M';
       cl.forEach(function (c) {
         if (fitsNb(g.sec, g.n, c.s)) return;
-        var w = inWin(c.t); if (!(g.sec === 'M' ? w : !w) || !fitsNb(to, g.n, c.s)) return;
+        if (byP) { if (!fitsNb(to, g.n, c.s)) return; if (to === 'M' ? isQ(c.reads) : !(isQ(c.reads) || copyOf('Q', g.n, c.t))) return; }
+        else { var w = inWin(c.t); if (!(g.sec === 'M' ? w : !w) || !fitsNb(to, g.n, c.s)) return; }
         g.reads = g.reads.filter(function (r) { return c.reads.indexOf(r) < 0; });
         var tg = get(to, g.n); tg.reads = tg.reads.concat(c.reads);
       });
@@ -342,7 +349,12 @@
       var ks = Object.keys(byT[t]); if (ks.length < 2) return;
       var hasM = ks.some(function (k) { return groups[k].sec === 'M'; });
       var pool = ks;
-      if (hasM) {
+      if (byP) {
+        var rt = []; ks.forEach(function (k) { groups[k].reads.forEach(function (r) { if (r.p.t === t) rt.push(r); }); });
+        var qk = ks.filter(function (k) { return groups[k].sec === 'Q'; }), mk = ks.filter(function (k) { return groups[k].sec === 'M'; });
+        if (isQ(rt) && qk.length) pool = qk;
+        else if (!isQ(rt) && mk.length && mk.some(function (k) { return fitsM(groups[k].n, t) || majT(groups[k]) === t; })) pool = mk;
+      } else if (hasM) {
         var mks = ks.filter(function (k) { return groups[k].sec === 'M'; });
         var toM = !inWin(t) || mks.some(function (k) { return fitsM(groups[k].n, t); });
         if (toM) pool = mks;
@@ -357,7 +369,7 @@
     });
     // 2) 試射時間範圍：試射照發序排、時間攤平（跨整點 +3600），以第一發試射為基準算出第 1 發正式的時間；
     //    晚於第 1 發正式的「試射」都是正式的發 → 搬到正式同一發序（同一發序已有讀法就合併投票，不會變成兩發）
-    if (realMatch) {
+    if (realMatch && !byP) { // v3.2.0：依 P 分段時不再把「晚於第 1 發正式」的試射搬去正式（rv1127_230254 正式時間跟試射交錯）
       var Q = Object.keys(groups).filter(function (k) { return groups[k].sec === 'Q' && groups[k].reads.length; }).map(function (k) { return groups[k]; }).sort(function (a, b) { return a.n - b.n; });
       var prev = null, base = null, m1u = null;
       Q.forEach(function (g) {
@@ -372,6 +384,14 @@
         var tg = get('M', g.n); tg.reads = tg.reads.concat(g.reads); g.reads = [];
       });
     }
+    // v3.2.0：只有一次 col 讀法（看不到 P、也不是整行讀）撐著、發序又超過這段有兩次以上讀法的最大發序 → 讀歪的假格子（rv1127_230254 的正式 #11–#18），拿掉
+    if (byP) ['Q', 'M'].forEach(function (sec) {
+      var ks = Object.keys(groups).filter(function (k) { return groups[k].sec === sec && groups[k].reads.length; });
+      var strong = function (g) { return g.reads.length >= 2 || g.reads.some(function (r) { return r.kind !== 'col'; }); }, mx = 0;
+      ks.forEach(function (k) { if (strong(groups[k])) mx = Math.max(mx, groups[k].n); });
+      // Carbon 審查建議只清「跟別格重複」的；但 rv1127 的假格子（正式 #11–#16）不是重複、是讀歪的 col → 這版不採用，列在已知問題
+      if (mx > 0) ks.forEach(function (k) { if (!strong(groups[k]) && groups[k].n > mx) groups[k].reads = []; }); // 整段都只有 col 讀法 → 不清
+    });
     Object.keys(groups).forEach(function (k) { if (!groups[k].reads.length) delete groups[k]; });
   }
 
@@ -473,7 +493,10 @@
     // v3.0.3：改成備用——練習單（全 P）或序號重編成好幾組時，只做「同一時間＝同一發」，不再依時間把發搬到另一段；
     //   一般單（一組試射＋Match＋正式）仍用原本的時間修正（只修讀錯槽位的讀法，試射／正式的分界以 P、Match 為準）
     var multiBlk = Object.keys(groups).some(function (k) { return groups[k].blk > 0; });
-    if (opt.splitByTime !== false) splitByTime(groups, P, Object.keys(subs).length > 0 || totals.length > 0 || Object.keys(groups).filter(function (k) { return groups[k].sec === 'M'; }).length >= 10, practice || multiBlk);
+    // v3.2.0【White 2026-11-28 00:44】試射／正式只看每行的 P 和 Qualification／Match 標題（不看時間範圍、不看預設發數）：讀得到 P 的單子用 byP；
+    //   時間只拿來對齊（同一個時間字串＝同一發、被抄到別格的讀法搬回去）。整張都沒讀到 P 才用舊的時間範圍。
+    var anyP = Object.keys(groups).some(function (k) { return groups[k].reads.some(function (r) { return r.p && r.p.P; }); });
+    if (opt.splitByTime !== false) splitByTime(groups, P, Object.keys(subs).length > 0 || totals.length > 0 || Object.keys(groups).filter(function (k) { return groups[k].sec === 'M'; }).length >= 10, practice || multiBlk, { byP: anyP && opt.byP !== false });
 
     // 槍種、發數、日期投票與格式推斷
     var gv = voteWeighted(hdr.filter(function (h) { return h.kind === 'event'; }).map(function (h) { return { v: h.gun, w: 1 }; }));

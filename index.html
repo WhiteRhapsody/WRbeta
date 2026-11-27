@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b2a3a">
 <title>WRbeta</title>
-<link rel="manifest" href="manifest.webmanifest?v=v3.1.5">
-<link rel="icon" href="icon.svg?v=v3.1.5">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v3.1.5">
+<link rel="manifest" href="manifest.webmanifest?v=v3.2.0">
+<link rel="icon" href="icon.svg?v=v3.2.0">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=v3.2.0">
 <script>/* v2.9.0 首頁：同一個分頁第一次打開才顯示（app-home.js） */try{if(!sessionStorage.getItem('wr_home_seen'))document.documentElement.classList.add('wr-home');}catch(e){document.documentElement.classList.add('wr-home');}</script>
-<!--STYLE--><link rel="stylesheet" href="style.css?v=v3.1.5"><link rel="stylesheet" href="themes.css?v=v3.1.5"><!--/STYLE-->
+<!--STYLE--><link rel="stylesheet" href="style.css?v=v3.2.0"><link rel="stylesheet" href="themes.css?v=v3.2.0"><!--/STYLE-->
 </head>
 <body>
 <!-- v2.5.0 分析模塊圖示（White 2026-11-20「超讚」；24×24 單線條，顏色跟著 currentColor，所有主題通用） -->
@@ -231,8 +231,8 @@
       <label class="ana-nmrow"><input id="anaName" class="ana-name" placeholder="自訂名稱（例：週二早上練習）" maxlength="60" aria-label="分析名稱"><button type="button" id="anaNameLock" class="ana-name-lock" aria-pressed="false" hidden><span class="lk-ripple" aria-hidden="true"></span><svg viewBox="0 0 24 24" aria-hidden="true"><g class="lk-shackle"><path d="M8 11V7.2a4 4 0 0 1 8 0V11"/></g><g class="lk-body"><rect x="6" y="11" width="12" height="10.2" rx="2"/><path d="M12 14.4v3"/></g></svg></button><svg class="ana-pen" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></label>
       <div class="ana-meta"><span id="anaWhen"></span><span class="ana-dotsep" aria-hidden="true">・</span><span id="anaSaved"></span></div>
     </div>
-    <!-- v2.9.2（§7 第 21 項，White 2026-11-24 03:24）「＋新分析」往左移，校正鈕（原圖示＋圓鈕，寶寶色）放在它右邊；校正選單另含偵測靈敏度、清空／刪除 -->
-    <div class="ana-acts"><button id="anaNew" type="button" class="wr-pill" aria-label="開始新分析"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="ana-new-tx">新分析</span></button><button type="button" id="anaCalBtn" class="pf-btn ana-rb" aria-haspopup="true" aria-expanded="false" aria-controls="anaCalPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><b>校正</b></button></div>
+    <!-- v2.9.2（§7 第 21 項，White 2026-11-24 03:24）「＋新分析」往左移，校正鈕（原圖示＋圓鈕，寶寶色）放在它右邊；校正選單另含偵測靈敏度、清空／刪除；v3.2.0 按鈕名稱改「管理」（White 2026-11-28，功能不變） -->
+    <div class="ana-acts"><button id="anaNew" type="button" class="wr-pill" aria-label="開始新分析"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="ana-new-tx">新分析</span></button><button type="button" id="anaCalBtn" class="pf-btn ana-rb" aria-haspopup="true" aria-expanded="false" aria-controls="anaCalPop"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg><b>管理</b></button></div>
   </div>
   <div class="pf-wrap ana-stage" id="anaWrap">
     <div class="svgwrap pf-box ana-box" id="anaBox"><svg id="anaSvg" class="target" xmlns="http://www.w3.org/2000/svg" aria-label="分析靶面（先選「添加彈孔」或「消滅彈孔」再點靶面；雙指縮放）"></svg>
@@ -256,7 +256,7 @@
       <button type="button" id="anaModeDel" class="pf-btn ana-rb ana-mode" aria-pressed="false"><svg class="nv-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M8.5 12h7"/></svg><b>消滅彈孔</b></button>
     </div>
     <div id="anaModeBar" class="ana-modebar" role="status" aria-live="polite" hidden></div>
-    <div id="anaCalPop" class="wr-pop ana-pop" role="menu" aria-label="校正" hidden>
+    <div id="anaCalPop" class="wr-pop ana-pop" role="menu" aria-label="管理" hidden>
       <div class="ph">校正這張照片</div>
       <div class="pi-row ana-cal2"><button type="button" id="anaAutoCal" role="menuitem" class="pi"><b>自動校正</b><small>重新找靶面與環</small></button><button type="button" id="anaRedetect" role="menuitem" class="pi"><b>重新偵測</b><small>重找彈孔（依靈敏度）</small></button></div>
       <div class="pi-row ana-cal3"><button type="button" id="anaManual" role="menuitem" class="pi"><b>手動校正</b><small>在照片上點靶心與四個邊</small></button><button type="button" id="anaRotL" class="pi sm" aria-label="照片轉正，逆時針 1 度">⟲ 1°</button><button type="button" id="anaRotR" class="pi sm" aria-label="照片轉正，順時針 1 度">⟳ 1°</button></div>
@@ -495,21 +495,21 @@
 </div>
 <div id="toast"></div>
 <div id="wrHome" hidden></div>
-<!--I18N--><script src="i18n/zh-TW.js?v=v3.1.5"></script><script src="i18n/en.js?v=v3.1.5"></script><script src="i18n/i18n.js?v=v3.1.5"></script><!--/I18N-->
-<!--CORE--><script src="core.js?v=v3.1.5"></script><!--/CORE-->
-<!--CODEC--><script src="recordcode.js?v=v3.1.5"></script><!--/CODEC-->
-<!--LITEFLOW--><script src="liteflow.js?v=v3.1.5"></script><!--/LITEFLOW-->
-<!--VISION--><script src="vision.js?v=v3.1.5"></script><!--/VISION-->
-<!--FBCFG--><script src="firebase-config.js?v=v3.1.5"></script><!--/FBCFG-->
-<!--CLOUD--><script src="cloud.js?v=v3.1.5"></script><!--/CLOUD-->
-<!--MEMBER--><script src="member.js?v=v3.1.5"></script><script src="member-friends.js?v=v3.1.5"></script><script src="member-admin.js?v=v3.1.5"></script><!--/MEMBER-->
-<!--PRESS--><script src="press.js?v=v3.1.5"></script><!--/PRESS-->
-<!--XHAIR--><script src="crosshair.js?v=v3.1.5"></script><!--/XHAIR-->
-<!--THEMEFX--><script src="themefx.js?v=v3.1.5"></script><!--/THEMEFX-->
-<!--LAYOUT--><script src="layout.js?v=v3.1.5"></script><!--/LAYOUT-->
-<!--DOCK--><script src="dock.js?v=v3.1.5"></script><!--/DOCK-->
-<!--APP--><script src="app-base.js?v=v3.1.5"></script><script src="app-forecast.js?v=v3.1.5"></script><script src="app-lite.js?v=v3.1.5"></script><script src="app-photo.js?v=v3.1.5"></script><script src="app-mods.js?v=v3.1.5"></script>
-<script src="app-analysis.js?v=v3.1.5"></script><script src="sius-img.js?v=v3.1.5"></script><script src="sius.js?v=v3.1.5"></script><script src="sius-ocr.js?v=v3.1.5"></script><script src="sius-x-parse.js?v=v3.1.5"></script><script src="sius-x-align.js?v=v3.1.5"></script><script src="sius-x-check.js?v=v3.1.5"></script><script src="sius-x-img.js?v=v3.1.5"></script><script src="sius-x-core.js?v=v3.1.5"></script><script src="sius-arrow.js?v=v3.1.5"></script><script src="sius-reread.js?v=v3.1.5"></script><script src="sius-x.js?v=v3.1.5"></script><script src="sius-v3.js?v=v3.1.5"></script><script src="sius-pp.js?v=v3.1.5"></script><script src="sius-owner.js?v=v3.1.5"></script><script src="app-sius.js?v=v3.1.5"></script><script src="report.js?v=v3.1.5"></script><script src="app-records.js?v=v3.1.5"></script><script src="app-nav.js?v=v3.1.5"></script><script src="app.js?v=v3.1.5"></script><script src="app-account.js?v=v3.1.5"></script><script src="app-back.js?v=v3.1.5"></script><script src="app-coach.js?v=v3.1.5"></script><script src="app-home.js?v=v3.1.5"></script><script src="pdf-report.js?v=v3.1.5"></script><script src="pdf-export.js?v=v3.1.5"></script><!--/APP-->
+<!--I18N--><script src="i18n/zh-TW.js?v=v3.2.0"></script><script src="i18n/en.js?v=v3.2.0"></script><script src="i18n/i18n.js?v=v3.2.0"></script><!--/I18N-->
+<!--CORE--><script src="core.js?v=v3.2.0"></script><!--/CORE-->
+<!--CODEC--><script src="recordcode.js?v=v3.2.0"></script><!--/CODEC-->
+<!--LITEFLOW--><script src="liteflow.js?v=v3.2.0"></script><!--/LITEFLOW-->
+<!--VISION--><script src="vision.js?v=v3.2.0"></script><!--/VISION-->
+<!--FBCFG--><script src="firebase-config.js?v=v3.2.0"></script><!--/FBCFG-->
+<!--CLOUD--><script src="cloud.js?v=v3.2.0"></script><!--/CLOUD-->
+<!--MEMBER--><script src="member.js?v=v3.2.0"></script><script src="member-friends.js?v=v3.2.0"></script><script src="member-admin.js?v=v3.2.0"></script><!--/MEMBER-->
+<!--PRESS--><script src="press.js?v=v3.2.0"></script><!--/PRESS-->
+<!--XHAIR--><script src="crosshair.js?v=v3.2.0"></script><!--/XHAIR-->
+<!--THEMEFX--><script src="themefx.js?v=v3.2.0"></script><!--/THEMEFX-->
+<!--LAYOUT--><script src="layout.js?v=v3.2.0"></script><!--/LAYOUT-->
+<!--DOCK--><script src="dock.js?v=v3.2.0"></script><!--/DOCK-->
+<!--APP--><script src="app-base.js?v=v3.2.0"></script><script src="app-forecast.js?v=v3.2.0"></script><script src="app-lite.js?v=v3.2.0"></script><script src="app-photo.js?v=v3.2.0"></script><script src="app-mods.js?v=v3.2.0"></script>
+<script src="app-analysis.js?v=v3.2.0"></script><script src="sius-img.js?v=v3.2.0"></script><script src="sius.js?v=v3.2.0"></script><script src="sius-ocr.js?v=v3.2.0"></script><script src="sius-x-parse.js?v=v3.2.0"></script><script src="sius-x-align.js?v=v3.2.0"></script><script src="sius-x-check.js?v=v3.2.0"></script><script src="sius-x-img.js?v=v3.2.0"></script><script src="sius-x-core.js?v=v3.2.0"></script><script src="sius-arrow.js?v=v3.2.0"></script><script src="sius-reread.js?v=v3.2.0"></script><script src="sius-x.js?v=v3.2.0"></script><script src="sius-v3.js?v=v3.2.0"></script><script src="sius-pp.js?v=v3.2.0"></script><script src="sius-owner.js?v=v3.2.0"></script><script src="app-sius.js?v=v3.2.0"></script><script src="report.js?v=v3.2.0"></script><script src="app-records.js?v=v3.2.0"></script><script src="app-nav.js?v=v3.2.0"></script><script src="app.js?v=v3.2.0"></script><script src="app-account.js?v=v3.2.0"></script><script src="app-back.js?v=v3.2.0"></script><script src="app-coach.js?v=v3.2.0"></script><script src="app-home.js?v=v3.2.0"></script><script src="pdf-report.js?v=v3.2.0"></script><script src="pdf-export.js?v=v3.2.0"></script><!--/APP-->
 <script>
 (function () {
   var need = [['wrT','i18n'],['BMCore','core.js'],['BMCode','recordcode.js'],['BMLite','liteflow.js'],['BMVision','vision.js'],['WRCloud','cloud.js'],['WRMember','member.js'],['WRMemberParts','member.js'],['WRPress','press.js'],['WRCrosshair','crosshair.js'],['WRFx','themefx.js'],['WRLayout','layout.js'],['WRDock','dock.js'],['WRApp','app-base.js'],['BMApp','app.js']];
