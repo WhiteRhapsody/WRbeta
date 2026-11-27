@@ -5,7 +5,8 @@
  *     全部組合（v2.9.6 1245 發／手槍 1126 驗證過）：同一時間出現兩次、試射只讀到 1 次、小計對不上時讀到最少次的 2 發、X／Y 票數 <2、
  *       X／Y 有不同讀值、小計內十數對不上時該組 10 環；
  *     新規則 signFlip：兩個讀法只差正負號（例如 −4.44／4.44）就不給綠；
- *     備援補上的列（fb）最多黃燈（暫定，請 White 確認）。
+ *     v3.0.1：備援補上的列（fb）分數對得上也可以亮綠燈（White 2026-11-27 指定；fbCap 關掉）。
+ *     v3.0.1：手槍資格賽（單子印整數）一律拿「X/Y 算出的分數無條件捨去」跟單上整數比（8.0–8.9＝8），決賽／步槍維持小數。
  *   每一步的耗時（毫秒）都記在 timing，畫面與回報都用得到。 */
 (function (root) {
   'use strict';
@@ -13,7 +14,7 @@
   function X() { return root.WRSiusXCore || (isNode ? require('./sius-x-core.js') : null); }
   function S0() { return root.WRSius || (isNode ? require('./sius.js') : null); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
-  var RULES = { dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 1, signFlip: 1, fbCap: 1 };
+  var RULES = { dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 1, signFlip: 1, fbCap: 0 };
   function key(q) { return (q.sighter ? 'Q' : 'M') + q.n; }
   function down(r, why) { if (r._ed) return; if (r.status === 'ok') { r.status = 'near'; (r.why = r.why || []).push(why); } }
   function flip(a, b) { return a != null && b != null && a !== 0 && Math.abs(a + b) < 1e-9; }
@@ -44,14 +45,27 @@
       });
     });
     if (opt.fbCap) rows.forEach(function (r) { if (shots[r.i].fb) down(r, 'fb'); });
+    else rows.forEach(function (r) { var q = shots[r.i]; if (q.fb && q.fbSt !== 'ok') down(r, 'fb'); }); // v3.0.1：備援列只有備援引擎自己也核對成綠燈時才給綠
     ck.near = rows.filter(function (r) { return r.status === 'near'; }).length;
     return ck;
   }
-  function check(model, opt) { var ck = X().check(model); return rules(model, ck, opt); }
+  /* v3.0.1：整張是整數單（手槍資格賽）？大多數有分數的發是整數讀法（decInt），或重開的手槍紀錄（ap10）分數全是整數。
+   * 是的話，分數空白或整數的發都標 decInt，核對時用整數環（floor）比；只在比對時用，不改存檔格式。 */
+  function intSheet(model) {
+    var n = 0, ni = 0, allInt = true;
+    (model.shots || []).forEach(function (q) { if (q.dec == null || !isFinite(q.dec)) return; n++; if (q.decInt) ni++; if (Math.abs(q.dec - Math.round(q.dec)) > 1e-9) allInt = false; });
+    return n > 0 && allInt && (ni * 2 > n || (ni === 0 && model.targetId === 'ap10'));
+  }
+  function stampInt(model) {
+    var on = intSheet(model); model.intSheet = on;
+    if (on) model.shots.forEach(function (q) { if (q.dec == null || !isFinite(q.dec) || Math.abs(q.dec - Math.round(q.dec)) < 1e-9) q.decInt = true; });
+    return on;
+  }
+  function check(model, opt) { stampInt(model); var ck = X().check(model); return rules(model, ck, opt); }
   // 紅燈（要改完才能存）：紅燈的列、對不上的小計／總分
   function blocking(ck) { return ck ? ck.bad : 0; }
   function needFallback(model, ck) { return ck.rows.some(function (r) { return r.status === 'bad' || r.missing; }); }
-  /* 備援補列：主模型裡紅燈／沒讀到的列，現有引擎有讀到而且自己核對不是紅燈 → 用它的值（標 fb，最多黃燈）。
+  /* 備援補列：主模型裡紅燈／沒讀到的列，現有引擎有讀到而且自己核對不是紅燈 → 用它的值（標 fb；v3.0.1 起對得上就可以綠燈）。
    * 對應方式：試射／比賽＋發序相同；同一發序有好幾發時挑時間最接近的。回傳補了幾列。 */
   function fill(model, fbModel, opt) {
     if (!fbModel || !fbModel.shots || !fbModel.shots.length) return 0;
@@ -69,7 +83,7 @@
       });
       if (best < 0) return;
       var f = fbModel.shots[best]; used[best] = 1;
-      q.dec = f.dec; q.inner = !!f.inner; q.t = f.t; q.x = f.x; q.y = f.y; q.fb = true;
+      q.dec = f.dec; q.inner = !!f.inner; q.t = f.t; q.x = f.x; q.y = f.y; q.fb = true; q.fbSt = fst[best]; if (f.decInt || model.intSheet) q.decInt = true; // v3.0.1：補列也走整數比對
       q.ocr = q.ocr || {}; q.ocr.missing = false; q.ocr.conflict = []; q.ocr.alt = null; q.ocr.w = { x: 9, y: 9, d: 9, t: 9 }; q.ocr.reads = Math.max(q.ocr.reads || 0, 2); q.ocr.fbFrom = 'main';
       n++;
     });
@@ -103,7 +117,7 @@
     });
   }
   function stop() { try { if (root.WRSiusX) root.WRSiusX.stop(); } catch (e) {} try { if (root.WRSiusOCR) root.WRSiusOCR.stop(); } catch (e) {} }
-  var api = { RULES: RULES, rules: rules, check: check, blocking: blocking, needFallback: needFallback, fill: fill, build: build, run: run, stop: stop, key: key,
+  var api = { RULES: RULES, intSheet: intSheet, rules: rules, check: check, blocking: blocking, needFallback: needFallback, fill: fill, build: build, run: run, stop: stop, key: key,
     problems: function (m, ck) { return X().problems(m, ck || check(m)); } };
   if (isNode) module.exports = api; else root.WRSiusV3 = api;
 })(typeof window !== 'undefined' ? window : this);

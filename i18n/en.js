@@ -1569,7 +1569,9 @@
   "home.v300_1": "“Ghost” is replaced by the SIUS-slip screen: a card per 10 shots, every field editable, swipe sideways or scroll down",
   "home.v300_2": "New recognition engine: yellow still counts and saves, red must be fixed first; all three babies read SIUS slips",
   "home.v300_3": "Buttons tuck away after 1.8 s with new animations; the baby asks when it can’t tell the target",
-  "home.v300_4": "Choose a font (Zev Hei) in Settings; send beta-test reports to improve reading"
+  "home.v300_4": "Choose a font (Zev Hei) in Settings; send beta-test reports to improve reading",
+  "home.v301_1": "Pistol qualification compares whole numbers: the X/Y score is rounded down (8.0–8.9 counts as 8), subtotals too; backup-engine shots can go green when they match",
+  "home.v301_2": "Opening a shot to edit no longer pops up the keyboard; tap a field when you want to type"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["en"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

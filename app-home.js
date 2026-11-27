@@ -19,6 +19,7 @@
   var ENTER_MS = 1500, REVEAL_MS = 420;
   // 版本更新紀錄：[版本, 日期, 條目 key…]
   var VLOG = [
+    ['v3.0.1 beta', '2026/11/27', ['home.v301_1', 'home.v301_2']],
     ['v3.0 beta', '2026/11/27', ['home.v300_1', 'home.v300_2', 'home.v300_3', 'home.v300_4']],
     ['v2.9.6', '2026/11/26', ['home.v296_1', 'home.v296_2']],
     ['v2.9.5', '2026/11/25', ['home.v295_1', 'home.v295_2']],
@@ -62,7 +63,7 @@
   function build() {
     host.className = 'wr-home'; host.setAttribute('role', 'region'); host.setAttribute('aria-label', wrT('home.aria'));
     var vl = VLOG.map(function (v) {
-      var now = v[0] === ver();
+      var now = v[0] === ver() || v[0] === App.APP_LABEL;
       return '<div class="hm-ve"><div class="hm-vt"><span class="hm-ver' + (now ? '' : ' old') + '">' + v[0] + '</span><span class="hm-d">' + v[1] + '</span>' + (now ? '<span class="hm-now">' + esc(wrT('home.current')) + '</span>' : '') + '</div><ul>' +
         v[2].map(function (k) { return '<li>' + esc(wrT(k)) + '</li>'; }).join('') + '</ul></div>';
     }).join('');
