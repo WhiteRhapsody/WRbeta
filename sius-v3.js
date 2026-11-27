@@ -20,6 +20,7 @@
   function key(q) { return (q.sighter ? 'Q' : 'M') + q.n; }
   function down(r, why) { if (r._ed) return; if (r.status === 'ok') { r.status = 'near'; (r.why = r.why || []).push(why); } }
   var CONS_OK = /^(fieldW:[xy]+|xyAlt|sign:[xy]|sReads|arrowFix)$/; // v3.1.2：只代表「OCR 沒把握」的黃燈原因（arrow＝箭頭跟座標對不上，不在內）
+  var TIME_W = /^(dupT|tFix|notime)$/; // v3.1.3：只跟時間有關的黃燈原因
   function flip(a, b) { return a != null && b != null && a !== 0 && Math.abs(a + b) < 1e-9; }
   // check 之後的規則（只降綠）
   function rules(model, ck, opt) {
@@ -71,24 +72,35 @@
     });
     // v3.1.2（White 2026-11-27 20:22）最後一道一致性檢查：只因 OCR 把握不足而黃（票數不一、X/Y 備選、正負號備選、箭頭、試射讀次少、soft），
     //   但分數＝座標重算（diff 0、內十相符）、時間在（同段前後接得上、不重複、不缺）、沒衝突欄位 → 降回綠燈，原本的原因留在 r.cons。
-    //   時間不接續／重複／缺時間、分數座標不符、缺座標、單軸推估、補回的時間（tFix）、依分數改座標（xyFix）、小計反推／算出的分數、小計對不上（sub）都維持原燈號。
-    if (opt.consist) {
-      var tcnt = {}, tsec = function (q) { var v = q && q.t ? X().secOf(q.t) : null; return v == null ? null : Math.round(v * 100); }; shots.forEach(function (q) { var k = tsec(q); if (k != null) tcnt[k] = (tcnt[k] || 0) + 1; });
+    //   （v3.1.3 起時間條件拿掉、併進下面的時間記號那段）時間不接續／重複／缺時間、分數座標不符、缺座標、單軸推估、補回的時間（tFix）、依分數改座標（xyFix）、小計反推／算出的分數、小計對不上（sub）都維持原燈號。
+    // v3.1.3（White 2026-11-27 20:46 hotfix）：時間的問題（接不上 tWarn、重複 dupT、缺時間、補回的時間 tFix、時間讀法不一）一律不影響燈號，
+    //   只在時間欄打記號（r.tMark＝時間原因代碼，存檔／上傳照樣帶）。燈號只看分數、座標、正負號、箭頭、小計等其他條件。
+    if (opt.tMark !== 0 || opt.consist) {
+      var tcnt = {}, tsec = function (q) { var v = q && q.t ? X().secOf(q.t) : null; return v == null ? null : Math.round(v * 100); };
+      shots.forEach(function (q) { var k = tsec(q); if (k != null) tcnt[k] = (tcnt[k] || 0) + 1; });
       rows.forEach(function (r) {
-        if (r.status !== 'near' || r._ed || r.orange || r.soft) return; // soft＝原本紅燈被放寬成黃：不降綠（Gemini 審查）
-        var q = shots[r.i]; if (!q) return; var o = q.ocr || {}, w = r.why || [];
-        if (!w.length || !w.every(function (c) { return CONS_OK.test(c); })) return;
-        if (r.missing || (r.conflict && r.conflict.length) || (r.miss && r.miss.length) || r.tWarn || r.innerOk === false) return;
+        var q = shots[r.i]; if (!q) return; var o = q.ocr || {}, tm = [];
+        if (r.tWarn) tm.push('tWarn'); if ((r.miss || []).indexOf('t') >= 0 || !q.t || tsec(q) == null) tm.push('miss:t');
+        if ((r.conflict || []).indexOf('t') >= 0) tm.push('conflict:t'); if (tsec(q) != null && tcnt[tsec(q)] > 1) tm.push('dupT'); if (o.tFix) tm.push('tFix');
+        (r.why || []).forEach(function (c) { if (c === 'notime') c = 'miss:t'; if (TIME_W.test(c) || c === 'miss:t') { if (tm.indexOf(c) < 0) tm.push(c); } });
+        if (opt.tMark === 0) tm = []; // 關掉時間記號＝時間照舊影響燈號
+        r.tMark = tm.length ? tm : null;
+        r.why = (r.why || []).filter(function (c) { return !tm.length || !TIME_W.test(c); });
+        if (r.status === 'ok' || !tm.length && !(opt.consist && r.why.length)) return;
+        // 剩下的（非時間）原因：沒有＝只因時間而亮；只剩「OCR 沒把握」那幾種＝要通過一致性檢查（v3.1.2）
+        if (r.status !== 'near' || r.orange || r.missing) return;
+        if (r.soft && !tm.length) return; // soft＝原本紅燈被放寬成黃：只有跟時間有關才可能降綠（其餘照 v3.1.2 不降）
+        var w = r.why;
+        if (w.length && !(opt.consist && w.every(function (c) { return CONS_OK.test(c) || c === 'soft'; }))) return;
+        if ((r.conflict || []).some(function (c) { return c !== 't' || !tm.length; }) || (r.miss || []).some(function (c) { return c !== 't' || !tm.length; }) || r.innerOk === false || r.tWarn && !tm.length) return;
         if (q.dec == null || !isFinite(q.dec) || q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) return;
-        if (!r.calc || r.diff !== 0 || q.decCalc || q.decSub || o.xyFix || o.tFix || o.scoreWins || o.demo || o.miss || o.arrowBad) return;
-        if (!q || !q.t || tsec(q) == null || tcnt[tsec(q)] > 1) return;
-        // 正負號備選：換號分數不變，所以要方向箭頭確定、而且跟目前 X/Y 同方向才算對得上
-        // down() 只記第一個原因，所以這裡自己重查：正負號備選、小計對不上
-        var sg = !o.xyPick && ['x', 'y'].some(function (f) { var vals = [].concat(o.alt && o.alt[f] || []); (o.rd || []).forEach(function (d) { if (d[f] != null) vals.push(d[f]); }); return vals.some(function (v) { return flip(v, q[f]); }); });
+        if (!r.calc || r.diff !== 0 || q.decCalc || q.decSub || o.xyFix || o.scoreWins || o.demo || o.miss || o.arrowBad) return;
         if (ck.series.some(function (sr) { return sr.status !== 'ok' && sr.status !== 'nosub' && sr.rows.indexOf(r.i) >= 0; })) return;
         var A0 = AR(); if (A0 && o.arw && A0.sure(o.arw) && !A0.compat(q.x, q.y, o.arw.dir)) return; // 箭頭有把握卻跟 X/Y 不同方向
-        if (sg || w.some(function (c) { return /^sign:/.test(c); })) { var A = AR(); if (!(A && o.arw && A.sure(o.arw) && A.compat(q.x, q.y, o.arw.dir))) return; }
-        r.status = 'ok'; r.cons = w.slice(); r.why = [];
+        // down() 只記第一個原因，所以自己重查正負號備選：換號分數不變，要方向箭頭確定且同方向才算對得上
+        var sg = !o.xyPick && ['x', 'y'].some(function (f) { var vals = [].concat(o.alt && o.alt[f] || []); (o.rd || []).forEach(function (d) { if (d[f] != null) vals.push(d[f]); }); return vals.some(function (v) { return flip(v, q[f]); }); });
+        if ((sg || w.some(function (c) { return /^sign:/.test(c); })) && !(A0 && o.arw && A0.sure(o.arw) && A0.compat(q.x, q.y, o.arw.dir))) return;
+        var cw = w.filter(function (c) { return c !== 'soft'; }); r.status = 'ok'; r.soft = 0; if (cw.length) r.cons = cw; r.why = [];
       });
     }
     // v3.0.2（White 2026-11-27）：逐發編輯按「保存」＝當綠燈

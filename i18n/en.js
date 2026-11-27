@@ -1659,7 +1659,14 @@
   "sius.why_codes": "Reason codes: {0}",
   "sius.why_saved": "When saved: {0} · {1}",
   "home.v312_3": "Final consistency check: yellow caused only by OCR uncertainty turns green when score matches X/Y and time fits; duplicate/out-of-order/missing time, score mismatch and missing X/Y stay yellow",
-  "home.v312_4": "Each shot now saves its light and reason codes, shown on reopen and in uploaded review data"
+  "home.v312_4": "Each shot now saves its light and reason codes, shown on reopen and in uploaded review data",
+  "sius.tmk": "Time note: {0} (does not affect the light)",
+  "sius.tmk_twarn": "does not fit neighbouring shots",
+  "sius.tmk_miss": "time not read",
+  "sius.tmk_cfl": "photos disagree on the time",
+  "sius.tmk_dup": "same time as another shot",
+  "sius.tmk_fix": "minute tens digit filled in from neighbours",
+  "home.v313_1": "Time issues (out of order, duplicate, missing, filled in) no longer turn a shot yellow; a small clock mark appears next to the time instead. Lights now depend on score and coordinates only"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["en"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

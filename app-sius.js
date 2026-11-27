@@ -281,6 +281,10 @@
     h += '<div class="x-cf"><span>' + esc(wrT('sius.cf_avg')) + ' <b>' + (stt && stt.n ? f2(stt.avgDec) : '–') + '</b></span><span>' + esc(wrT('sius.cf_grp')) + ' <b>' + (stt && stt.n > 1 ? f1(stt.groupSize) + 'mm' : '–') + '</b></span><span>' + esc(wrT('sius.cf_in')) + ' <b>' + wrIn + '</b></span><span>' + esc(wrT('sius.cf_10')) + ' <b>' + ok.filter(function (q) { return C.scoreShot(t, q.x, q.y).ring >= 10; }).length + '</b></span></div>';
     return h + '</div>';
   }
+  // v3.1.3（White 2026-11-27 20:46）：時間的問題不亮燈，只在時間旁打一個小時鐘記號（顏色跟主題；點那一發，編輯框會寫時間記號的原因）
+  var TMK = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3"/><path d="M8 4.6V8l2.4 1.6"/></svg>';
+  function tMarkTx(r) { return (r.tMark || []).map(function (c) { return wrT({ tWarn: 'sius.tmk_twarn', 'miss:t': 'sius.tmk_miss', 'conflict:t': 'sius.tmk_cfl', dupT: 'sius.tmk_dup', tFix: 'sius.tmk_fix', notime: 'sius.tmk_miss' }[c] || 'sius.tmk_twarn'); }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join('、'); }
+  function tMarkHTML(r) { var tx = wrT('sius.tmk', [tMarkTx(r)]); return '<i class="x-tmk" role="img" title="' + esc(tx) + '" aria-label="' + esc(tx) + '">' + TMK + '</i>'; }
   function rowHTML(r, t) {
     var q = st.model.shots[r.i], sel = st.sel && st.sel.type === 'row' && st.sel.i === r.i ? ' sel' : '';
     var cf = function (f) { return r.conflict && r.conflict.indexOf(f) >= 0 ? ' cf' : ''; };
@@ -289,7 +293,7 @@
     var lbl = wrT('sius.row_aria', [pnOf(q) == null ? '—' : pnOf(q), q.dec == null ? '—' : f1(q.dec), (r.status === 'ok' ? wrT('sius.st_ok') : r.status === 'near' ? wrT('sius.st_near') : wrT('sius.st_bad'))]);
     return '<div class="sius-row x-r ' + r.status + sel + (r.sighter ? ' sg' : '') + (r.missing ? ' miss' : '') + (q.fb ? ' fb' : '') + '" data-row="' + r.i + '" data-why="' + esc(whyCodes(r, q)) + '" role="listitem" tabindex="0" aria-label="' + esc(lbl) + '">' +
       '<span class="lt">' + lt + '</span><span class="n" data-f="n">' + (pnOf(q) == null ? '–' : pnOf(q)) + '</span>' +
-      '<span class="tm' + cf('t') + '" data-f="t">' + v('t', esc(q.t)) + '</span>' +
+      '<span class="tm' + (r.tMark ? ' tmk' : cf('t')) + '" data-f="t">' + v('t', esc(q.t)) + (r.tMark ? tMarkHTML(r) : '') + '</span>' +
       '<span class="sc' + cf('dec') + (q.decCalc || q.decSub ? ' calc' : '') + '" data-f="dec"' + (q.decCalc || q.decSub ? ' title="' + esc(wrT(q.decSub ? 'sius.why3_decsub' : 'sius.why3_deccalc')) + '"' : '') + '>' + v('dec', (q.dec == null ? '' : q.decCalc || q.decSub ? '<u>' + f1(q.dec) + '</u>' : f1(q.dec)) + (q.inner ? '*' : '') + (r.orange && r.calc ? '<small class="x-oc">' + esc(calcTx(q, r.calc)) + '</small>' : '') + (q.dec != null && !hasXY(q) ? '<small class="x-nxy">' + esc(wrT('sius.noxy_tag')) + '</small>' : '')) + '</span>' +
       '<span class="xy' + cf('x') + '" data-f="x">' + v('x', q.x == null ? '' : f2(q.x)) + '</span><span class="xy' + cf('y') + '" data-f="y">' + v('y', q.y == null ? '' : f2(q.y)) + '</span>' +
       '<span class="ar">' + dirCell(t, q) + '</span><span class="pe">' + PEN + '</span></div>';
@@ -722,13 +726,14 @@
     if (!r) return ''; var w = (r.why || []).slice();
     (r.conflict || []).forEach(function (c) { w.push('conflict:' + c); });
     (r.miss || []).forEach(function (c) { w.push('miss:' + c); });
+    (r.tMark || []).forEach(function (c) { w.push(c); }); // v3.1.3：時間記號的原因
     if (r.tWarn) w.push('tWarn'); if (r.missing) w.push('missing'); if (r.innerOk === false) w.push('inner'); if (r.diff != null && r.diff > 0) w.push('diff:' + r.diff);
     if (r.orange) w.push('orange'); if (q && q.okd) w.push('userOk');
     if (r.cons && r.cons.length) w.push('cons:' + r.cons.join('+'));
     var seen = {}; return w.filter(function (c) { if (seen[c]) return false; seen[c] = 1; return true; }).join('|');
   }
   function whyLine(r, q) { // v3.1.2：編輯框裡列出原因代碼；重開的紀錄另外列存檔當時的燈號／原因
-    var c = whyCodes(r, q), h = c ? '<small class="sius-wc">' + esc(wrT('sius.why_codes', [c])) + '</small>' : '';
+    var c = whyCodes(r, q), h = (r.tMark ? '<small class="sius-wc sius-tmk-n">' + esc(wrT('sius.tmk', [tMarkTx(r)])) + '</small>' : '') + (c ? '<small class="sius-wc">' + esc(wrT('sius.why_codes', [c])) + '</small>' : '');
     if (q && (q.lt0 || q.why0)) h += '<small class="sius-wc">' + esc(wrT('sius.why_saved', [{ g: wrT('sius.st_ok'), y: wrT('sius.st_near'), r: wrT('sius.st_bad') }[q.lt0] || '—', q.why0 || '—'])) + '</small>';
     return h;
   }

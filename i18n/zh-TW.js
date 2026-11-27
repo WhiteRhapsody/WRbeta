@@ -1659,7 +1659,14 @@
   "sius.why_codes": "原因代碼：{0}",
   "sius.why_saved": "存檔當時：{0}・{1}",
   "home.v312_3": "燈號最後加一致性檢查：只因讀取把握不足的黃燈，分數與座標重算一致、時間接得上就改綠；時間重複／接不上／缺、分數座標不符、缺座標照樣亮黃",
-  "home.v312_4": "每發存檔會記下燈號和亮燈原因代碼，重開與上傳檢視資料都看得到"
+  "home.v312_4": "每發存檔會記下燈號和亮燈原因代碼，重開與上傳檢視資料都看得到",
+  "sius.tmk": "時間記號：{0}（不影響燈號）",
+  "sius.tmk_twarn": "跟前後發接不上",
+  "sius.tmk_miss": "沒讀到時間",
+  "sius.tmk_cfl": "幾張照片讀到的時間不一樣",
+  "sius.tmk_dup": "跟別發時間重複",
+  "sius.tmk_fix": "分鐘十位數是依前後發補回的",
+  "home.v313_1": "時間的問題（接不上、重複、沒讀到、補回的）不再亮黃燈，只在時間旁打一個小時鐘記號；燈號只看分數和座標"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["zh-TW"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);
