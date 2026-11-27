@@ -41,7 +41,7 @@ self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   if (/\/vendor\/ppocr\//.test(new URL(req.url).pathname)) {
-    e.respondWith(caches.open(PP_CACHE).then(function (c) { return c.match(req, { ignoreSearch: true }).then(function (r) { return r || fetch(req, { cache: 'reload' }).then(function (r2) { if (r2 && r2.ok && r2.status === 200) c.put(req, r2.clone()).catch(function () {}); return r2; }); // 手機空間不夠存不進去 → 照樣用這次下載的 }); }));
+    e.respondWith(caches.open(PP_CACHE).then(function (c) { return c.match(req, { ignoreSearch: true }).then(function (r) { return r || fetch(req, { cache: 'reload' }).then(function (r2) { if (r2 && r2.ok && r2.status === 200) c.put(req, r2.clone()).catch(function () {}); return r2; }); }); })); // c.put 失敗（手機空間不夠）不噴錯，照樣用這次下載的
     return;
   }
   if (/\/vendor\/tesseract\//.test(new URL(req.url).pathname)) {
