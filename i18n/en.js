@@ -1589,6 +1589,7 @@
   "home.v300_4": "Choose a font (Zev Hei) in Settings; send beta-test reports to improve reading",
   "home.v301_1": "Pistol qualification compares whole numbers: the X/Y score is rounded down (8.0–8.9 counts as 8), subtotals too; backup-engine shots can go green when they match",
   "home.v301_2": "Opening a shot to edit no longer pops up the keyboard; tap a field when you want to type",
+  "home.v311_1": "Owner tool \"Upload photos to Drive\" is now live: the first tap opens a Google sign-in window, and photos go to a daily folder in your Drive (created automatically)",
   "home.v310_1": "Take several photos, then tap Start analysis: each row is voted across photos, and later photos skip sections that are already green. One photo is enough; more is more accurate",
   "home.v310_2": "Shots with a score but no coordinates can be saved and the score counts (marked \"no XY\"; the dashed estimated hole is left out of analysis). When score and coordinates disagree the score wins, marked yellow; a missing score is calculated from coordinates or the subtotal and underlined",
   "home.v310_3": "Better slip reading: fixed column bands, zoomed re-reads where a row looks missing, arrows masked before OCR, a pixel check for minus signs on Y, and a missing minute tens digit filled from the neighbouring shots",

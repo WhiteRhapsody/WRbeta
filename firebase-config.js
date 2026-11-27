@@ -18,4 +18,4 @@ window.WR_FIREBASE_CONFIG = {
 window.WR_AUTH_PROVIDERS = ['google'];
 /* v3.1.0 站長工具「照片上傳 Drive」用的 OAuth 用戶端 ID（Web 應用程式，scope 只有 drive.file）。
  * 空字串＝還沒設定：按鈕會顯示「設定中」，不會出錯。設定步驟見 PROGRESS.md / oauth_steps_zh.md。用戶端 ID 不是密碼，可以公開。 */
-window.WR_DRIVE_CLIENT_ID = '';
+window.WR_DRIVE_CLIENT_ID = '1014563659839-900gi8am3r7ejqts10vkauaen74g9mf7.apps.googleusercontent.com'; // v3.1.1：wrbeta-81118 的網頁應用程式用戶端（來源 https://whiterhapsody.github.io）
