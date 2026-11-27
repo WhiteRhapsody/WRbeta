@@ -1412,7 +1412,7 @@ body.nv-bulge:not(.lite).nav-a .wr-nav button.nv-main{margin-top:-12px}
 .mb-modal-bg .mb-who b{color:inherit}
 
 /* --- 唯讀檢視、隱私權政策（全頁） --- */
-.mb-view{position:fixed;inset:0;z-index:45;display:flex;flex-direction:column;background:var(--w-page,#f2ecdd),var(--w-page0,#f2ecdd);background-color:#f2ecdd;color:var(--w-tx,#1d1d1b)}
+.mb-view{position:fixed;inset:0;z-index:45;display:flex;flex-direction:column;background:var(--w-page,#f2ecdd);background-color:var(--w-page0,#f2ecdd);color:var(--w-tx,#1d1d1b)} /* v3.1.4：原本兩層寫法遇到最後一層已經是顏色的主題（運動）整條失效 → 淺底淺字 */
 .mb-view-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:calc(4px + env(safe-area-inset-top)) 10px 0}
 .mb-view-top .x{min-height:44px;padding:0 8px;font-size:15px;font-weight:800;background:none;border:0;box-shadow:none;color:var(--w-tx)}
 .mb-ro{font-size:12.5px;font-weight:800;color:var(--w-tx2);background:var(--w-th);border:1px solid var(--w-cardBd);border-radius:999px;padding:3px 10px;text-decoration:none}
@@ -1433,6 +1433,12 @@ body.mb-view-open{overflow:hidden}
 .mb-priv-body table{border-collapse:collapse;width:100%;font-size:13.5px}
 .mb-priv-body th,.mb-priv-body td{border:1px solid var(--w-cardBd,#dfd6c2);padding:6px 7px;text-align:left;vertical-align:top}
 .mb-priv-body .todo{background:#fff1c2;color:#5a4300;border:1px dashed #c99a00;padding:0 5px;border-radius:4px}
+/* v3.1.4 開源授權頁（跟隱私權政策同一個 mb-view；顏色全用主題變數） */
+.mb-oss-body .oss-tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mb-oss-body .oss-tw table{min-width:560px}
+.mb-oss-body .oss-d{margin:6px 0 10px;border:1px solid var(--w-cardBd,#dfd6c2);border-radius:10px;padding:2px 10px;background:var(--w-card,transparent)}
+.mb-oss-body .oss-d summary{cursor:pointer;min-height:40px;display:flex;align-items:center;font-weight:700;font-size:14px;color:var(--w-tx)}
+.mb-oss-body .oss-pre{white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;max-height:60vh;overflow:auto;margin:4px 0 10px;padding:8px;border-radius:8px;background:var(--w-line,rgba(0,0,0,.05));color:var(--w-tx)}
 .mb-priv-body a{color:var(--w-accTxt,#c24d0c)}
 .appver .wr-priv-link{margin-left:2px}
 

@@ -16,7 +16,7 @@
   function S0() { return root.WRSius || (isNode ? require('./sius.js') : null); }
   function AR() { return root.WRSiusArrow || (isNode ? (function () { try { return require('./sius-arrow.js'); } catch (e) { return null; } })() : null); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
-  var RULES = { consist: 1, lenient: 1, dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 0, signFlip: 1, fbCap: 0, arrow: 1 };
+  var RULES = { consist: 1, lenient: 1, dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 0, signFlip: 1, fbCap: 0, arrow: 1, pp: 1 };
   function key(q) { return (q.sighter ? 'Q' : 'M') + q.n; }
   function down(r, why) { if (r._ed) return; if (r.status === 'ok') { r.status = 'near'; (r.why = r.why || []).push(why); } }
   var CONS_OK = /^(fieldW:[xy]+|xyAlt|sign:[xy]|sReads|arrowFix)$/; // v3.1.2：只代表「OCR 沒把握」的黃燈原因（arrow＝箭頭跟座標對不上，不在內）
@@ -103,6 +103,15 @@
         var cw = w.filter(function (c) { return c !== 'soft'; }); r.status = 'ok'; r.soft = 0; if (cw.length) r.cons = cw; r.why = [];
       });
     }
+    // v3.1.4 混合引擎：原引擎跟 Paddle 讀到的值不一樣 → 一定黃燈（就算上面一致性檢查已經降回綠）；時間用了 Paddle 的 → 時間記號 ppT（不影響燈號）
+    if (opt.pp !== 0) rows.forEach(function (r) {
+      var q = shots[r.i], o = q && q.ocr; if (!o || r._ed) return;
+      if (o.ppT && opt.tMark !== 0) { r.tMark = (r.tMark || []).concat(r.tMark && r.tMark.indexOf('ppT') >= 0 ? [] : ['ppT']); }
+      if (!o.ppDiff || !o.ppDiff.length) return;
+      var code = 'ocrDiff:' + o.ppDiff.join(''); r.why = (r.why || []).filter(function (c) { return !/^ocrDiff:/.test(c); }); r.why.unshift(code);
+      if (r.status === 'ok') { r.status = 'near'; r.cons = null; }
+      else if (r.status === 'bad' && o.ppAlt && o.ppAlt.ok && q.dec != null && isFinite(q.dec) && q.x != null && q.y != null) { r.status = 'near'; r.soft = 1; } // 只有「用了 Paddle 的值之後分數、座標重算對得上」的紅才降黃（Gemini 審查：不可一律降）
+    });
     // v3.0.2（White 2026-11-27）：逐發編輯按「保存」＝當綠燈
     rows.forEach(function (r) { if (shots[r.i] && shots[r.i].okd) { r.status = 'ok'; r.orange = false; r.why = []; r.cons = null; } });
     ck.bad = rows.filter(function (r) { return r.status === 'bad'; }).length + ck.series.filter(function (x) { return x.status === 'bad'; }).length + (ck.total && ck.total.status === 'bad' ? 1 : 0);
@@ -327,11 +336,105 @@
     });
     return n;
   }
+  /* v3.1.4 混合引擎（White 2026-11-27 21:09「hotfix it」）：PaddleOCR（sius-pp.js，整行讀）當第二雙眼睛。
+   *   逐發比對原引擎跟 Paddle 的分數（含內十）、X、Y：一致＝不動（原本的規則照舊決定燈號）；不一致＝這發黃燈（原因 ocrDiff:d／x／y），
+   *   畫面顯示「用哪個值」：分數＝座標重算的組合優先（對得上的才採用）→ 箭頭方向對得上 → Paddle 的值（整行讀，比較不會整列抄到別列）。
+   *   Paddle 常漏 Y（也會漏 X）的負號：原引擎是負、Paddle 是正 → 多一個「Paddle 數字＋原引擎負號」的選項。
+   *   Paddle 沒讀到這一發（或某一欄）＝沒有證據，照原引擎；原引擎沒讀到的欄位 → 用 Paddle 補（黃燈）。使用者改過的發不動。 */
+  var PPF = ['d', 'x', 'y'];
+  function ppKey(q) { return q.pn != null ? q.pn : q.n; }
+  function near1(a, b) { var s1 = Math.abs(a).toFixed(2), s2 = Math.abs(b).toFixed(2); if (s1 === s2) return true; if (s1.length !== s2.length) return false; var d = 0; for (var i = 0; i < s1.length; i++) if (s1[i] !== s2[i]) d++; return d <= 1; }
+  function hybrid(model, ppPasses) {
+    if (!ppPasses || !ppPasses.length || !model || !model.shots) return null;
+    var pm; try { pm = X().merge(ppPasses, { targetId: model.targetId }); } catch (e) { return null; }
+    var C = C0(), T = C.TARGETS[model.targetId] || C.TARGETS.ar10, A = AR(), sec = X().secOf, used = {}, st = { n: 0, same: 0, diff: 0, miss: 0, fill: 0 };
+    stampInt(model);
+    var multi = model.shots.some(function (q) { return q.blk; }) || pm.shots.some(function (f) { return f.blk; }), byT = {};
+    model.shots.forEach(function (q) { if (q.t) (byT[q.t] = byT[q.t] || []).push(q); });
+    // 第一輪：配對（試射／正式＋印的發號；序號重編時時間要接近）
+    var match = [], orphan = []; // ES5：用 shots 的索引記配到哪一列（不用 Map）
+    var idxOf = function (q) { return model.shots.indexOf(q); };
+    model.shots.forEach(function (q) {
+      if (q.n == null || q.ed || (q.ocr && q.ocr.ppDone)) return;
+      var best = -1, bd = 1e9;
+      pm.shots.forEach(function (f, j) {
+        if (used[j] || (!model.practice && !!f.sighter !== !!q.sighter) || ppKey(f) !== ppKey(q) || (f.dec == null && f.x == null && f.y == null)) return; // Paddle 整行沒讀到的空列不算
+        var a = sec(q.t), b = sec(f.t), d = a == null || b == null ? 0 : Math.min(Math.abs(a - b), 3600 - Math.abs(a - b));
+        if (multi && a != null && b != null && d > 90) return;
+        if (multi && (a == null || b == null) && (f.blk || 0) !== (q.blk || 0)) return;
+        if (d < bd) { bd = d; best = j; }
+      });
+      if (best < 0) return;
+      var f = pm.shots[best];
+      // Paddle 這一列其實是原引擎另一發的那一行（時間一模一樣、X 或 Y 也一樣）→ 對錯列了：不拿來比這一發，留給真正那一發
+      var own = f.t && byT[f.t] ? byT[f.t].filter(function (q2) { return q2 !== q && ((q2.x != null && f.x != null && Math.abs(Math.abs(q2.x) - Math.abs(f.x)) < 0.005) || (q2.y != null && f.y != null && Math.abs(Math.abs(q2.y) - Math.abs(f.y)) < 0.005)); }) : [];
+      var own1 = own.filter(function (q2) { return model.practice || !!q2.sighter === !!f.sighter; });
+      if (own.length && f.t !== q.t) { if (own1.length === 1) orphan.push({ q: own1[0], j: best }); (q.ocr = q.ocr || {}).ppMis = 1; return; }
+      used[best] = 1; match[idxOf(q)] = f;
+    });
+    orphan.forEach(function (z) { if (!match[idxOf(z.q)] && !used[z.j] && !z.q.ed) { used[z.j] = 1; match[idxOf(z.q)] = pm.shots[z.j]; } });
+    // 第二輪：逐發比對
+    model.shots.forEach(function (q) {
+      if (q.n == null) return; var o = q.ocr = q.ocr || {}; if (o.ppDone) return; o.ppDone = 1; st.n++;
+      var f = match[idxOf(q)];
+      if (!f) { o.pp = null; st.miss++; return; }
+      var P = { d: f.dec != null && isFinite(f.dec) ? f.dec : null, inner: !!f.inner, x: f.x != null && isFinite(f.x) ? f.x : null, y: f.y != null && isFinite(f.y) ? f.y : null, t: f.t || null };
+      var E = { d: q.dec != null && isFinite(q.dec) ? q.dec : null, inner: !!q.inner, x: q.x != null && isFinite(q.x) ? q.x : null, y: q.y != null && isFinite(q.y) ? q.y : null, t: q.t || null };
+      o.pp = P; if (q.ed) return;
+      // Paddle 幾張照片（或同一張幾種讀法）讀到的所有值（f.ocr.alt）裡只要有一個跟原引擎一樣 → 算一樣（兩套各自讀到同一個值＝互相印證；不讓 Paddle 某一張讀歪、或多出來的假行把對的值改掉）
+      var pa = f.ocr && f.ocr.alt || {}, inAlt = function (k, v) { var l = pa[k === 'd' ? 'dec' : k]; return !!(l && l.some(function (z) { return z != null && Math.abs(z - v) < 0.005; })); };
+      var same = function (k) { if (k === 'd') return E.d != null && P.d != null && (Math.round(E.d * 10) === Math.round(P.d * 10) || inAlt('d', E.d)) && (E.d < 10 || E.inner === P.inner); return E[k] != null && P[k] != null && (Math.abs(E[k] - P[k]) < 0.005 || inAlt(k, E[k])); };
+      var diff = PPF.filter(function (k) { return P[k] != null && !same(k); });
+      if (!diff.length) { st.same++; o.ppSame = 1; return; }
+      // 每個不一樣的欄位列出選項，挑分數＝座標重算的組合
+      var opts = {}; PPF.forEach(function (k) {
+        if (diff.indexOf(k) < 0) { opts[k] = [{ v: E[k] != null ? E[k] : P[k], inner: E[k] != null ? E.inner : P.inner, src: E[k] != null ? 'e' : 'p' }]; return; }
+        var l = []; if (E[k] != null) l.push({ v: E[k], inner: E.inner, src: 'e' }); l.push({ v: P[k], inner: P.inner, src: 'p' });
+        // 正負號：兩邊數字差不多（最多差一個字）、只有一邊看到負號 → 「看到的負號」比「沒看到」可靠（兩套都會漏負號），數字用 Paddle 的
+        if (k !== 'd' && E[k] != null && (E[k] < 0) !== (P[k] < 0) && near1(E[k], P[k])) { l = l.filter(function (z) { return Math.abs(z.v + Math.abs(P[k])) > 0.005; }); l.push({ v: -Math.abs(P[k]), src: 'pn' }); }
+        opts[k] = l;
+      });
+      var ad = A && A.sure(o.arw) ? o.arw.dir : null, top = null;
+      opts.d.forEach(function (od) { opts.x.forEach(function (ox) { opts.y.forEach(function (oy) {
+        var qq = { dec: od.v, inner: od.inner, decInt: q.decInt }, ok = od.v != null && ox.v != null && oy.v != null && fits(T, qq, ox.v, oy.v, true);
+        var arr = ad && ox.v != null && oy.v != null && A.compat(ox.v, oy.v, ad) ? 1 : 0, np = [od, ox, oy].filter(function (z) { return z.src !== 'e'; }).length, sg = [ox, oy].filter(function (z) { return z.src === 'pn'; }).length;
+        var sc = (ok ? 100 : 0) + arr * 10 + sg * 3 + np * 2;
+        if (!top || sc > top.sc) top = { sc: sc, d: od, x: ox, y: oy, ok: ok };
+      }); }); });
+      if (!top) return;
+      st.diff++; o.ppDiff = diff.slice(); o.ppAlt = { e: E, p: P, ok: top.ok };
+      if (E.d == null || E.x == null || E.y == null) st.fill++;
+      var whole = top.d.src !== 'e' && top.x.src !== 'e' && top.y.src !== 'e';
+      q.dec = top.d.v; if (top.d.src !== 'e') { q.inner = !!top.d.inner; q.decCalc = 0; q.decSub = 0; if (q.ocr) q.ocr.missing = false; }
+      q.x = top.x.v; q.y = top.y.v;
+      if (P.t && (!E.t || whole) && P.t !== E.t) { o.ppT = { from: E.t || null }; q.t = P.t; }
+      if (top.x.src !== 'e' || top.y.src !== 'e') { o.xyPick = 1; o.rpXY = 1; o.conflict = (o.conflict || []).filter(function (c) { return c !== 'x' && c !== 'y'; }); o.alt = null; } // 已經用 Paddle 決定過 X/Y，原引擎不再拿備選讀法改回去
+      if (top.d.src !== 'e') o.conflict = (o.conflict || []).filter(function (c) { return c !== 'dec'; });
+      if (whole) o.conflict = (o.conflict || []).filter(function (c) { return c !== 't'; });
+    });
+    // 時間再對一次：Paddle 某一行的 X/Y 跟這一發最後的 X/Y 兩個都一模一樣 → 那一行的時間就是這一發的（合併時時間可能被隔壁行拉走）。
+    // 所有這樣的行時間都一樣、跟前後發接得上、也不是別發的時間，才換成 Paddle 的，並打時間記號 ppT（時間只打記號、不影響燈號）
+    var tl = []; ppPasses.forEach(function (p) { (p.lines || []).forEach(function (l) { var m = /(\d{2}:[0-5]\d\.\d{2})\D{0,4}?(-?\d{1,2}\.\d{2})\s*\/\s*(-?\d{1,2}\.\d{2})/.exec(String(l)); if (m) tl.push({ t: m[1], x: Math.abs(+m[2]), y: Math.abs(+m[3]) }); }); });
+    var allT = {}; model.shots.forEach(function (q) { if (q.t) allT[q.t] = (allT[q.t] || 0) + 1; });
+    model.shots.forEach(function (q, i) {
+      var o = q.ocr; if (!o || !o.pp || q.ed || q.x == null || q.y == null) return;
+      var ts = {}; tl.forEach(function (z) { if (Math.abs(z.x - Math.abs(q.x)) < 0.005 && Math.abs(z.y - Math.abs(q.y)) < 0.005) ts[z.t] = 1; });
+      var k = Object.keys(ts); if (k.length !== 1 || k[0] === q.t || allT[k[0]]) return;
+      var s0 = sec(k[0]), prv = null, nxt = null, j;
+      for (j = i - 1; j >= 0; j--) { var a = model.shots[j]; if (!!a.sighter !== !!q.sighter) break; if (a.t && sec(a.t) != null) { prv = sec(a.t); break; } }
+      for (j = i + 1; j < model.shots.length; j++) { var b = model.shots[j]; if (!!b.sighter !== !!q.sighter) break; if (b.t && sec(b.t) != null) { nxt = sec(b.t); break; } }
+      if (s0 == null || (prv != null && s0 < prv) || (nxt != null && s0 > nxt)) return;
+      if (q.t) allT[q.t]--; allT[k[0]] = 1; o.ppT = o.ppT || { from: q.t || null }; q.t = k[0];
+      o.conflict = (o.conflict || []).filter(function (c) { return c !== 't'; });
+    });
+    model.pp = st; return st;
+  }
   // 讀法 → 模型：M6b 合併；有備援讀法就補紅列
-  function build(passes, fbPasses, mopt) {
+  function build(passes, fbPasses, mopt, ppPasses) {
     var t0 = now(), m = X().merge(passes, mopt || {}), t1 = now(), nf = 0;
     if (fbPasses && fbPasses.length) { var fm = S0().merge(fbPasses, { targetId: m.targetId }); nf = fill(m, fm); }
-    m.v3 = { merge: Math.round(t1 - t0), fill: Math.round(now() - t1), filled: nf };
+    var t2 = now(); if (ppPasses && ppPasses.length && RULES.pp) { try { hybrid(m, ppPasses); } catch (e) { m.pp = { err: String(e && e.message || e) }; } } // v3.1.4 混合引擎
+    m.v3 = { merge: Math.round(t1 - t0), fill: Math.round(t2 - t1), filled: nf, pp: Math.round(now() - t2) };
     return m;
   }
   /* 整套流程（瀏覽器）：M6b 讀照片 → 合併核對 → 有紅／沒讀到 → 現有引擎讀同一批照片 → 補列。
@@ -366,22 +469,40 @@
         return one(i + 1);
       });
     }
+    // v3.1.4 混合引擎：Paddle（sius-pp.js）跟原引擎同時開始讀（它在自己的 worker 裡跑，不卡畫面）；失敗／不支援＝沒有 ppPasses，照原引擎
+    var PPm = root.WRSiusPP, ppP = null, tp = now();
+    if (PPm && RULES.pp && opt.pp !== 0 && nf) { ppP = PPm.run(files, { imgBase: base, cancelled: opt.cancelled }).then(function (r) { lg('pp', r.timing); return r; }, function (e) { if (e && e.cancel) return { cancel: true }; lg('ppErr', String(e && e.message || e).slice(0, 80)); return { err: 1 }; }); }
+    function withPP(res) {
+      if (!ppP) return res;
+      if (opt.cancelled && opt.cancelled()) { try { PPm.stop(); } catch (e) {} return res; } // 取消了：不等 Paddle
+      prog(0.99, 'pp');
+      return ppP.then(function (pr) {
+        if (!pr || pr.err || pr.cancel || !pr.passes) return res;
+        // 保險：原引擎轉正的角度跟 Paddle 自己判斷的不一樣 → 那張的 Paddle 讀法不用（避免整張讀歪造成一堆假黃燈）
+        var rot = {}; (info && info.images || []).forEach(function (im) { rot[im.img] = im.rot; });
+        var pim = {}; (pr.info && pr.info.images || []).forEach(function (im) { pim[im.img] = im.rot; });
+        var lastImg = T.skipped ? base + nf - T.skipped : Infinity; // 原引擎已經全綠而跳過的照片，Paddle 的讀法也不用
+        res.ppPasses = pr.passes.filter(function (p) { return p.img < lastImg; }).filter(function (p) { return rot[p.img] == null || pim[p.img] == null || ((rot[p.img] - pim[p.img]) % 360 + 360) % 360 === 0; });
+        T.ppDrop = pr.passes.length - res.ppPasses.length; T.ppWait = Math.round(now() - tp); lg('total', Math.round(now() - t0));
+        return res;
+      });
+    }
     return one(0).then(function () {
       lg('m6b', sumT);
       var ta = now(), m = X().merge(prior.concat(all), mopt), tb = now(), ck = check(m), tc = now();
       lg('merge', Math.round(tb - ta)); lg('check', Math.round(tc - tb));
-      if (!OCR || !needFallback(m, ck) || (opt.cancelled && opt.cancelled())) { lg('total', Math.round(now() - t0)); return { passes: all, fbPasses: [], timing: T, info: info }; }
+      if (!OCR || !needFallback(m, ck) || (opt.cancelled && opt.cancelled())) { lg('total', Math.round(now() - t0)); return withPP({ passes: all, fbPasses: [], timing: T, info: info }); }
       var td = now(); T.fbRun = true; prog(0.8, 'fallback');
       var fbFiles = T.skipped ? files.slice(0, nf - T.skipped) : files; // 跳過的照片備援也不讀
       return OCR.run(fbFiles, { imgBase: base, cancelled: opt.cancelled, onProgress: function (p) { prog(0.8 + p * 0.19, 'fallback'); }, more: function (np) { try { var S = S0(), ck2 = S.check(S.merge(np, {})); return ck2.bad > 0 || ck2.rows.some(function (x) { return x.missing; }); } catch (e) { return false; } } }).then(function (r2) {
         try { OCR.stop(); } catch (e) {}
         lg('fallback', Math.round(now() - td)); lg('total', Math.round(now() - t0));
-        return { passes: all, fbPasses: r2.passes || [], timing: T, info: info };
+        return withPP({ passes: all, fbPasses: r2.passes || [], timing: T, info: info });
       });
     });
   }
-  function stop() { try { if (root.WRSiusX) root.WRSiusX.stop(); } catch (e) {} try { if (root.WRSiusOCR) root.WRSiusOCR.stop(); } catch (e) {} }
-  var api = { RULES: RULES, tFix: tFix, decFill: decFill, xyRepair: xyRepair, guessXY: guessXY, digitEdits: digitEdits, intSheet: intSheet, rules: rules, check: check, arrowFix: arrowFix, hours: hours, swap17: swap17, blocking: blocking, needFallback: needFallback, fill: fill, build: build, run: run, stop: stop, key: key,
+  function stop() { try { if (root.WRSiusX) root.WRSiusX.stop(); } catch (e) {} try { if (root.WRSiusOCR) root.WRSiusOCR.stop(); } catch (e) {} try { if (root.WRSiusPP) root.WRSiusPP.stop(); } catch (e) {} }
+  var api = { RULES: RULES, hybrid: hybrid, tFix: tFix, decFill: decFill, xyRepair: xyRepair, guessXY: guessXY, digitEdits: digitEdits, intSheet: intSheet, rules: rules, check: check, arrowFix: arrowFix, hours: hours, swap17: swap17, blocking: blocking, needFallback: needFallback, fill: fill, build: build, run: run, stop: stop, key: key,
     problems: function (m, ck) { return X().problems(m, ck || check(m)); } };
   if (isNode) module.exports = api; else root.WRSiusV3 = api;
 })(typeof window !== 'undefined' ? window : this);

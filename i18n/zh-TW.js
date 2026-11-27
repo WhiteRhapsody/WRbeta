@@ -1666,7 +1666,20 @@
   "sius.tmk_cfl": "幾張照片讀到的時間不一樣",
   "sius.tmk_dup": "跟別發時間重複",
   "sius.tmk_fix": "分鐘十位數是依前後發補回的",
-  "home.v313_1": "時間的問題（接不上、重複、沒讀到、補回的）不再亮黃燈，只在時間旁打一個小時鐘記號；燈號只看分數和座標"
+  "home.v313_1": "時間的問題（接不上、重複、沒讀到、補回的）不再亮黃燈，只在時間旁打一個小時鐘記號；燈號只看分數和座標",
+  "h.open_source_licenses": "開源授權",
+  "member.oss_title": "開源授權",
+  "member.oss_row": "<button type=\"button\" class=\"pf-row wr-oss-link\"><span class=\"wide\">開源授權</span><em>第三方套件、模型與字型的授權聲明</em>{0}</button>",
+  "member.oss_view": "<div class=\"mb-view-top\"><button type=\"button\" class=\"x\">‹ 返回</button><a class=\"mb-ro\" href=\"{0}\" target=\"_blank\" rel=\"noopener\">在瀏覽器開啟</a></div><div class=\"mb-view-body prose mb-priv-body mb-oss-body\" id=\"mbOssBody\"><p class=\"lbl\">載入中…</p></div>",
+  "member.oss_offline": "<h1>開源授權</h1><p>這個版本（單檔版或離線）沒辦法載入完整內容，請用網址版開啟：</p><p><a href=\"{0}\" target=\"_blank\" rel=\"noopener\">{1}</a></p>",
+  "sius.why3_ocrdiff": "兩套辨識讀到的不一樣：{0}，請看單子核對",
+  "sius.ocrdiff_item": "{0} 原引擎 {1}／新辨識 {2}",
+  "sius.ocrdiff_use": "（目前用 {0}）",
+  "sius.cf_d": "分數",
+  "sius.tmk_pp": "時間採用新辨識讀到的",
+  "sius.ocr_pp": "新辨識（PaddleOCR）比對中…",
+  "home.v314_1": "小白單改成混合引擎：加一套新的辨識（PaddleOCR，在手機上跑、第一次約下載 21 MB，之後可離線）跟原本的引擎逐發比對，兩邊讀到的一樣才給綠燈，不一樣就亮黃燈；新辨識不能用時自動退回原本的引擎",
+  "home.v314_2": "設定/說明 › 說明 加一張「開源授權」，列出所有第三方套件、模型和字型的授權與聲明全文"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["zh-TW"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -65,7 +65,7 @@
   function fresh() {
     if (st && st.busy) { st.cancel = true; stopAll(); }
     freeUrls();
-    st = { model: null, ck: null, sel: null, recId: null, files: [], urls: [], passes: [], fbPasses: [], tgUser: null, edits: {}, subEd: {}, totEd: null, metaEd: {}, log: [], busy: false, cancel: false, gunAsked: false, timing: null, cur: 0, scope: 'all', t0: Date.now(), nDone: 0 };
+    st = { model: null, ck: null, sel: null, recId: null, files: [], urls: [], passes: [], fbPasses: [], ppPasses: [], tgUser: null, edits: {}, subEd: {}, totEd: null, metaEd: {}, log: [], busy: false, cancel: false, gunAsked: false, timing: null, cur: 0, scope: 'all', t0: Date.now(), nDone: 0 };
     var a = $('siusAsk'); if (a) a.remove();
   }
 
@@ -129,12 +129,13 @@
     p.then(function (res) {
       if (st !== my || fin) return; fin = true; my.abort = null;
       if (my.cancel) { done({ cancel: true }); return; }
-      my.passes = my.passes.concat(res.passes || []); my.fbPasses = my.fbPasses.concat(res.fbPasses || []);
+      var nP0 = my.passes.length, nF0 = my.fbPasses.length, nQ0 = (my.ppPasses || []).length;
+      my.passes = my.passes.concat(res.passes || []); my.fbPasses = my.fbPasses.concat(res.fbPasses || []); my.ppPasses = (my.ppPasses || []).concat(res.ppPasses || []); // v3.1.4 混合引擎
       my.busy = false; stopAll(); my.nDone = my.files.length; my.skipped = res.timing && res.timing.skipped || 0;
-      var tb = Date.now(), m = buildModel(my.passes, my.fbPasses);
+      var tb = Date.now(), m = buildModel(my.passes, my.fbPasses, my.ppPasses);
       my.timing = res.timing ? JSON.parse(JSON.stringify(res.timing)) : null; if (my.timing) my.timing.build = Date.now() - tb; else my.timing = { total: Date.now() - my.t0 };
       my.timing.n = my.files.length;
-      if (!m.shots.length) { my.files.splice(base); my.urls.splice(base).forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} }); my.nDone = base; my.model = my.model && my.model.shots.length ? my.model : null; recheck(); toast(wrT('sius.ocr_none'), 4200); return; }
+      if (!m.shots.length) { my.passes.splice(nP0); my.fbPasses.splice(nF0); if (my.ppPasses) my.ppPasses.splice(nQ0); my.files.splice(base); my.urls.splice(base).forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} }); my.nDone = base; my.model = my.model && my.model.shots.length ? my.model : null; recheck(); toast(wrT('sius.ocr_none'), 4200); return; }
       my.model = m; my.sel = null; my.cur = 0; recheck();
       toast(my.ck.bad || my.ck.near ? wrT('sius.read_ok', [my.ck.nSighter, my.ck.nMatch, PROB(m, my.ck).length]) : wrT('sius.read_ok_all', [my.ck.nSighter, my.ck.nMatch]), 3600);
       if (!my.tgUser && !my.gunAsked && !(m.gun && m.gun.sure)) askGun(); else gunFlow();
@@ -150,12 +151,12 @@
   function prog(p, phase) {
     if (!built || !st) return;
     $('siusPbar').style.width = Math.round(p * 100) + '%';
-    $('siusPtx').textContent = phase === 'load' ? wrT('sius.ocr_load') : phase === 'fallback' ? wrT('sius.ocr_fb', [Math.round(p * 100)]) : wrT('sius.ocr_read', [Math.round(p * 100), st.files.length]);
+    $('siusPtx').textContent = phase === 'load' ? wrT('sius.ocr_load') : phase === 'pp' ? wrT('sius.ocr_pp') : phase === 'fallback' ? wrT('sius.ocr_fb', [Math.round(p * 100)]) : wrT('sius.ocr_read', [Math.round(p * 100), st.files.length]);
   }
   function keyOf(q) { return (q.sighter ? 'Q' : 'M') + q.n; }
   // 讀法合併成模型（v3.0 beta：M6b 為主＋現有引擎補紅燈／沒讀到的發），再套上使用者已經改過的地方（加照片重新合併時不會把手改的蓋掉）
-  function buildModel(passes, fbPasses) {
-    var m = V3() && XC() ? V3().build(passes, fbPasses || [], { targetId: st.tgUser || undefined }) : S.merge(passes, { targetId: st.tgUser || undefined });
+  function buildModel(passes, fbPasses, ppPasses) {
+    var m = V3() && XC() ? V3().build(passes, fbPasses || [], { targetId: st.tgUser || undefined }, ppPasses || st.ppPasses || []) : S.merge(passes, { targetId: st.tgUser || undefined });
     if (!st.tgUser && !m.gun.id) { m.targetId = defTg(); m.gun.unverified = m.targetId === 'ap10'; }
     m.shots = m.shots.filter(function (q) {
       var e = st.edits[keyOf(q)]; if (!e) return true; if (e.del) return false;
@@ -283,7 +284,7 @@
   }
   // v3.1.3（White 2026-11-27 20:46）：時間的問題不亮燈，只在時間旁打一個小時鐘記號（顏色跟主題；點那一發，編輯框會寫時間記號的原因）
   var TMK = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3"/><path d="M8 4.6V8l2.4 1.6"/></svg>';
-  function tMarkTx(r) { return (r.tMark || []).map(function (c) { return wrT({ tWarn: 'sius.tmk_twarn', 'miss:t': 'sius.tmk_miss', 'conflict:t': 'sius.tmk_cfl', dupT: 'sius.tmk_dup', tFix: 'sius.tmk_fix', notime: 'sius.tmk_miss' }[c] || 'sius.tmk_twarn'); }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join('、'); }
+  function tMarkTx(r) { return (r.tMark || []).map(function (c) { return wrT({ tWarn: 'sius.tmk_twarn', 'miss:t': 'sius.tmk_miss', 'conflict:t': 'sius.tmk_cfl', dupT: 'sius.tmk_dup', tFix: 'sius.tmk_fix', notime: 'sius.tmk_miss', ppT: 'sius.tmk_pp' }[c] || 'sius.tmk_twarn'); }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join('、'); }
   function tMarkHTML(r) { var tx = wrT('sius.tmk', [tMarkTx(r)]); return '<i class="x-tmk" role="img" title="' + esc(tx) + '" aria-label="' + esc(tx) + '">' + TMK + '</i>'; }
   function rowHTML(r, t) {
     var q = st.model.shots[r.i], sel = st.sel && st.sel.type === 'row' && st.sel.i === r.i ? ' sel' : '';
@@ -349,7 +350,7 @@
   function ownMsg(t) { if (!st) return; st.ownMsg = t; var e = $('siusOwnSt'); if (e) e.textContent = t || ownSt(); }
   function rawModel() { // 引擎直接讀出來的結果（不套使用者改過的地方）
     if (!st.passes.length) return { m: st.model, ck: st.ck };
-    var m0 = V3() && XC() ? V3().build(st.passes, st.fbPasses || [], { targetId: st.model ? st.model.targetId : st.tgUser || undefined }) : S.merge(st.passes, { targetId: st.tgUser || undefined });
+    var m0 = V3() && XC() ? V3().build(st.passes, st.fbPasses || [], { targetId: st.model ? st.model.targetId : st.tgUser || undefined }, st.ppPasses || []) : S.merge(st.passes, { targetId: st.tgUser || undefined });
     if (st.model && !m0.gun.id) m0.targetId = st.model.targetId;
     return { m: m0, ck: CHK(m0) };
   }
@@ -389,7 +390,7 @@
     var O = OWN(); if (!O || !st || !st.model || st.busy || st.keeping) return;
     var my = st, id = my.scanId || ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), lt = lights(my.ck);
     var d = { id: id, v: 1, app: App.APP_LABEL || '', name: scanLabel(my.model), targetId: my.model.targetId, lights: lt,
-      model: jclone(my.model), passes: jclone(my.passes) || [], fbPasses: jclone(my.fbPasses) || [], edits: jclone(my.edits) || {}, subEd: jclone(my.subEd) || {}, totEd: jclone(my.totEd), metaEd: jclone(my.metaEd) || {},
+      model: jclone(my.model), passes: jclone(my.passes) || [], fbPasses: jclone(my.fbPasses) || [], ppPasses: jclone(my.ppPasses) || [], edits: jclone(my.edits) || {}, subEd: jclone(my.subEd) || {}, totEd: jclone(my.totEd), metaEd: jclone(my.metaEd) || {},
       tgUser: my.tgUser || null, timing: jclone(my.timing), log: jclone(my.log) || [], skipped: my.skipped || 0,
       photos: my.files.slice(0, my.nDone || my.files.length).map(function (f, i) { return { name: f.name || ('photo' + (i + 1) + '.jpg'), type: f.type || 'image/jpeg', blob: f }; }) };
     if (!d.model) { toast(wrT('sius.own_keep_fail', ['model']), 3600); return; }
@@ -411,7 +412,7 @@
       if (seq !== openSeq || (st && st.busy)) return;
       if (!d || !d.model) { toast(wrT('sius.own_scan_gone'), 3000); return; }
       build(); fresh();
-      st.model = d.model; st.passes = d.passes || []; st.fbPasses = d.fbPasses || []; st.edits = d.edits || {}; st.subEd = d.subEd || {}; st.totEd = d.totEd || null; st.metaEd = d.metaEd || {};
+      st.model = d.model; st.passes = d.passes || []; st.fbPasses = d.fbPasses || []; st.ppPasses = d.ppPasses || []; st.edits = d.edits || {}; st.subEd = d.subEd || {}; st.totEd = d.totEd || null; st.metaEd = d.metaEd || {};
       st.tgUser = d.tgUser || null; st.gunAsked = true; st.timing = d.timing || null; st.log = d.log || []; st.skipped = d.skipped || 0; st.scanId = d.id;
       st.files = (d.photos || []).filter(function (p) { return p && typeof Blob !== 'undefined' && p.blob instanceof Blob && p.blob.size > 0; }).map(function (p) { try { return new File([p.blob], p.name, { type: p.type }); } catch (e) { var b = p.blob; try { b.name = p.name; } catch (e2) {} return b; } });
       st.urls = st.files.map(function (f) { try { return URL.createObjectURL(f); } catch (e) { return ''; } }); st.nDone = st.files.length;
@@ -460,14 +461,15 @@
     try { raw = rawModel(); raw.m.shots.forEach(function (q) { if (q.n != null) rmap[keyOf(q)] = q; }); } catch (e) { raw = null; }
     var t = T(m.targetId), est = function (q) { if (hasXY(q) || q.dec == null || !V3() || !V3().guessXY) return null; try { return V3().guessXY(m, q); } catch (e) { return null; } };
     var rows = m.shots.map(function (q, i) {
-      var r = ck.rows[i] || {}, o = q.ocr || {}, rq = q.n != null ? rmap[keyOf(q)] : null, e = est(q), fl = [];
-      if (q.decCalc) fl.push('decCalc'); if (q.decSub) fl.push('decSub'); if (o.xyFix) fl.push('xyFix'); if (o.tFix) fl.push('tFix'); if (o.arrowFix) fl.push('arrowFix'); if (q.fb) fl.push('fb'); if (q.ed) fl.push('edited'); if (r.missing) fl.push('missing'); if (q.dec != null && !hasXY(q)) fl.push('noxy');
+      var r = ck.rows[i] || {}, o = q.ocr || {}, rq = q.n != null ? rmap[keyOf(q)] : null, e = est(q), fl = [], pp = o.pp || null;
+      if (q.decCalc) fl.push('decCalc'); if (q.decSub) fl.push('decSub'); if (o.xyFix) fl.push('xyFix'); if (o.tFix) fl.push('tFix'); if (o.arrowFix) fl.push('arrowFix'); if (q.fb) fl.push('fb'); if (q.ed) fl.push('edited'); if (r.missing) fl.push('missing'); if (q.dec != null && !hasXY(q)) fl.push('noxy'); if (o.ppSame) fl.push('ppSame'); if (o.ppDiff) fl.push('ppDiff'); if (o.ppDone && !pp) fl.push('ppNone');
       return { i: i + 1, sec: q.sighter ? 'P' : 'M', blk: q.blk || 0, n: pnOf(q) == null ? '' : pnOf(q), s: q.sighter ? 1 : 0, d: q.dec == null ? '' : q.dec, in: q.inner ? 1 : 0, t: q.t || '', x: q.x == null ? '' : q.x, y: q.y == null ? '' : q.y,
         st: LT[r.status] || '', why: r.status === 'ok' ? '' : why(r, q), why_codes: whyCodes(r, q), flags: fl.join('|'), saved_st: q.lt0 || '', saved_why: q.why0 || '',
         est_x: e ? Math.round(e.x * 100) / 100 : '', est_y: e ? Math.round(e.y * 100) / 100 : '',
-        raw_d: rq && rq.dec != null ? rq.dec : '', raw_t: rq ? rq.t || '' : '', raw_x: rq && rq.x != null ? rq.x : '', raw_y: rq && rq.y != null ? rq.y : '' };
+        raw_d: rq && rq.dec != null ? rq.dec : '', raw_t: rq ? rq.t || '' : '', raw_x: rq && rq.x != null ? rq.x : '', raw_y: rq && rq.y != null ? rq.y : '',
+        pp_d: pp && pp.d != null ? pp.d : '', pp_in: pp ? (pp.inner ? 1 : 0) : '', pp_t: pp ? pp.t || '' : '', pp_x: pp && pp.x != null ? pp.x : '', pp_y: pp && pp.y != null ? pp.y : '' }; // v3.1.4：新辨識（Paddle）讀到的值
     });
-    var cols = ['i', 'sec', 'blk', 'n', 's', 'd', 'in', 't', 'x', 'y', 'st', 'why', 'why_codes', 'flags', 'saved_st', 'saved_why', 'est_x', 'est_y', 'raw_d', 'raw_t', 'raw_x', 'raw_y'];
+    var cols = ['i', 'sec', 'blk', 'n', 's', 'd', 'in', 't', 'x', 'y', 'st', 'why', 'why_codes', 'flags', 'saved_st', 'saved_why', 'est_x', 'est_y', 'raw_d', 'raw_t', 'raw_x', 'raw_y', 'pp_d', 'pp_in', 'pp_t', 'pp_x', 'pp_y'];
     var photos = O.photoNames(base, st.files).map(function (nm, i) { return { i: i + 1, file: nm, read: i < (st.nDone || 0) - (st.skipped || 0) }; });
     var lt = lights(ck), j = { format: 'wrbeta-review', v: 1, base: base, created: new Date().toISOString(), app: App.APP_LABEL || '', engine: V3() && XC() ? 'v3' : 'main', targetId: m.targetId, target: t && t.name || '',
       event: m.event || '', date: m.date || '', lane: m.lane || '', practice: !!m.practice, intSheet: !!m.intSheet, lights: { green: lt.g, yellow: lt.y, red: lt.r },
@@ -649,7 +651,23 @@
     if (w === 'arrow') { var a = q && q.ocr && q.ocr.arw; var ix = a && a.dir ? ['→', '↗', '↑', '↖', '←', '↙', '↓', '↘'].indexOf(a.dir) : -1; return [ix >= 0 ? a.dir + ' ' + DW8(ix) : '?']; }
     return [w.slice(5).toUpperCase()];
   }
+  // v3.1.4 混合引擎：兩套辨識讀到的不一樣 → 列出每一欄兩邊的值和目前用哪個（放在原因最前面）
+  function ppTx(q) {
+    var o = q && q.ocr, a = o && o.ppAlt; if (!a || !o.ppDiff) return '';
+    var fv = function (k, z) { if (!z || z[k] == null) return '–'; return k === 'd' ? (q.decInt ? String(z.d) : f1(z.d)) + (z.inner && z.d >= 10 ? '*' : '') : f2(z[k]); };
+    var cur = { d: q.dec, inner: q.inner, x: q.x, y: q.y };
+    return wrT('sius.why3_ocrdiff', [o.ppDiff.map(function (k) { return wrT('sius.ocrdiff_item', [k === 'd' ? wrT('sius.cf_d') : k.toUpperCase(), fv(k, a.e), fv(k, a.p)]) + wrT('sius.ocrdiff_use', [fv(k, cur)]); }).join('；')]);
+  }
   function why(r, q) {
+    var od = (r.why || []).some(function (w) { return /^ocrDiff:/.test(w); });
+    if (od && r.status !== 'ok') {
+      var r2 = {}; for (var k in r) r2[k] = r[k]; r2.why = r.why.filter(function (w) { return !/^ocrDiff:/.test(w); });
+      var more = r2.why.length || (r.conflict && r.conflict.length) || r.orange || (r.diff != null && r.diff >= 0.1) || r.innerOk === false || r.missing || (r.miss && r.miss.some(function (c) { return c !== 't'; }));
+      var pt = ppTx(q); return pt ? pt + (more ? '；' + why0(r2, q) : '') : why0(r2, q);
+    }
+    return why0(r, q);
+  }
+  function why0(r, q) {
     if (r.status === 'ok') return r.cons && r.cons.length ? wrT('sius.why_cons') : wrT('sius.why_ok');
     if (r.missing) return wrT('sius.why_missing');
     if (r.miss && r.miss.indexOf('xy') >= 0) return wrT('sius.why_noxy');
@@ -789,7 +807,7 @@
   }
   // 測試用：addPasses 直接餵 OCR 文字（e2e 也會走真的照片 OCR）；addPasses(ps, fb) 第二個＝補漏引擎的讀法
   App.sius = { open: open, close: close, get state() { return st; }, addFiles: function (fs) { addFiles(fs); },
-    addPasses: function (ps, fb) { build(); if (!st) fresh(); st.passes = st.passes.concat(ps); st.fbPasses = st.fbPasses.concat(fb || []); st.model = buildModel(st.passes, st.fbPasses); st.sel = null; recheck(); if (!st.tgUser && !st.gunAsked && !(st.model.gun && st.model.gun.sure)) askGun(); else gunFlow(); },
+    addPasses: function (ps, fb, pp) { build(); if (!st) fresh(); st.passes = st.passes.concat(ps); st.fbPasses = st.fbPasses.concat(fb || []); st.ppPasses = (st.ppPasses || []).concat(pp || []); st.model = buildModel(st.passes, st.fbPasses); st.sel = null; recheck(); if (!st.tgUser && !st.gunAsked && !(st.model.gun && st.model.gun.sure)) askGun(); else gunFlow(); },
     pickGun: function (g) { var b = $('siusAsk'); if (b) b.remove(); pickGun(g); }, save: save, recheck: recheck, pick: pick, step: step, render: render,
     get view() { return view; }, get dir8() { return dir8; }, cards: function () { return st && st.model ? cardList() : []; },
     keepScan: ownKeep, openScan: openScan, scanList: ownList, reviewPack: function (base) { var O = window.WRSiusOwner; return O && st && st.model ? reviewPack(O, base || 'rvtest') : null; } };

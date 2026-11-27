@@ -227,11 +227,11 @@
       }).catch(function () {});
     }
   } catch (e) {}
-  // 說明分頁：強制更新（移除 service worker、清掉快取、重新載入；紀錄存在 localStorage，不會被清掉）
+  // 說明分頁：強制更新（移除 service worker、清掉快取、重新載入；紀錄存在 localStorage，不會被清掉）。v3.1.4：辨識模型快取（wrbeta-ocr-*，名稱帶版本、約 21 MB＋Tesseract）保留，不用重新下載
   function forceUpdate() {
     var jobs = [];
     try { if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (e) {}
-    try { if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) {}
+    try { if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return !/^wrbeta-ocr-/.test(k); }).map(function (k) { return caches.delete(k); })); })); } catch (e) {}
     toast(wrT('app.updating'));
     Promise.all(jobs).catch(function () {}).then(function () { var u = location.href.split('#')[0].split('?')[0]; location.replace(u + '?r=' + Date.now()); });
   }

@@ -1666,7 +1666,20 @@
   "sius.tmk_cfl": "photos disagree on the time",
   "sius.tmk_dup": "same time as another shot",
   "sius.tmk_fix": "minute tens digit filled in from neighbours",
-  "home.v313_1": "Time issues (out of order, duplicate, missing, filled in) no longer turn a shot yellow; a small clock mark appears next to the time instead. Lights now depend on score and coordinates only"
+  "home.v313_1": "Time issues (out of order, duplicate, missing, filled in) no longer turn a shot yellow; a small clock mark appears next to the time instead. Lights now depend on score and coordinates only",
+  "h.open_source_licenses": "Open-source licenses",
+  "member.oss_title": "Open-source licenses",
+  "member.oss_row": "<button type=\"button\" class=\"pf-row wr-oss-link\"><span class=\"wide\">Open-source licenses</span><em>Licenses and notices for third-party software, models and fonts</em>{0}</button>",
+  "member.oss_view": "<div class=\"mb-view-top\"><button type=\"button\" class=\"x\">‹ Back</button><a class=\"mb-ro\" href=\"{0}\" target=\"_blank\" rel=\"noopener\">Open in browser</a></div><div class=\"mb-view-body prose mb-priv-body mb-oss-body\" id=\"mbOssBody\"><p class=\"lbl\">Loading…</p></div>",
+  "member.oss_offline": "<h1>Open-source licenses</h1><p>This version (single-file or offline) can't load the full text; please open the web version:</p><p><a href=\"{0}\" target=\"_blank\" rel=\"noopener\">{1}</a></p>",
+  "sius.why3_ocrdiff": "The two readers disagree: {0}. Please check the slip",
+  "sius.ocrdiff_item": "{0} original {1} / new reader {2}",
+  "sius.ocrdiff_use": " (using {0})",
+  "sius.cf_d": "score",
+  "sius.tmk_pp": "time taken from the new reader",
+  "sius.ocr_pp": "Cross-checking with the new reader (PaddleOCR)…",
+  "home.v314_1": "SIUS slips now use a hybrid engine: a second reader (PaddleOCR, runs on the phone; about 21 MB on first use, then works offline) is compared shot by shot with the original engine. Green only when both agree, yellow when they differ; if the new reader can't run, the original engine is used",
+  "home.v314_2": "Settings/Help › Help has a new “Open-source licenses” card listing the licenses and full notices of all third-party software, models and fonts"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["en"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

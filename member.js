@@ -791,6 +791,23 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
     }).catch(function () { caches && caches.match ? caches.match(PRIV_FILE, { ignoreSearch: true }).then(function (r) { if (!r) throw 0; return r.text(); }).then(function (t) { var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1]; }).catch(fallback) : fallback(); });
   }
 
+  // ---------- v3.1.4 開源授權（內容在 licenses.html／licenses-en.html，由 tools/make_licenses.py 產生；App 內用同一份，樣式跟隱私權政策頁＝跟主題） ----------
+  function openOSS() {
+    var OSS_FILE = wrT.isEn() ? 'licenses-en.html' : 'licenses.html', OSS_URL = 'https://whiterhapsody.github.io/WRbeta/' + OSS_FILE; // 每次開都看目前語言
+    if (D.querySelector('.mb-oss')) return;
+    var bg = D.createElement('div'); bg.className = 'mb-view mb-priv mb-oss'; bg.setAttribute('role', 'dialog'); bg.setAttribute('aria-modal', 'true'); bg.setAttribute('aria-label', wrT('member.oss_title'));
+    bg.innerHTML = wrT('member.oss_view', [OSS_URL]);
+    D.body.appendChild(bg); B.classList.add('mb-view-open');
+    bg.querySelector('.x').onclick = function () { closeView(bg); };
+    var body = bg.querySelector('#mbOssBody');
+    function show(t) { var m = t.match(/<main[^>]*>([\s\S]*?)<\/main>/i); if (!m) throw 0; body.innerHTML = m[1]; }
+    function fallback() { body.innerHTML = wrT('member.oss_offline', [OSS_URL, OSS_URL]); }
+    if (!/^https?:$/.test(location.protocol)) { fallback(); return; }
+    fetch(OSS_FILE, { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(show).catch(function () { caches && caches.match ? caches.match(OSS_FILE, { ignoreSearch: true }).then(function (r) { if (!r) throw 0; return r.text(); }).then(show).catch(fallback) : fallback(); });
+  }
+  function ossCard() { var c = D.getElementById('ossCard'); if (c && !c.firstChild) c.innerHTML = wrT('member.oss_row', ['<svg class="pf-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>']); }
+  try { ossCard(); } catch (e) {}
+
   // ---------- 刪除帳號時：清掉會員相關資料（cloud.js 的 deleteAccount 呼叫） ----------
   function gone(e) {
     var c = String((e && (e.code || e.message)) || e || '');
@@ -828,6 +845,7 @@ if (typeof wrT === 'undefined' && typeof require === 'function') { try { require
 
   // ---------- 啟動 ----------
   D.addEventListener('click', function (e) { var t = e.target && e.target.closest && e.target.closest('.wr-priv-link'); if (t) { e.preventDefault(); openPrivacy(); } });
+  D.addEventListener('click', function (e) { var t = e.target && e.target.closest && e.target.closest('.wr-oss-link'); if (t) { e.preventDefault(); openOSS(); } }); // v3.1.4 開源授權
   if (root.WRCloud && root.WRCloud.on) root.WRCloud.on(onCloud);
   root.WRMember = {
     get state() { return S; }, get profile() { return S.profile; }, get perks() { return S.perks.slice(); }, get groups() { return S.groups.slice(); }, get admin() { return S.admin; }, get owner() { return ownerMe(); }, get recordCode() { return rcAllowed(); }, badgeOf: badgeOf, pinHTML: pinHTML,
