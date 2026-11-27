@@ -2367,6 +2367,9 @@ body.coach-open{overflow:hidden}
 #siusRoot .x-ch .no{margin-left:auto;font-family:var(--w-num);color:var(--w-tx);font-size:13px}
 #siusRoot .x-tg{position:relative;border-radius:var(--w-r);overflow:hidden;background:#f4f1e8}
 #siusRoot .x-tg svg{display:block;width:100%;height:auto;aspect-ratio:1/1}
+/* v3.1.5 hotfix（White 2026-11-27 22:36「不能在小白單的靶面上滑動畫面」）：小白單靶面只是顯示用（沒有點選／拖曳／縮放），
+   但共用的 svg.target 是 touch-action:none（預報／Lite 要自己處理手勢）→ 手指放在靶面上整頁捲不動、橫式也不能左右換卡。這裡交還給瀏覽器捲動。 */
+#siusRoot .x-tg svg.x-svg{touch-action:manipulation} /* ＝pan-x pan-y pinch-zoom：上下捲、左右換卡、雙指縮放整頁都交給瀏覽器（Gemini 建議，不鎖縮放） */
 #siusRoot .x-cat{position:absolute;left:8px;top:8px;padding:4px 9px 4px 8px;border-radius:9px;background:rgba(255,255,255,.93);box-shadow:0 1px 4px rgba(0,0,0,.18);font-size:12px;line-height:1.15;color:#1d1d1b;pointer-events:none}
 #siusRoot .x-cat b{display:block;font-size:13.5px;letter-spacing:.2px}
 #siusRoot .x-cat.sg b{color:#6b6b66}#siusRoot .x-cat.mt b{color:#1f55c4}

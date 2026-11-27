@@ -16,7 +16,7 @@
   Object.defineProperty(App, 'APP_VERSION', { get: function () { return APP_VERSION; }, set: function (v) { APP_VERSION = v; }, enumerable: true, configurable: true });
   Object.defineProperty(App, 'APP_LABEL', { get: function () { return APP_LABEL; }, set: function (v) { APP_LABEL = v; }, enumerable: true, configurable: true });
   // App 名稱與版本：只改這裡（標題列、說明分頁、匯出檔都讀這兩個常數）
-  var APP_NAME = 'WRbeta', APP_VERSION = 'v3.1.4', APP_LABEL = 'v3.1.4 beta'; // v3.0：White 2026-11-27 指定這版叫「v3.0 beta」（版號在前） // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
+  var APP_NAME = 'WRbeta', APP_VERSION = 'v3.1.5', APP_LABEL = 'v3.1.5 beta'; // v3.0：White 2026-11-27 指定這版叫「v3.0 beta」（版號在前） // v2.0.0：畫面上顯示「beta v2.0」；v2.0.1（新圖示）顯示「beta v2.0.1」
   try { var _v = document.getElementById('appVer'); if (_v) _v.textContent = APP_LABEL; var _a = document.getElementById('aboutVer'); if (_a) _a.textContent = wrT('app.x', [APP_LABEL, APP_VERSION]); document.title = APP_NAME; } catch (e) {}
   var tsel = $('targetSel');
   Object.keys(T).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = T[k].name; tsel.appendChild(o); });

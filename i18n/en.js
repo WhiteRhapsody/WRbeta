@@ -1679,7 +1679,8 @@
   "sius.tmk_pp": "time taken from the new reader",
   "sius.ocr_pp": "Cross-checking with the new reader (PaddleOCR)…",
   "home.v314_1": "SIUS slips now use a hybrid engine: a second reader (PaddleOCR, runs on the phone; about 21 MB on first use, then works offline) is compared shot by shot with the original engine. Green only when both agree, yellow when they differ; if the new reader can't run, the original engine is used",
-  "home.v314_2": "Settings/Help › Help has a new “Open-source licenses” card listing the licenses and full notices of all third-party software, models and fonts"
+  "home.v314_2": "Settings/Help › Help has a new “Open-source licenses” card listing the licenses and full notices of all third-party software, models and fonts",
+  "home.v315_1": "SIUS slips: you can now scroll the page (and swipe between cards in landscape view) with your finger on the target"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["en"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);

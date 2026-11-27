@@ -1679,7 +1679,8 @@
   "sius.tmk_pp": "時間採用新辨識讀到的",
   "sius.ocr_pp": "新辨識（PaddleOCR）比對中…",
   "home.v314_1": "小白單改成混合引擎：加一套新的辨識（PaddleOCR，在手機上跑、第一次約下載 21 MB，之後可離線）跟原本的引擎逐發比對，兩邊讀到的一樣才給綠燈，不一樣就亮黃燈；新辨識不能用時自動退回原本的引擎",
-  "home.v314_2": "設定/說明 › 說明 加一張「開源授權」，列出所有第三方套件、模型和字型的授權與聲明全文"
+  "home.v314_2": "設定/說明 › 說明 加一張「開源授權」，列出所有第三方套件、模型和字型的授權與聲明全文",
+  "home.v315_1": "小白單：手指放在靶面上也能上下捲動整頁（橫式也能在靶面上左右滑換卡）"
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = D["zh-TW"];
 })(typeof globalThis !== 'undefined' ? globalThis : this);
