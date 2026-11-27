@@ -287,7 +287,7 @@
     var v = function (f, txt) { return q[f] == null || q[f] === '' ? NA() : '<span class="e">' + txt + '</span>'; };
     var lt = r.status === 'ok' ? '<i class="g"></i>' : r.status === 'near' ? '<button type="button" class="x-ym' + (r.orange ? ' o' : '') + '" data-why="' + r.i + '" aria-label="' + esc(wrT('sius.yellow_aria')) + '">!</button>' : '<i class="r"></i>';
     var lbl = wrT('sius.row_aria', [pnOf(q) == null ? '—' : pnOf(q), q.dec == null ? '—' : f1(q.dec), (r.status === 'ok' ? wrT('sius.st_ok') : r.status === 'near' ? wrT('sius.st_near') : wrT('sius.st_bad'))]);
-    return '<div class="sius-row x-r ' + r.status + sel + (r.sighter ? ' sg' : '') + (r.missing ? ' miss' : '') + (q.fb ? ' fb' : '') + '" data-row="' + r.i + '" role="listitem" tabindex="0" aria-label="' + esc(lbl) + '">' +
+    return '<div class="sius-row x-r ' + r.status + sel + (r.sighter ? ' sg' : '') + (r.missing ? ' miss' : '') + (q.fb ? ' fb' : '') + '" data-row="' + r.i + '" data-why="' + esc(whyCodes(r, q)) + '" role="listitem" tabindex="0" aria-label="' + esc(lbl) + '">' +
       '<span class="lt">' + lt + '</span><span class="n" data-f="n">' + (pnOf(q) == null ? '–' : pnOf(q)) + '</span>' +
       '<span class="tm' + cf('t') + '" data-f="t">' + v('t', esc(q.t)) + '</span>' +
       '<span class="sc' + cf('dec') + (q.decCalc || q.decSub ? ' calc' : '') + '" data-f="dec"' + (q.decCalc || q.decSub ? ' title="' + esc(wrT(q.decSub ? 'sius.why3_decsub' : 'sius.why3_deccalc')) + '"' : '') + '>' + v('dec', (q.dec == null ? '' : q.decCalc || q.decSub ? '<u>' + f1(q.dec) + '</u>' : f1(q.dec)) + (q.inner ? '*' : '') + (r.orange && r.calc ? '<small class="x-oc">' + esc(calcTx(q, r.calc)) + '</small>' : '') + (q.dec != null && !hasXY(q) ? '<small class="x-nxy">' + esc(wrT('sius.noxy_tag')) + '</small>' : '')) + '</span>' +
@@ -335,7 +335,10 @@
     O.preload();
     var m = st.model, h = '<div class="sius-own" id="siusOwn" role="group" aria-label="' + esc(wrT('sius.own_title')) + '"><div class="sius-own-h"><b>' + esc(wrT('sius.own_title')) + '</b><small>' + esc(wrT('sius.own_only')) + '</small></div><div class="sius-own-b">';
     if (m) h += '<button type="button" class="wr-pill" id="siusOwnRaw">' + esc(wrT('sius.own_raw')) + '</button><button type="button" class="wr-pill" id="siusOwnAs">' + esc(wrT('sius.own_as')) + '</button>';
+    if (m) h += '<button type="button" class="wr-pill" id="siusOwnKeep"' + (st.keeping ? ' disabled' : '') + '>' + esc(wrT(st.scanId ? 'sius.own_keep_upd' : 'sius.own_keep')) + '</button>'; // v3.1.2 原樣存檔
+    if (m) h += '<button type="button" class="wr-pill" id="siusOwnRv"' + (st.rvBusy ? ' disabled' : '') + '>' + esc(wrT('sius.own_rv', [st.files.length])) + '</button>'; // v3.1.2 上傳檢視資料
     if (st.files.length) h += '<button type="button" class="wr-pill" id="siusOwnUp">' + esc(wrT('sius.own_up', [st.files.length])) + '</button>';
+    if (!st.busy) h += '<button type="button" class="wr-pill" id="siusOwnList">' + esc(wrT('sius.own_list')) + '</button>';
     return h + '</div><small class="sius-own-st" id="siusOwnSt" aria-live="polite">' + esc(ownSt()) + '</small></div>';
   }
   function ownSt() { var O = OWN(); if (!O) return ''; if (st.ownMsg) return st.ownMsg; return !O.hasClient() ? wrT('sius.own_drive_pending') : O.connected() ? wrT('sius.own_drive_on', [O.ROOT_DIR + '/' + O.dirName()]) : wrT('sius.own_drive_off', [O.ROOT_DIR + '/' + O.dirName()]); }
@@ -370,6 +373,115 @@
     if ($('siusOwnRaw')) $('siusOwnRaw').onclick = function () { ownSave('raw'); };
     if ($('siusOwnAs')) $('siusOwnAs').onclick = function () { ownSave('as'); };
     if ($('siusOwnUp')) $('siusOwnUp').onclick = ownUpload;
+    if ($('siusOwnKeep')) $('siusOwnKeep').onclick = ownKeep;
+    if ($('siusOwnRv')) $('siusOwnRv').onclick = ownReview;
+    if ($('siusOwnList')) $('siusOwnList').onclick = ownList;
+  }
+  /* ---------- v3.1.2（White 2026-11-27 20:12「把312推上去」）站長工具：原樣存檔／原樣檔清單／上傳檢視資料 ----------
+   * 原樣存檔：這次掃描照原樣存在這台裝置（模型＋讀法＋手改紀錄＋照片），紅燈也可以存；之後「回小白單」繼續改、或「送分析」（有紅燈還是要先改好）。 */
+  function jclone(o) { try { return JSON.parse(JSON.stringify(o == null ? null : o)); } catch (e) { return null; } }
+  function scanLabel(m) { return [m.event || '', m.athlete || '', m.date || ''].filter(Boolean).join('・') || wrT('sius.title_short'); }
+  function ownKeep() {
+    var O = OWN(); if (!O || !st || !st.model || st.busy || st.keeping) return;
+    var my = st, id = my.scanId || ('s' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), lt = lights(my.ck);
+    var d = { id: id, v: 1, app: App.APP_LABEL || '', name: scanLabel(my.model), targetId: my.model.targetId, lights: lt,
+      model: jclone(my.model), passes: jclone(my.passes) || [], fbPasses: jclone(my.fbPasses) || [], edits: jclone(my.edits) || {}, subEd: jclone(my.subEd) || {}, totEd: jclone(my.totEd), metaEd: jclone(my.metaEd) || {},
+      tgUser: my.tgUser || null, timing: jclone(my.timing), log: jclone(my.log) || [], skipped: my.skipped || 0,
+      photos: my.files.slice(0, my.nDone || my.files.length).map(function (f, i) { return { name: f.name || ('photo' + (i + 1) + '.jpg'), type: f.type || 'image/jpeg', blob: f }; }) };
+    if (!d.model) { toast(wrT('sius.own_keep_fail', ['model']), 3600); return; }
+    my.keeping = true; var kb = $('siusOwnKeep'); if (kb) kb.disabled = true;
+    ownMsg(wrT('sius.own_keeping'));
+    var fin = function () { my.keeping = false; var b = $('siusOwnKeep'); if (b && st === my) b.disabled = false; };
+    O.scanPut(d).then(function () {
+      my.scanId = id; fin(); toast(wrT('sius.own_kept', [lt.g, lt.y, lt.r, d.photos.length]), 3200);
+      if (st !== my) return;
+      ownMsg(wrT('sius.own_kept', [lt.g, lt.y, lt.r, d.photos.length]));
+      var b = $('siusOwnKeep'); if (b) b.textContent = wrT('sius.own_keep_upd');
+    }, function (e) { fin(); if (st === my) ownMsg(wrT('sius.own_keep_fail', [String(e && e.message || e).slice(0, 60)])); else toast(wrT('sius.own_keep_fail', [String(e && e.message || e).slice(0, 60)]), 3600); });
+  }
+  var openSeq = 0;
+  function openScan(id, toAna) {
+    var O = OWN(); if (!O || (st && st.busy)) return;
+    var seq = ++openSeq;
+    O.scanGet(id).then(function (d) {
+      if (seq !== openSeq || (st && st.busy)) return;
+      if (!d || !d.model) { toast(wrT('sius.own_scan_gone'), 3000); return; }
+      build(); fresh();
+      st.model = d.model; st.passes = d.passes || []; st.fbPasses = d.fbPasses || []; st.edits = d.edits || {}; st.subEd = d.subEd || {}; st.totEd = d.totEd || null; st.metaEd = d.metaEd || {};
+      st.tgUser = d.tgUser || null; st.gunAsked = true; st.timing = d.timing || null; st.log = d.log || []; st.skipped = d.skipped || 0; st.scanId = d.id;
+      st.files = (d.photos || []).filter(function (p) { return p && typeof Blob !== 'undefined' && p.blob instanceof Blob && p.blob.size > 0; }).map(function (p) { try { return new File([p.blob], p.name, { type: p.type }); } catch (e) { var b = p.blob; try { b.name = p.name; } catch (e2) {} return b; } });
+      st.urls = st.files.map(function (f) { try { return URL.createObjectURL(f); } catch (e) { return ''; } }); st.nDone = st.files.length;
+      st.ck = CHK(st.model);
+      if (App.curTab !== 'sius') App.showTab('sius');
+      recheck(); window.scrollTo(0, 0);
+      if (toAna) save(); else toast(wrT('sius.own_reopened', [lights(st.ck).r, lights(st.ck).y]), 3000);
+    }, function (e) { toast(wrT('sius.own_keep_fail', [String(e && e.message || e).slice(0, 60)]), 3600); });
+  }
+  function ownList() {
+    var O = OWN(); if (!O) return;
+    O.scanList().then(function (a) {
+      var old = $('siusScans'); if (old) old.remove();
+      var bg = D.createElement('div'); bg.className = 'modal-bg sius-own-bg'; bg.id = 'siusScans';
+      var fmt = function (t) { var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; }; return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+      var li = a.map(function (d) { var l = d.lights || {}; return '<li data-id="' + esc(d.id) + '"><b>' + esc(d.name || '') + '</b><small>' + esc(fmt(d.updated) + '・' + wrT('sius.own_scan_meta', [l.g || 0, l.y || 0, l.r || 0, (d.photos || []).length]) + (d.sent ? '・' + wrT('sius.own_scan_sent') : '')) + '</small><div class="sius-scan-b"><button type="button" class="wr-pill" data-act="open">' + esc(wrT('sius.own_scan_open')) + '</button><button type="button" class="wr-pill" data-act="ana">' + esc(wrT('sius.own_scan_ana')) + '</button><button type="button" class="wr-pill sius-scan-del" data-act="del">' + esc(wrT('sius.own_scan_del')) + '</button></div></li>'; }).join('');
+      bg.innerHTML = '<div class="modal sius-own-modal sius-scans" role="dialog" aria-modal="true"><p></p><small class="sius-own-tip"></small><ul class="sius-scan-l"></ul><div class="row"><button type="button" class="no"></button></div></div>';
+      bg.querySelector('p').textContent = wrT('sius.own_list_h'); bg.querySelector('.sius-own-tip').textContent = wrT('sius.own_list_tip', [O.MAX_SCANS]);
+      bg.querySelector('ul').innerHTML = li || '<li class="empty">' + esc(wrT('sius.own_list_empty')) + '</li>';
+      bg.querySelector('.no').textContent = wrT('h.close') || wrT('h.cancel');
+      bg.querySelector('.no').onclick = function () { bg.remove(); };
+      bg.addEventListener('click', function (e) {
+        if (e.target === bg) { bg.remove(); return; }
+        var b = e.target.closest && e.target.closest('[data-act]'); if (!b) return;
+        var row = b.closest('li'), id = row && row.dataset.id; if (!id) return;
+        if (b.dataset.act === 'del') {
+          ask(wrT('sius.own_scan_del_q'), function () {
+            O.scanDel(id).then(function () {
+              row.remove(); if (st && st.scanId === id) { st.scanId = null; var kb = $('siusOwnKeep'); if (kb) kb.textContent = wrT('sius.own_keep'); }
+              var ul = bg.querySelector('ul'); if (ul && !ul.children.length) ul.innerHTML = '<li class="empty">' + esc(wrT('sius.own_list_empty')) + '</li>';
+            }, function (e) { toast(wrT('sius.own_keep_fail', [String(e && e.message || e).slice(0, 60)]), 3600); });
+          });
+          return;
+        }
+        if (st && st.busy) return;
+        var go = function () { bg.remove(); openScan(id, b.dataset.act === 'ana'); };
+        if (st && st.model && !st.recId && !st.saved && (st.scanId !== id || st.log.length)) ask(wrT('sius.new_q'), go); else go();
+      });
+      D.body.appendChild(bg);
+    }, function (e) { toast(wrT('sius.own_keep_fail', [String(e && e.message || e).slice(0, 60)]), 3600); });
+  }
+  // 上傳檢視資料：每發列表（JSON＋CSV）＋掃描用照片 → Drive 小白單/MMDD代號/，檔名前綴 rvMMDD_HHMMSS
+  var LT = { ok: 'G', near: 'Y', bad: 'R' };
+  function reviewPack(O, base) {
+    var m = st.model, ck = st.ck, raw = null, rmap = {};
+    try { raw = rawModel(); raw.m.shots.forEach(function (q) { if (q.n != null) rmap[keyOf(q)] = q; }); } catch (e) { raw = null; }
+    var t = T(m.targetId), est = function (q) { if (hasXY(q) || q.dec == null || !V3() || !V3().guessXY) return null; try { return V3().guessXY(m, q); } catch (e) { return null; } };
+    var rows = m.shots.map(function (q, i) {
+      var r = ck.rows[i] || {}, o = q.ocr || {}, rq = q.n != null ? rmap[keyOf(q)] : null, e = est(q), fl = [];
+      if (q.decCalc) fl.push('decCalc'); if (q.decSub) fl.push('decSub'); if (o.xyFix) fl.push('xyFix'); if (o.tFix) fl.push('tFix'); if (o.arrowFix) fl.push('arrowFix'); if (q.fb) fl.push('fb'); if (q.ed) fl.push('edited'); if (r.missing) fl.push('missing'); if (q.dec != null && !hasXY(q)) fl.push('noxy');
+      return { i: i + 1, sec: q.sighter ? 'P' : 'M', blk: q.blk || 0, n: pnOf(q) == null ? '' : pnOf(q), s: q.sighter ? 1 : 0, d: q.dec == null ? '' : q.dec, in: q.inner ? 1 : 0, t: q.t || '', x: q.x == null ? '' : q.x, y: q.y == null ? '' : q.y,
+        st: LT[r.status] || '', why: r.status === 'ok' ? '' : why(r, q), why_codes: whyCodes(r, q), flags: fl.join('|'), saved_st: q.lt0 || '', saved_why: q.why0 || '',
+        est_x: e ? Math.round(e.x * 100) / 100 : '', est_y: e ? Math.round(e.y * 100) / 100 : '',
+        raw_d: rq && rq.dec != null ? rq.dec : '', raw_t: rq ? rq.t || '' : '', raw_x: rq && rq.x != null ? rq.x : '', raw_y: rq && rq.y != null ? rq.y : '' };
+    });
+    var cols = ['i', 'sec', 'blk', 'n', 's', 'd', 'in', 't', 'x', 'y', 'st', 'why', 'why_codes', 'flags', 'saved_st', 'saved_why', 'est_x', 'est_y', 'raw_d', 'raw_t', 'raw_x', 'raw_y'];
+    var photos = O.photoNames(base, st.files).map(function (nm, i) { return { i: i + 1, file: nm, read: i < (st.nDone || 0) - (st.skipped || 0) }; });
+    var lt = lights(ck), j = { format: 'wrbeta-review', v: 1, base: base, created: new Date().toISOString(), app: App.APP_LABEL || '', engine: V3() && XC() ? 'v3' : 'main', targetId: m.targetId, target: t && t.name || '',
+      event: m.event || '', date: m.date || '', lane: m.lane || '', practice: !!m.practice, intSheet: !!m.intSheet, lights: { green: lt.g, yellow: lt.y, red: lt.r },
+      subs: (m.subs || []).map(function (s) { return s ? { score: s.dec, inner: s.inner } : null; }), total: m.total ? { score: m.total.dec, inner: m.total.inner } : null,
+      photos: photos, skipped: st.skipped || 0, columns: cols, shots: rows, edits: (st.log || []).slice(0, 400) };
+    return { json: JSON.stringify(j, null, 1), csv: O.toCsv(cols, rows) };
+  }
+  function ownReview() {
+    var O = OWN(); if (!O || !st || !st.model || st.busy || st.rvBusy) return;
+    if (!O.hasClient()) { toast(wrT('sius.own_drive_pending'), 4200); return; }
+    var base = 'rv' + O.stamp(), pack, files = st.files.slice(), my = st;
+    try { pack = reviewPack(O, base); } catch (e) { ownMsg(wrT('sius.own_up_fail', [String(e && e.message || e).slice(0, 60)])); return; }
+    var b = $('siusOwnRv'); if (b) b.disabled = true; my.rvBusy = true;
+    var fin = function () { my.rvBusy = false; if (st === my && $('siusOwnRv')) $('siusOwnRv').disabled = false; };
+    ownMsg(wrT('sius.own_connecting'));
+    O.token(true).then(function () { return O.uploadReview(base, pack, files, function (i, n) { if (st === my) ownMsg(wrT('sius.own_uploading', [i + 1, n])); }); }).then(function (r) {
+      fin(); if (st === my) ownMsg(wrT('sius.own_rv_ok', [r.base, r.dir])); toast(wrT('sius.own_rv_ok', [r.base, r.dir]), 4200);
+    }, function (e) { fin(); var t = wrT('sius.own_up_fail', [String(e && e.message || e).slice(0, 60)]); if (st === my) ownMsg(t); else toast(t, 3600); });
   }
   function metaVal(f) { var m = st.model; return m ? (m[f] || '') : ''; }
   function metaHTML(t) {
@@ -406,7 +518,7 @@
     $('siusWarn').hidden = !(m && tg === 'ap10');
     var h = '', cards = m ? cardList() : [], N = cards.length;
     if (!m && st.files.length) h = ownHTML(); // 照片排好了：上面就是「開始分析」
-    else if (!m) h = st.busy ? '' : '<div class="x-empty"><span class="wrx-hat lg" aria-hidden="true">' + HAT + '</span><b>' + esc(wrT('sius.empty_h')) + '</b><p>' + esc(wrT('sius.empty_p')) + '</p><p class="s">' + esc(wrT('sius.tips')) + '</p></div>';
+    else if (!m) h = st.busy ? '' : '<div class="x-empty"><span class="wrx-hat lg" aria-hidden="true">' + HAT + '</span><b>' + esc(wrT('sius.empty_h')) + '</b><p>' + esc(wrT('sius.empty_p')) + '</p><p class="s">' + esc(wrT('sius.tips')) + '</p></div>' + ownHTML(); // v3.1.2：空白時站長也能打開原樣檔
     else {
       if (st.cur >= N) st.cur = Math.max(0, N - 1);
       h += metaHTML(t);
@@ -534,7 +646,7 @@
     return [w.slice(5).toUpperCase()];
   }
   function why(r, q) {
-    if (r.status === 'ok') return wrT('sius.why_ok');
+    if (r.status === 'ok') return r.cons && r.cons.length ? wrT('sius.why_cons') : wrT('sius.why_ok');
     if (r.missing) return wrT('sius.why_missing');
     if (r.miss && r.miss.indexOf('xy') >= 0) return wrT('sius.why_noxy');
     if (r.miss && r.miss.indexOf('dec') >= 0) return wrT('sius.why_nodec');
@@ -544,7 +656,7 @@
     if (r.innerOk === false) return wrT('sius.why_inner');
     if (r.conflict && r.conflict.length) return wrT('sius.why_conflict', [r.conflict.map(function (c) { return { x: wrT('sius.cf_x'), y: wrT('sius.cf_y'), dec: wrT('sius.cf_dec'), t: wrT('sius.cf_t') }[c] || c; }).join('、')]);
     if (r.arrowWarn && !(r.why && r.why.length)) return wrT('sius.why3_arrow', whyArg('arrow', q));
-    if (r.why && r.why.length) return r.why.map(function (w) { return wrT(WHY3[w] || 'sius.why_time', whyArg(w, q)); }).join('；');
+    if (r.why && r.why.length) return r.why.map(function (w) { return wrT(WHY3[w] || WHY3[String(w).split(':')[0]] || 'sius.why_time', whyArg(w, q)); }).join('；');
     if (r.miss && r.miss.indexOf('t') >= 0) return wrT('sius.why_notime');
     return wrT('sius.why_time');
   }
@@ -557,7 +669,7 @@
     var h = '';
     if (sel.type === 'row') {
       var r = st.ck.rows[sel.i], q = m.shots[sel.i]; if (!r) { st.sel = null; box.hidden = true; return; }
-      h += '<div class="sius-eh"><b>' + esc(r.sighter ? (st.model.shots.some(function (x) { return x.sighter && x.blk; }) ? wrT('sius.edit_sighter_b', [(st.model.shots[r.i].blk || 0) + 1, pnOf(st.model.shots[r.i])]) : wrT('sius.edit_sighter', [st.ck.rows.filter(function (x) { return x.sighter && x.i <= r.i; }).length])) : wrT('sius.edit_shot', [r.no])) + '</b><small class="' + (r.orange ? 'or' : r.status) + '">' + esc(why(r, q)) + '</small></div>';
+      h += '<div class="sius-eh"><b>' + esc(r.sighter ? (st.model.shots.some(function (x) { return x.sighter && x.blk; }) ? wrT('sius.edit_sighter_b', [(st.model.shots[r.i].blk || 0) + 1, pnOf(st.model.shots[r.i])]) : wrT('sius.edit_sighter', [st.ck.rows.filter(function (x) { return x.sighter && x.i <= r.i; }).length])) : wrT('sius.edit_shot', [r.no])) + '</b><small class="' + (r.orange ? 'or' : r.status) + '">' + esc(why(r, q)) + '</small>' + whyLine(r, q) + '</div>';
       var bad = function (f) { return (r.conflict || []).indexOf(f) >= 0 || (f === 'x' || f === 'y') && (r.miss || []).indexOf('xy') >= 0 && q[f] == null || f === 'dec' && q.dec == null; };
       h += '<div class="sius-fs">' + fld('siusFDec', wrT('sius.col_score'), q.dec == null ? '' : f1(q.dec), 'decimal', bad('dec')) + fld('siusFT', wrT('sius.col_time'), q.t, 'decimal', bad('t')) + fld('siusFX', 'X (mm)', q.x == null ? '' : f2(q.x), 'text', bad('x')) + fld('siusFY', 'Y (mm)', q.y == null ? '' : f2(q.y), 'text', bad('y')) + '</div>';
       var alt = q.ocr && q.ocr.alt, ah = '';
@@ -605,8 +717,24 @@
   }
 
   /* ---------- 存成一般紀錄（分析頁）：紅燈要先改好；黃燈不擋 ---------- */
+  // v3.1.2：每發亮燈原因代碼（存檔、原樣檔、上傳檢視資料都用這個）。綠燈經一致性檢查降回來的寫 cons:原本原因
+  function whyCodes(r, q) {
+    if (!r) return ''; var w = (r.why || []).slice();
+    (r.conflict || []).forEach(function (c) { w.push('conflict:' + c); });
+    (r.miss || []).forEach(function (c) { w.push('miss:' + c); });
+    if (r.tWarn) w.push('tWarn'); if (r.missing) w.push('missing'); if (r.innerOk === false) w.push('inner'); if (r.diff != null && r.diff > 0) w.push('diff:' + r.diff);
+    if (r.orange) w.push('orange'); if (q && q.okd) w.push('userOk');
+    if (r.cons && r.cons.length) w.push('cons:' + r.cons.join('+'));
+    var seen = {}; return w.filter(function (c) { if (seen[c]) return false; seen[c] = 1; return true; }).join('|');
+  }
+  function whyLine(r, q) { // v3.1.2：編輯框裡列出原因代碼；重開的紀錄另外列存檔當時的燈號／原因
+    var c = whyCodes(r, q), h = c ? '<small class="sius-wc">' + esc(wrT('sius.why_codes', [c])) + '</small>' : '';
+    if (q && (q.lt0 || q.why0)) h += '<small class="sius-wc">' + esc(wrT('sius.why_saved', [{ g: wrT('sius.st_ok'), y: wrT('sius.st_near'), r: wrT('sius.st_bad') }[q.lt0] || '—', q.why0 || '—'])) + '</small>';
+    return h;
+  }
+  function ltOf(r) { return r && r.status === 'ok' ? 'g' : r && r.status === 'near' ? 'y' : 'r'; }
   function lights(ck) { var g = 0, y = 0, r = 0; ck.rows.forEach(function (x) { if (x.status === 'ok') g++; else if (x.status === 'near') y++; else r++; }); return { g: g, y: y, r: r }; }
-  function snapShots(m, ck) { return m.shots.map(function (q, i) { var r = ck.rows[i] || {}; return { n: q.n == null ? null : q.n, s: q.sighter ? 1 : 0, d: q.dec == null ? null : q.dec, in: q.inner ? 1 : 0, t: q.t || '', x: q.x == null ? null : q.x, y: q.y == null ? null : q.y, st: r.status || '', fb: q.fb ? 1 : 0, ed: q.ed ? 1 : 0 }; }); }
+  function snapShots(m, ck) { return m.shots.map(function (q, i) { var r = ck.rows[i] || {}; return { n: q.n == null ? null : q.n, s: q.sighter ? 1 : 0, d: q.dec == null ? null : q.dec, in: q.inner ? 1 : 0, t: q.t || '', x: q.x == null ? null : q.x, y: q.y == null ? null : q.y, st: r.status || '', w: whyCodes(r, q), fb: q.fb ? 1 : 0, ed: q.ed ? 1 : 0 }; }); }
   function save() {
     var m = st && st.model; if (!m || st.busy) return;
     if (st.ck.bad) {
@@ -624,6 +752,7 @@
       else rec = App.newAnalysis(m.targetId);
       if (!m.name && !rec.name) m.name = S.recName(m, wrT('sius.name_prefix'));
       var ck = st.ck, prevRep = rec.sius && rec.sius.rep;
+      m.shots.forEach(function (q, i) { var r = ck.rows[i]; q.lt = r ? ltOf(r) : null; q.why = r ? whyCodes(r, q) : ''; }); // v3.1.2：每發燈號＋原因寫進存檔
       S.toRecord(m, rec); rec.updated = new Date().toISOString();
       // 試射超過 10 發：每 10 發一張（11 發＝10＋1，White 指定）
       var out = [];
@@ -645,6 +774,7 @@
       // 第一次存小白單時問一次要不要參加測試期回報（之後在 設定 › 測試期回報 改）
       try { if (App.siusReport) { var _snap = snapShots(m, ck), _nf = st.files.length; App.siusReport.askOnce(function () { App.siusReport.auto(rec, { shots: _snap, files: _nf }).then(function () { if (App.curTab === 'analysis' && App.acur === rec) App.siusReport.card(); }); }); } } catch (e) {}
       st.saved = true; st.log = [];
+      if (st.scanId && OWN()) try { OWN().scanMark(st.scanId, { sent: Date.now() }).catch(function () {}); } catch (e) {} // v3.1.2：原樣檔標「已送分析」
       App.showTab('analysis'); if (App.fillAnaCalRing) App.fillAnaCalRing(); App.renderAnalysis(); if (App.syncTargetSel) App.syncTargetSel(); window.scrollTo(0, 0);
       toast(wrT('sius.saved', [ck.nSighter, ck.nMatch]), 3600);
       freeUrls(); st.urls = []; fresh();
@@ -656,7 +786,8 @@
   App.sius = { open: open, close: close, get state() { return st; }, addFiles: function (fs) { addFiles(fs); },
     addPasses: function (ps, fb) { build(); if (!st) fresh(); st.passes = st.passes.concat(ps); st.fbPasses = st.fbPasses.concat(fb || []); st.model = buildModel(st.passes, st.fbPasses); st.sel = null; recheck(); if (!st.tgUser && !st.gunAsked && !(st.model.gun && st.model.gun.sure)) askGun(); else gunFlow(); },
     pickGun: function (g) { var b = $('siusAsk'); if (b) b.remove(); pickGun(g); }, save: save, recheck: recheck, pick: pick, step: step, render: render,
-    get view() { return view; }, get dir8() { return dir8; }, cards: function () { return st && st.model ? cardList() : []; } };
+    get view() { return view; }, get dir8() { return dir8; }, cards: function () { return st && st.model ? cardList() : []; },
+    keepScan: ownKeep, openScan: openScan, scanList: ownList, reviewPack: function (base) { var O = window.WRSiusOwner; return O && st && st.model ? reviewPack(O, base || 'rvtest') : null; } };
 
   /* ---------- 小白單三寶寶：自動收邊（跟分析頁寶寶同一套 dock.js；FIG-19 收合動畫） ---------- */
   var XD = null;

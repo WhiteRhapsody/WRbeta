@@ -16,9 +16,10 @@
   function S0() { return root.WRSius || (isNode ? require('./sius.js') : null); }
   function AR() { return root.WRSiusArrow || (isNode ? (function () { try { return require('./sius-arrow.js'); } catch (e) { return null; } })() : null); }
   function now() { return (root.performance && performance.now) ? performance.now() : Date.now(); }
-  var RULES = { lenient: 1, dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 0, signFlip: 1, fbCap: 0, arrow: 1 };
+  var RULES = { consist: 1, lenient: 1, dupTime: 1, sighterReads: 2, subGuard: 'two', fieldW: 2, fields: ['x', 'y'], xyUnanimous: 1, innerGuard: 0, signFlip: 1, fbCap: 0, arrow: 1 };
   function key(q) { return (q.sighter ? 'Q' : 'M') + q.n; }
   function down(r, why) { if (r._ed) return; if (r.status === 'ok') { r.status = 'near'; (r.why = r.why || []).push(why); } }
+  var CONS_OK = /^(fieldW:[xy]+|xyAlt|sign:[xy]|sReads|arrowFix)$/; // v3.1.2：只代表「OCR 沒把握」的黃燈原因（arrow＝箭頭跟座標對不上，不在內）
   function flip(a, b) { return a != null && b != null && a !== 0 && Math.abs(a + b) < 1e-9; }
   // check 之後的規則（只降綠）
   function rules(model, ck, opt) {
@@ -68,8 +69,30 @@
       r.status = 'near'; r.soft = 1; (r.why = r.why || []).push(noxy ? 'noxy' : (r.diff != null && r.diff >= 0.2) ? 'scoreWins' : (r.miss || []).indexOf('t') >= 0 ? 'notime' : 'soft');
       if (!noxy && r.diff != null && r.diff >= 0.2) r.orange = true;
     });
+    // v3.1.2（White 2026-11-27 20:22）最後一道一致性檢查：只因 OCR 把握不足而黃（票數不一、X/Y 備選、正負號備選、箭頭、試射讀次少、soft），
+    //   但分數＝座標重算（diff 0、內十相符）、時間在（同段前後接得上、不重複、不缺）、沒衝突欄位 → 降回綠燈，原本的原因留在 r.cons。
+    //   時間不接續／重複／缺時間、分數座標不符、缺座標、單軸推估、補回的時間（tFix）、依分數改座標（xyFix）、小計反推／算出的分數、小計對不上（sub）都維持原燈號。
+    if (opt.consist) {
+      var tcnt = {}, tsec = function (q) { var v = q && q.t ? X().secOf(q.t) : null; return v == null ? null : Math.round(v * 100); }; shots.forEach(function (q) { var k = tsec(q); if (k != null) tcnt[k] = (tcnt[k] || 0) + 1; });
+      rows.forEach(function (r) {
+        if (r.status !== 'near' || r._ed || r.orange || r.soft) return; // soft＝原本紅燈被放寬成黃：不降綠（Gemini 審查）
+        var q = shots[r.i]; if (!q) return; var o = q.ocr || {}, w = r.why || [];
+        if (!w.length || !w.every(function (c) { return CONS_OK.test(c); })) return;
+        if (r.missing || (r.conflict && r.conflict.length) || (r.miss && r.miss.length) || r.tWarn || r.innerOk === false) return;
+        if (q.dec == null || !isFinite(q.dec) || q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) return;
+        if (!r.calc || r.diff !== 0 || q.decCalc || q.decSub || o.xyFix || o.tFix || o.scoreWins || o.demo || o.miss || o.arrowBad) return;
+        if (!q || !q.t || tsec(q) == null || tcnt[tsec(q)] > 1) return;
+        // 正負號備選：換號分數不變，所以要方向箭頭確定、而且跟目前 X/Y 同方向才算對得上
+        // down() 只記第一個原因，所以這裡自己重查：正負號備選、小計對不上
+        var sg = !o.xyPick && ['x', 'y'].some(function (f) { var vals = [].concat(o.alt && o.alt[f] || []); (o.rd || []).forEach(function (d) { if (d[f] != null) vals.push(d[f]); }); return vals.some(function (v) { return flip(v, q[f]); }); });
+        if (ck.series.some(function (sr) { return sr.status !== 'ok' && sr.status !== 'nosub' && sr.rows.indexOf(r.i) >= 0; })) return;
+        var A0 = AR(); if (A0 && o.arw && A0.sure(o.arw) && !A0.compat(q.x, q.y, o.arw.dir)) return; // 箭頭有把握卻跟 X/Y 不同方向
+        if (sg || w.some(function (c) { return /^sign:/.test(c); })) { var A = AR(); if (!(A && o.arw && A.sure(o.arw) && A.compat(q.x, q.y, o.arw.dir))) return; }
+        r.status = 'ok'; r.cons = w.slice(); r.why = [];
+      });
+    }
     // v3.0.2（White 2026-11-27）：逐發編輯按「保存」＝當綠燈
-    rows.forEach(function (r) { if (shots[r.i] && shots[r.i].okd) { r.status = 'ok'; r.orange = false; r.why = []; } });
+    rows.forEach(function (r) { if (shots[r.i] && shots[r.i].okd) { r.status = 'ok'; r.orange = false; r.why = []; r.cons = null; } });
     ck.bad = rows.filter(function (r) { return r.status === 'bad'; }).length + ck.series.filter(function (x) { return x.status === 'bad'; }).length + (ck.total && ck.total.status === 'bad' ? 1 : 0);
     ck.near = rows.filter(function (r) { return r.status === 'near'; }).length;
     return ck;

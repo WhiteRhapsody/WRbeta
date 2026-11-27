@@ -395,10 +395,10 @@
       var at = q.sighter ? -1 : mi++;
       var sw = !!(q.ocr && q.ocr.scoreWins && !q.ed); // v3.1.0：分數跟座標對不上又反解不出來 → 分數為準，座標不進靶面/分析（留著給重新打開時參考）
       if (sw || q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) { // v3.1.0：有分數、沒座標 → 不能放上靶面，但分數照算（存在 sius.noxy，重新打開時放回去）
-        if (q.dec != null && isFinite(q.dec)) { var z = { s: q.sighter ? 1 : 0, pd: q.dec, t: q.t || '' }; if (q.inner) z.pi = 1; if (q.n != null) z.n = q.n; if (q.pn != null && q.pn !== q.n) z.pn = q.pn; if (q.blk) z.b = q.blk; if (q.hh != null) z.hh = q.hh; if (sw) z.sw = 1; if (q.x != null && isFinite(q.x)) z.x = r2(+q.x); if (q.y != null && isFinite(q.y)) z.y = r2(+q.y); nxy.push(z); }
+        if (q.dec != null && isFinite(q.dec)) { var z = { s: q.sighter ? 1 : 0, pd: q.dec, t: q.t || '' }; if (q.inner) z.pi = 1; if (q.n != null) z.n = q.n; if (q.pn != null && q.pn !== q.n) z.pn = q.pn; if (q.blk) z.b = q.blk; if (q.hh != null) z.hh = q.hh; if (sw) z.sw = 1; if (q.lt) z.lt = q.lt; if (q.why) z.why = q.why; if (q.x != null && isFinite(q.x)) z.x = r2(+q.x); if (q.y != null && isFinite(q.y)) z.y = r2(+q.y); nxy.push(z); }
         return;
       }
-      var s = { x: r2(+q.x), y: r2(+q.y), src: 'sius', t: q.t || '' }; if (q.dec != null) s.pd = q.dec; if (q.inner) s.pi = 1; if (q.n != null) s.n = q.n; if (q.pn != null && q.pn !== q.n) s.pn = q.pn; if (q.blk) s.b = q.blk; if (q.hh != null) s.hh = q.hh;
+      var s = { x: r2(+q.x), y: r2(+q.y), src: 'sius', t: q.t || '' }; if (q.dec != null) s.pd = q.dec; if (q.inner) s.pi = 1; if (q.n != null) s.n = q.n; if (q.pn != null && q.pn !== q.n) s.pn = q.pn; if (q.blk) s.b = q.blk; if (q.hh != null) s.hh = q.hh; if (q.lt) s.lt = q.lt; if (q.why) s.why = q.why; // v3.1.2：每發存燈號（g/y/r）＋亮燈原因代碼
       if (q.sighter) sg.push(s); else (mt[Math.floor(at / 10)] = mt[Math.floor(at / 10)] || []).push(s);
     });
     var sheets = [], k = 0, mk = function (shots, extra) { var h = { id: 'h' + now + (k++) + Math.floor(Math.random() * 1000), created: new Date(now).toISOString(), shots: shots, calib: { mode: 'sius' } }; for (var e in extra || {}) h[e] = extra[e]; return h; };
@@ -418,9 +418,9 @@
   function fromRecord(rec) {
     var si = rec.sius || {};
     var m = { v: 2, targetId: rec.targetId, gun: { id: rec.targetId, auto: false, unverified: !!si.unverified }, event: si.event || '', date: si.date || '', name: rec.name || '', shots: [], subs: (si.subs || []).slice(), total: si.total || null };
-    (rec.sheets || []).forEach(function (sh) { (sh.shots || []).forEach(function (q) { var o = { n: q.n == null ? null : q.n, sighter: !!sh.sighter, dec: q.pd == null ? null : q.pd, inner: !!q.pi, t: q.t || '', x: q.x, y: q.y }; if (q.pn != null) o.pn = q.pn; if (q.b) o.blk = q.b; if (q.hh != null) o.hh = q.hh; m.shots.push(o); }); });
+    (rec.sheets || []).forEach(function (sh) { (sh.shots || []).forEach(function (q) { var o = { n: q.n == null ? null : q.n, sighter: !!sh.sighter, dec: q.pd == null ? null : q.pd, inner: !!q.pi, t: q.t || '', x: q.x, y: q.y }; if (q.pn != null) o.pn = q.pn; if (q.b) o.blk = q.b; if (q.hh != null) o.hh = q.hh; if (q.lt) o.lt0 = q.lt; if (q.why) o.why0 = q.why; m.shots.push(o); }); });
     (si.noxy || []).forEach(function (z) { // v3.1.0：沒座標的發放回原來的位置（依發序）
-      var o = { n: z.n == null ? null : z.n, sighter: !!z.s, dec: z.pd, inner: !!z.pi, t: z.t || '', x: z.x == null ? null : z.x, y: z.y == null ? null : z.y }; if (z.pn != null) o.pn = z.pn; if (z.b) o.blk = z.b; if (z.hh != null) o.hh = z.hh; if (z.sw) o.ocr = { scoreWins: 1, rpXY: 1 };
+      var o = { n: z.n == null ? null : z.n, sighter: !!z.s, dec: z.pd, inner: !!z.pi, t: z.t || '', x: z.x == null ? null : z.x, y: z.y == null ? null : z.y }; if (z.pn != null) o.pn = z.pn; if (z.b) o.blk = z.b; if (z.hh != null) o.hh = z.hh; if (z.lt) o.lt0 = z.lt; if (z.why) o.why0 = z.why; if (z.sw) o.ocr = { scoreWins: 1, rpXY: 1 };
       var at = m.shots.length; for (var i = 0; i < m.shots.length; i++) { var w = m.shots[i]; if (!!w.sighter === o.sighter && w.n != null && o.n != null && w.n > o.n) { at = i; break; } if (o.sighter && !w.sighter) { at = i; break; } }
       m.shots.splice(at, 0, o);
     });

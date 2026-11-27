@@ -4,7 +4,11 @@
  *   3. 照片上傳 Google Drive：「小白單/月日＋會員 ID」資料夾（例 小白單/1127ChaotiC），每天自動建新的。
  *      用 Google Identity Services（瀏覽器直接拿權杖），權限只要 drive.file（只看得到 App 自己建的檔案和資料夾）。
  *      OAuth 用戶端 ID 放在 firebase-config.js 的 window.WR_DRIVE_CLIENT_ID；空的＝還沒設定，按鈕只提示「設定中」。
- *   檔案存到手機（下載）；Drive 已連上的話也一起傳到同一個資料夾。 */
+ *   檔案存到手機（下載）；Drive 已連上的話也一起傳到同一個資料夾。
+ * v3.1.2【White 2026-11-27 20:12「把312推上去」】
+ *   4. 原樣存檔：這次掃描照原樣（紅黃綠燈、缺座標、推估、照片）存在這台裝置（IndexedDB），之後可回小白單繼續改、或直接送分析。
+ *   5. 上傳檢視資料：這次掃描的每發列表（JSON＋CSV）＋掃描用的照片 → Drive「小白單/MMDD代號」，檔名同一個前綴 rvMMDD_HHMMSS，
+ *      例 rv1127_201530_list.json／_list.csv／_p1.jpg…，下載後照前綴一一對應。 */
 (function (root) {
   'use strict';
   var GIS = 'https://accounts.google.com/gsi/client', SCOPE = 'https://www.googleapis.com/auth/drive.file', API = 'https://www.googleapis.com/drive/v3/files', UP = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name';
@@ -48,7 +52,7 @@
       return api(API + '?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, mimeType: FOLDER, parents: [parent] }) }).then(function (f) { return f.id; });
     });
   }
-  function dayFolder() { return folder(ROOT_DIR, 'root').then(function (id) { return folder(dirName(), id); }); }
+  function dayFolder(d) { return folder(ROOT_DIR, 'root').then(function (id) { return folder(dirName(d), id); }); }
   function upload(parent, name, blob, type) {
     var b = 'wrb' + Math.random().toString(36).slice(2), meta = JSON.stringify({ name: name, parents: [parent] });
     var body = new Blob(['--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + meta + '\r\n--' + b + '\r\nContent-Type: ' + (type || blob.type || 'application/octet-stream') + '\r\n\r\n', blob, '\r\n--' + b + '--'], { type: 'multipart/related; boundary=' + b });
@@ -68,13 +72,73 @@
     });
   }
   function uploadText(name, text) { return dayFolder().then(function (fid) { return upload(fid, name, new Blob([text], { type: 'application/json' }), 'application/json'); }).then(function () { return ROOT_DIR + '/' + dirName(); }); }
+  // ---- v3.1.2 上傳檢視資料：base＝檔名前綴；pack＝{ json, csv }；files＝掃描用的照片 ----
+  function photoExt(f) { return (/\.(\w{2,5})$/.exec(f.name || '') || [0, /png/i.test(f.type || '') ? 'png' : 'jpg'])[1].toLowerCase(); }
+  function photoNames(base, files) { return files.map(function (f, i) { return base + '_p' + (i + 1) + '.' + photoExt(f); }); }
+  function uploadReview(base, pack, files, onStep) {
+    if (!isOwner()) return Promise.reject(new Error('owner'));
+    var d = new Date(), dir = ROOT_DIR + '/' + dirName(d), names = photoNames(base, files), n = files.length + 2;
+    return dayFolder(d).then(function (fid) {
+      if (onStep) onStep(0, n);
+      return upload(fid, base + '_list.json', new Blob([pack.json], { type: 'application/json' }), 'application/json').then(function () {
+        if (onStep) onStep(1, n);
+        return upload(fid, base + '_list.csv', new Blob(['\ufeff' + pack.csv], { type: 'text/csv' }), 'text/csv');
+      }).then(function () {
+        var i = 0, next = function () {
+          if (i >= files.length) return { n: n, dir: dir, base: base };
+          if (onStep) onStep(i + 2, n);
+          var f = files[i], nm = names[i]; i++;
+          return upload(fid, nm, f, f.type || 'image/jpeg').then(next);
+        };
+        return next();
+      });
+    });
+  }
+  function csvCell(v) { if (v == null) return ''; if (typeof v === 'string' && /^[=+@\t\r]|^-(?![\d.])/.test(v)) v = "'" + v; v = String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function toCsv(cols, rows) { return [cols.join(',')].concat(rows.map(function (r) { return cols.map(function (c) { return csvCell(r[c]); }).join(','); })).join('\r\n') + '\r\n'; }
+  // ---- v3.1.2 原樣檔（只存在這台裝置的 IndexedDB；最多 MAXS 筆，舊的自動刪） ----
+  var DBN = 'wrbeta-sius-scans', OS = 'scans', MAXS = 30, dbP = null;
+  function idb() {
+    if (!dbP) dbP = new Promise(function (res, rej) {
+      if (!root.indexedDB) { rej(new Error('idb')); return; }
+      var r = root.indexedDB.open(DBN, 1);
+      r.onupgradeneeded = function () { if (!r.result.objectStoreNames.contains(OS)) r.result.createObjectStore(OS, { keyPath: 'id' }); };
+      r.onsuccess = function () { var db = r.result; db.onclose = function () { dbP = null; }; db.onversionchange = function () { try { db.close(); } catch (e) {} dbP = null; }; res(db); };
+      r.onerror = function () { dbP = null; rej(r.error || new Error('idb')); }; r.onblocked = function () { dbP = null; rej(new Error('idb blocked')); };
+    });
+    return dbP;
+  }
+  function tx(mode, fn) {
+    return idb().then(function (db) {
+      return new Promise(function (res, rej) {
+        var t = db.transaction(OS, mode), out;
+        t.oncomplete = function () { res(out && typeof out === 'object' && 'readyState' in out ? out.result : out); };
+        t.onerror = function () { rej(t.error || new Error('idb')); }; t.onabort = function () { rej(t.error || new Error('abort')); };
+        try { out = fn(t.objectStore(OS)); } catch (e) { try { t.abort(); } catch (e2) {} rej(e); }
+      });
+    });
+  }
+  function own() { return isOwner() ? null : Promise.reject(new Error('owner')); }
+  function scanList() { return own() || tx('readonly', function (s) { return s.getAll(); }).then(function (a) { return (a || []).sort(function (x, y) { return (y.updated || 0) - (x.updated || 0); }); }); }
+  function scanGet(id) { return own() || tx('readonly', function (s) { return s.get(id); }); }
+  function scanDel(id) { return own() || tx('readwrite', function (s) { s.delete(id); }); }
+  function scanPut(d) {
+    if (!isOwner()) return Promise.reject(new Error('owner'));
+    d.updated = Date.now();
+    return tx('readwrite', function (s) { // 同一筆更新：保留原本的建立時間、已送分析（同一個交易裡讀再寫）
+      var g = s.get(d.id); g.onsuccess = function () { var p = g.result; if (p) { d.created = p.created || d.created; if (p.sent && d.sent == null) d.sent = p.sent; } if (!d.created) d.created = d.updated; s.put(d); };
+    }).then(function () {
+      return scanList().then(function (a) { var old = a.slice(MAXS); return old.length ? tx('readwrite', function (s) { old.forEach(function (o) { s.delete(o.id); }); }) : null; });
+    }).then(function () { return d.id; });
+  }
+  function scanMark(id, f) { return own() || tx('readwrite', function (s) { var g = s.get(id); g.onsuccess = function () { var d = g.result; if (!d) return; for (var k in f) d[k] = f[k]; s.put(d); }; }); }
   // ---- 解析檔 ----
   function serialize(m, ck, kind, extra) {
     var rows = (ck && ck.rows) || [];
     var sh = m.shots.map(function (q, i) {
       var r = rows[i] || {}, o = q.ocr || {}, f = [];
       if (q.decCalc) f.push('decCalc'); if (q.decSub) f.push('decSub'); if (o.xyFix) f.push('xyFix'); if (o.tFix) f.push('tFix'); if (o.arrowFix) f.push('arrowFix'); if (q.fb) f.push('fb'); if (q.ed) f.push('edited'); if (r.missing) f.push('missing');
-      return { sec: q.sighter ? 'P' : 'M', n: q.n == null ? null : q.n, pn: q.pn != null ? q.pn : q.n, blk: q.blk || 0, score: q.dec == null ? null : q.dec, inner: !!q.inner, t: q.t || null, x: q.x == null ? null : q.x, y: q.y == null ? null : q.y, light: r.status || null, why: (r.why || []).slice(), flags: f };
+      return { sec: q.sighter ? 'P' : 'M', n: q.n == null ? null : q.n, pn: q.pn != null ? q.pn : q.n, blk: q.blk || 0, score: q.dec == null ? null : q.dec, inner: !!q.inner, t: q.t || null, x: q.x == null ? null : q.x, y: q.y == null ? null : q.y, light: r.status || null, why: (r.why || []).slice(), cons: (r.cons || []).slice(), flags: f };
     });
     var o = { format: 'wrbeta-sius', v: 1, kind: kind, created: new Date().toISOString(), app: extra && extra.app || '', engine: 'v3.1.0', targetId: m.targetId, event: m.event || '', date: m.date || '', athlete: m.athlete || '', lane: m.lane || '', practice: !!m.practice, intSheet: !!m.intSheet,
       subs: (m.subs || []).map(function (s) { return s ? { score: s.dec, inner: s.inner } : null; }), total: m.total ? { score: m.total.dec, inner: m.total.inner } : null,
@@ -97,6 +161,7 @@
     document.body.appendChild(bg); try { inp.focus(); inp.setSelectionRange(0, inp.value.length); } catch (e) {}
   }
   var api2 = { isOwner: isOwner, hasClient: function () { return !!cid(); }, connected: connected, token: token, preload: function () { if (cid()) loadGis().catch(function () {}); },
-    uploadPhotos: uploadPhotos, uploadText: uploadText, serialize: serialize, safeName: safeName, download: download, askName: askName, stamp: stamp, dirName: dirName, ROOT_DIR: ROOT_DIR };
+    uploadPhotos: uploadPhotos, uploadText: uploadText, serialize: serialize, safeName: safeName, download: download, askName: askName, stamp: stamp, dirName: dirName, ROOT_DIR: ROOT_DIR,
+    uploadReview: uploadReview, photoNames: photoNames, toCsv: toCsv, scanList: scanList, scanGet: scanGet, scanPut: scanPut, scanDel: scanDel, scanMark: scanMark, MAX_SCANS: MAXS };
   root.WRSiusOwner = api2;
 })(window);
