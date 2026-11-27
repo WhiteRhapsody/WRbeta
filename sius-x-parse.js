@@ -291,6 +291,9 @@
     if (meta && meta.minusHint) {
       if (meta.minusHint.x) signHint.x = -1;
       if (meta.minusHint.y) signHint.y = -1;
+      // v3.1.0：像素檢查看到負號、OCR 漏讀 → 補上（WRSiusReread.minusHints；只在數字框左邊有一條獨立短橫線時才成立）
+      if (meta.minusHint.x && o.x != null && o.x > 0) { o.x = -o.x; hints.pxMinus = (hints.pxMinus || '') + 'x'; }
+      if (meta.minusHint.y && o.y != null && o.y > 0) { o.y = -o.y; hints.pxMinus = (hints.pxMinus || '') + 'y'; }
     }
 
     o.n = null;

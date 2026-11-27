@@ -83,7 +83,7 @@
   // v3.0.3：分段讀法（strips*）多要 Tesseract 字框，拿來認方向箭頭（sius-arrow.js）；整欄（col）不用
   function wantArrows(kind) { var A = root.WRSiusArrow; return !!(A && A.CFG.on && /^strips/.test(kind)); }
   function readAll(ws, jobs, tick, opt, my) {
-    var out = jobs.map(function (j) { return new Array(j.parts.length); }), arr = jobs.map(function (j) { return new Array(j.parts.length); }), q = [], qi = 0;
+    var out = jobs.map(function (j) { return new Array(j.parts.length); }), arr = jobs.map(function (j) { return new Array(j.parts.length); }), mns = jobs.map(function (j) { return new Array(j.parts.length); }), q = [], qi = 0, RR = root.WRSiusReread;
     jobs.forEach(function (j, ji) { j.parts.forEach(function (g, gi) { q.push([ji, gi]); }); });
     function lane(w) {
       if (my !== gen || (opt.cancelled && opt.cancelled())) return Promise.reject(CANCEL);
@@ -93,14 +93,16 @@
       return rec(w, G, my, wa).then(function (r) {
         var tx = r.data.text || ''; out[it[0]][it[1]] = tx;
         if (wa) { try { arr[it[0]][it[1]] = root.WRSiusArrow.extract(G, r.data, { debug: !!root.__arrDbg }); } catch (e) { arr[it[0]][it[1]] = null; } }
+        // v3.1.0：字框留下來（補讀要用）、像素檢查負號
+        if (wa && RR && RR.CFG.on) { try { var geo = RR.lineGeo(r.data); mns[it[0]][it[1]] = RR.minusHints(G, geo); if (opt.keepGeo && J.kind === 'strips') (opt.geo = opt.geo || []).push({ img: J.img, G: G, text: tx, geo: geo }); } catch (e) { mns[it[0]][it[1]] = null; } }
         tick(); return lane(w);
       });
     }
     return Promise.all(ws.map(lane)).then(function () {
       return out.map(function (a, ji) {
-        var text = a.join('\n'), la = null;
-        if (wantArrows(jobs[ji].kind)) { la = []; a.forEach(function (tx, gi) { var n = String(tx).split('\n').length, A = arr[ji][gi]; for (var i = 0; i < n; i++) la.push(A && A[i] || null); }); }
-        return { text: text, arrows: la };
+        var text = a.join('\n'), la = null, lm = null;
+        if (wantArrows(jobs[ji].kind)) { la = []; lm = []; var anyM = false; a.forEach(function (tx, gi) { var n = String(tx).split('\n').length, A = arr[ji][gi], M = mns[ji][gi]; for (var i = 0; i < n; i++) { la.push(A && A[i] || null); lm.push(M && M[i] || null); if (M && M[i]) anyM = true; } }); if (!anyM) lm = null; }
+        return { text: text, arrows: la, minus: lm };
       });
     });
   }
@@ -122,31 +124,43 @@
         return autoOrient(G, ws, my).then(function (o) { chk(); T.orient += now() - tb; if (o.k) G = rotG(G, o.k); var tc = now();
           var pl = I().plan2(G, { v: CFG }); T.segment += now() - tc; grays[idx] = G;
           info.images.push({ img: base0 + idx, w: G.w, h: G.h, rot: o.k * 90, tried: o.tried, parts: pl.passes.map(function (p) { return p.kind + ':' + p.parts.length; }).join(' ') });
-          pl.passes.forEach(function (p) { jobs.push({ img: base0 + idx, kind: p.kind, parts: p.parts }); });
+          pl.passes.forEach(function (p, pk) { if (opt.light && pk > 0) return; jobs.push({ img: base0 + idx, kind: p.kind, parts: p.parts }); }); // v3.1.0：多張照片的第 2 張起只用第一種讀法（快），再針對還沒綠的行補讀
         });
       }).then(function () { return prep(ws); });
     }
+    var RR = root.WRSiusReread, ropt = { cancelled: opt.cancelled, keepGeo: !!(RR && RR.CFG.on), geo: [] };
     return poolP.then(function (ws) {
       chk(); prog(0.08, 'read');
+      // v3.1.0：還有讀不到／對不上的 → 行距缺口、兩行黏一起、讀不完整的行：箭頭塗白、發號範圍外塗白、放大 2 倍再讀（WRSiusReread）
+      var reread = function () {
+        var G0 = ropt.geo; ropt.geo = []; if (!RR || !RR.CFG.on || !G0.length) return;
+        var tm = now(), jobs2 = [];
+        G0.forEach(function (g) { var cs = []; try { cs = RR.plan(g.G, g.text, g.geo, I(), { focus: opt.focus || null }); } catch (e) { cs = []; } cs.forEach(function (c) { jobs2.push({ img: g.img, kind: 'rr2x', parts: [c.G] }); }); });
+        if (!jobs2.length) return;
+        total += jobs2.length; info.reread = jobs2.length;
+        return readAll(ws, jobs2, tick, { cancelled: opt.cancelled }, my).then(function (ts3) { ts3.forEach(function (t, ji) { passes.push({ img: jobs2[ji].img, kind: 'rr2x', lines: t.text.split('\n') }); }); T.ocr += now() - tm; });
+      };
       return prep(ws).then(function () {
         chk(); total = 0; jobs.forEach(function (j) { total += j.parts.length; });
         var td = now();
-        return readAll(ws, jobs, tick, opt, my).then(function (ts) {
-          ts.forEach(function (t, ji) { var ps = { img: jobs[ji].img, kind: jobs[ji].kind, lines: t.text.split('\n') }; if (t.arrows) ps.lineArrows = t.arrows; passes.push(ps); });
+        return readAll(ws, jobs, tick, ropt, my).then(function (ts) {
+          ts.forEach(function (t, ji) { var ps = { img: jobs[ji].img, kind: jobs[ji].kind, lines: t.text.split('\n') }; if (t.arrows) ps.lineArrows = t.arrows; if (t.minus) ps.lineMinus = t.minus; passes.push(ps); });
           jobs = null;
           // 合併後還有讀不到／對不上 → 每張照片補一種讀法（0.8 倍）
-          var need = false; try { var m = X().merge(passes, { targetId: opt.targetId }), ck = X().check(m); need = ck.bad > 0 || ck.rows.some(function (r) { return r.missing; }); } catch (e) { need = false; }
-          if (!need) { T.ocr += now() - td; return; }
+          var need = false; try { var m = X().merge((opt.basePasses || []).concat(passes), { targetId: opt.targetId }), ck = X().check(m); need = ck.bad > 0 || ck.rows.some(function (r) { return r.missing; }); } catch (e) { need = false; }
+          if (opt.light) { T.ocr += now() - td; ropt.keepGeo = false; return (need || (opt.focus && Object.keys(opt.focus).length)) ? reread() : (ropt.geo = [], undefined); }
+          if (!need) { T.ocr += now() - td; ropt.geo = []; return; }
+          ropt.keepGeo = false;
           var tm = now(), more = grays.map(function (G, idx) { var p = I().plan2(G, { v: CFG, mult: 0.8 }).passes[0]; return { img: base0 + idx, kind: 'strips08', parts: p.parts }; });
           T.segment += now() - tm; T.ocr += tm - td; var te = now();
           total += more.reduce(function (a, j) { return a + j.parts.length; }, 0);
-          return readAll(ws, more, tick, opt, my).then(function (ts2) { ts2.forEach(function (t, ji) { var ps = { img: more[ji].img, kind: more[ji].kind, lines: t.text.split('\n') }; if (t.arrows) ps.lineArrows = t.arrows; passes.push(ps); }); T.ocr += now() - te; info.more = true; });
+          return readAll(ws, more, tick, ropt, my).then(function (ts2) { ts2.forEach(function (t, ji) { var ps = { img: more[ji].img, kind: more[ji].kind, lines: t.text.split('\n') }; if (t.arrows) ps.lineArrows = t.arrows; if (t.minus) ps.lineMinus = t.minus; passes.push(ps); }); T.ocr += now() - te; info.more = true; }).then(reread);
         });
       });
     }).then(function () {
-      grays = null; T.total = now() - t0; for (var kk in T) T[kk] = Math.round(T[kk]); prog(1, 'done');
+      grays = null; ropt.geo = []; T.total = now() - t0; for (var kk in T) T[kk] = Math.round(T[kk]); prog(1, 'done');
       return { passes: passes, n: nf, timing: T, info: info };
-    }, function (e) { grays = null; jobs = null; if (my !== gen || (opt.cancelled && opt.cancelled())) throw CANCEL; throw e; });
+    }, function (e) { grays = null; jobs = null; ropt.geo = []; if (my !== gen || (opt.cancelled && opt.cancelled())) throw CANCEL; throw e; });
   }
   root.WRSiusX = {
     run: run, stop: stop, nWorkers: nWorkers, fileToGray: fileToGray, rotG: rotG, oScore: oScore,

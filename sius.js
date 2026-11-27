@@ -389,11 +389,15 @@
   // 每發存 x、y（mm，座標系 A）＋來源 src:'sius'、印的分數 pd、內十 pi、時間 t、發序 n（紀錄碼只帶座標，跟一般紀錄一樣）。
   // 沒有 X/Y 的發（沒讀到又沒補）不能放上靶面 → 不存（存檔前畫面會先問）。
   function toRecord(model, base) {
-    var rec = base, now = Date.now(), sg = [], mt = [], mi = 0;
+    var rec = base, now = Date.now(), sg = [], mt = [], mi = 0, nxy = [];
     // 比賽發依「第幾發」分張（第 1–10 發＝第 1 張…）：中間有一發沒座標被略過，後面的發也不會跑到別張
     model.shots.forEach(function (q) {
       var at = q.sighter ? -1 : mi++;
-      if (q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) return;
+      var sw = !!(q.ocr && q.ocr.scoreWins && !q.ed); // v3.1.0：分數跟座標對不上又反解不出來 → 分數為準，座標不進靶面/分析（留著給重新打開時參考）
+      if (sw || q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) { // v3.1.0：有分數、沒座標 → 不能放上靶面，但分數照算（存在 sius.noxy，重新打開時放回去）
+        if (q.dec != null && isFinite(q.dec)) { var z = { s: q.sighter ? 1 : 0, pd: q.dec, t: q.t || '' }; if (q.inner) z.pi = 1; if (q.n != null) z.n = q.n; if (q.pn != null && q.pn !== q.n) z.pn = q.pn; if (q.blk) z.b = q.blk; if (q.hh != null) z.hh = q.hh; if (sw) z.sw = 1; if (q.x != null && isFinite(q.x)) z.x = r2(+q.x); if (q.y != null && isFinite(q.y)) z.y = r2(+q.y); nxy.push(z); }
+        return;
+      }
       var s = { x: r2(+q.x), y: r2(+q.y), src: 'sius', t: q.t || '' }; if (q.dec != null) s.pd = q.dec; if (q.inner) s.pi = 1; if (q.n != null) s.n = q.n; if (q.pn != null && q.pn !== q.n) s.pn = q.pn; if (q.blk) s.b = q.blk; if (q.hh != null) s.hh = q.hh;
       if (q.sighter) sg.push(s); else (mt[Math.floor(at / 10)] = mt[Math.floor(at / 10)] || []).push(s);
     });
@@ -403,6 +407,7 @@
     rec.targetId = model.targetId; rec.sheets = sheets;
     if (model.name) rec.name = model.name;
     rec.sius = { v: 2, imported: new Date(now).toISOString(), subs: model.subs.map(function (s) { return s ? { dec: s.dec, inner: s.inner } : null; }), total: model.total ? { dec: model.total.dec, inner: model.total.inner } : null };
+    if (nxy.length) rec.sius.noxy = nxy;
     if (model.practice) rec.sius.practice = true; // v3.0.3：整張都是試射（練習單）
     if (model.event) rec.sius.event = model.event;
     if (model.date) rec.sius.date = model.date;
@@ -414,6 +419,11 @@
     var si = rec.sius || {};
     var m = { v: 2, targetId: rec.targetId, gun: { id: rec.targetId, auto: false, unverified: !!si.unverified }, event: si.event || '', date: si.date || '', name: rec.name || '', shots: [], subs: (si.subs || []).slice(), total: si.total || null };
     (rec.sheets || []).forEach(function (sh) { (sh.shots || []).forEach(function (q) { var o = { n: q.n == null ? null : q.n, sighter: !!sh.sighter, dec: q.pd == null ? null : q.pd, inner: !!q.pi, t: q.t || '', x: q.x, y: q.y }; if (q.pn != null) o.pn = q.pn; if (q.b) o.blk = q.b; if (q.hh != null) o.hh = q.hh; m.shots.push(o); }); });
+    (si.noxy || []).forEach(function (z) { // v3.1.0：沒座標的發放回原來的位置（依發序）
+      var o = { n: z.n == null ? null : z.n, sighter: !!z.s, dec: z.pd, inner: !!z.pi, t: z.t || '', x: z.x == null ? null : z.x, y: z.y == null ? null : z.y }; if (z.pn != null) o.pn = z.pn; if (z.b) o.blk = z.b; if (z.hh != null) o.hh = z.hh; if (z.sw) o.ocr = { scoreWins: 1, rpXY: 1 };
+      var at = m.shots.length; for (var i = 0; i < m.shots.length; i++) { var w = m.shots[i]; if (!!w.sighter === o.sighter && w.n != null && o.n != null && w.n > o.n) { at = i; break; } if (o.sighter && !w.sighter) { at = i; break; } }
+      m.shots.splice(at, 0, o);
+    });
     if (si.practice) m.practice = true;
     var sg = m.shots.filter(function (q) { return q.sighter; }), mt = m.shots.filter(function (q) { return !q.sighter; }); m.shots = sg.concat(mt);
     // v3.0.3：試射有好幾組時序號會重複（每組從 1 開始）→ 內部依序重編，印的序號留在 pn
