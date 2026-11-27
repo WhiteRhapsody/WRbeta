@@ -399,7 +399,9 @@
       series.filter(function (s) { return s.status === 'bad'; }).length +
       (tot.status === 'bad' ? 1 : 0);
     var near = rows.filter(function (r) { return r.status === 'near'; }).length;
-    var subMissing = series.filter(function (x) { return x.status === 'nosub'; }).map(function (x) { return x.k + 1; });
+    // v3.0.3：整張一個小計都沒讀到（例如練習單、只印試射）→ 不報「第 N 個小計沒拍到」
+    var anySub = (model.subs || []).some(function (x) { return !!x; });
+    var subMissing = anySub ? series.filter(function (x) { return x.status === 'nosub'; }).map(function (x) { return x.k + 1; }) : [];
 
     return {
       subMissing: subMissing,

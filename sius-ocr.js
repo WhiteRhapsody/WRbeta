@@ -28,11 +28,11 @@
   /* v3.0 beta：取消不再噴「Cannot read properties of null (reading 'postMessage')」。
    * 原因：tesseract.js 的 recognize() 先非同步載入圖片、之後才送工作給 worker；在這段空檔 terminate()，它送工作時 worker 已經是 null，
    * 錯誤在 tesseract 內部變成沒人接的 rejection。做法：worker 有工作在跑時先不關，等這份工作結束（成功或失敗）再關；新的工作也不再派給要關的 worker。 */
-  function track(w, img) {
+  function track(w, img, blocks) {
     if (w._kill) return Promise.reject(CANCEL);
     w._n = (w._n || 0) + 1;
     var done = function () { w._n--; if (!w._n && w._kill === 1) { w._kill = 2; try { quiet(w.terminate()); } catch (e) {} } };
-    var p; try { p = w.recognize(img); } catch (e) { done(); return Promise.reject(e); } // 同步丟錯也要歸還計數（審查時抓到）
+    var p; try { p = blocks ? w.recognize(img, {}, { text: true, blocks: true }) : w.recognize(img); } catch (e) { done(); return Promise.reject(e); } // 同步丟錯也要歸還計數（審查時抓到）
     p.then(done, done); return p;
   }
   function kill(w) { if (!w || w._kill) return; w._kill = 1; if (!w._n) { w._kill = 2; try { quiet(w.terminate()); } catch (e) {} } }
@@ -50,16 +50,22 @@
     function viaImg() { return new Promise(function (res, rej) { var u = URL.createObjectURL(file), im = new Image(); im.onload = function () { try { res(draw(im, im.naturalWidth, im.naturalHeight)); } catch (e) { rej(e); } URL.revokeObjectURL(u); }; im.onerror = function () { URL.revokeObjectURL(u); rej(new Error('image')); }; im.src = u; }); }
   }
   function grayCanvas(G) { var c = document.createElement('canvas'); c.width = G.w; c.height = G.h; var x = c.getContext('2d'), id = x.createImageData(G.w, G.h); I.toRGBA(G, id.data); x.putImageData(id, 0, 0); return c; }
-  function readParts(w, parts, tick, opt) {
-    var txt = [], i = 0, my = gen;
+  // v3.0.3：分段讀法（strips*）多要 Tesseract 字框，認每一發的方向箭頭（sius-arrow.js）；回傳 { text, arrows }（arrows 跟每一行對齊）
+  function readParts(w, parts, tick, opt, kind) {
+    var txt = [], arr = [], i = 0, my = gen, A = root.WRSiusArrow, wa = !!(A && A.CFG.on && /^strips/.test(kind || ''));
     var next = function () {
       if (my !== gen || (opt.cancelled && opt.cancelled())) return Promise.reject(CANCEL);
-      if (i >= parts.length) return Promise.resolve(txt.join('\n'));
-      var c = grayCanvas(parts[i++]);
-      return track(w, c).then(function (r) { txt.push(r.data.text || ''); c.width = c.height = 1; tick(); return next(); }, function (e) { c.width = c.height = 1; throw my !== gen ? CANCEL : e; });
+      if (i >= parts.length) return Promise.resolve({ text: txt.join('\n'), arrows: wa ? arr : null });
+      var G = parts[i++], c = grayCanvas(G);
+      return track(w, c, wa).then(function (r) {
+        var tx = r.data.text || ''; txt.push(tx);
+        if (wa) { var la = null; try { la = A.extract(G, r.data); } catch (e) { la = null; } var nl = tx.split('\n').length; for (var k = 0; k < nl; k++) arr.push(la && la[k] || null); }
+        c.width = c.height = 1; tick(); return next();
+      }, function (e) { c.width = c.height = 1; throw my !== gen ? CANCEL : e; });
     };
     return next();
   }
+  function pass(img, kind, t) { var ps = { img: img, kind: kind, lines: t.text.split('\n') }; if (t.arrows) ps.lineArrows = t.arrows; return ps; }
   var CANCEL = { cancel: true };
   /* files：File[]；opt：{ onProgress(p 0–1, phase), more(passes)→true 要補第 3 種讀法, cancelled()→true 就停, imgBase（照片編號從幾開始） }
    * 一張一張處理（記憶體只留灰階原圖給補讀用）。回傳 { passes:[{ img, kind, lines }], n }；取消時 reject { cancel:true } */
@@ -77,7 +83,7 @@
         var idx = k++;
         return fileToGray(files[idx]).then(function (G) {
           grays[idx] = G; var pl = I.plan(G), j = 0, tot = 0; pl.passes.forEach(function (p) { tot += p.parts.length; }); setStage(idx, tot); prog(0.08 + 0.92 * idx / nStage, 'read');
-          var one = function () { if (j >= pl.passes.length) return Promise.resolve(); var p = pl.passes[j++]; return readParts(w, p.parts, tick, opt).then(function (t) { passes.push({ img: base0 + idx, kind: p.kind, lines: t.split('\n') }); return one(); }); };
+          var one = function () { if (j >= pl.passes.length) return Promise.resolve(); var p = pl.passes[j++]; return readParts(w, p.parts, tick, opt, p.kind).then(function (t) { passes.push(pass(base0 + idx, p.kind, t)); return one(); }); };
           return one();
         }).then(go);
       };
@@ -87,7 +93,7 @@
         var go2 = function () {
           if (k2 >= nf) return Promise.resolve();
           var idx = k2++, p = I.plan(grays[idx], { mult: 0.8 }).passes[0]; setStage(nf + idx, p.parts.length);
-          return readParts(w, p.parts, tick, opt).then(function (t) { grays[idx] = null; passes.push({ img: base0 + idx, kind: 'strips08', lines: t.split('\n') }); return go2(); });
+          return readParts(w, p.parts, tick, opt, 'strips08').then(function (t) { grays[idx] = null; passes.push(pass(base0 + idx, 'strips08', t)); return go2(); });
         };
         prog(0.5, 'more');
         return go2();

@@ -123,28 +123,34 @@
   }
 
   /* ---------- 一次 OCR（一張照片的一種讀法）→ 依序的條目，補上「試射／比賽」與發序 ---------- */
-  function parsePass(lines) {
+  function XA() { return root.WRSiusXAlign || (typeof module !== 'undefined' && module.exports && typeof require === 'function' ? (function () { try { return require('./sius-x-align.js'); } catch (e) { return null; } })() : null); }
+  function parsePass(lines, la, resetT) {
     var es = [];
-    lines.forEach(function (ln) { var p = parseShot(ln); if (p) { es.push({ k: 'shot', p: p }); return; } var o = parseOther(ln); if (o) es.push({ k: o.kind, o: o }); });
+    lines.forEach(function (ln, li) { var p = parseShot(ln); if (p) { if (la && la[li] && la[li].dir) p.arrow = la[li]; es.push({ k: 'shot', p: p }); return; } var o = parseOther(ln); if (o) es.push({ k: o.kind, o: o }); });
     // 1) 試射／比賽：表頭 Qualification／Match、每行的 P；連兩行跟目前段落不符才換段（P 偶爾讀漏）
-    var sec = null, hdr = [], segs = [], seg = null;
+    var sec = null, hdr = [], segs = [], seg = null, pend0 = false;
     var nextShot = function (i) { for (var j = i + 1; j < es.length; j++) { if (es[j].k === 'shot') return es[j]; if (es[j].k === 'match' || es[j].k === 'qual') return null; } return null; };
     var newSeg = function (s2, start) { seg = { sec: s2, start: start, items: [] }; segs.push(seg); };
     es.forEach(function (e, i) {
-      if (e.k === 'qual') { sec = 'Q'; newSeg('Q', 0); return; }
-      if (e.k === 'match') { sec = 'M'; newSeg('M', 0); return; }
+      // v3.0.3：「Qualification」是整場的階段名稱，不是試射開始 → 只記「下一發是第 1 發」，試射／正式看 P 和 Match 行
+      if (e.k === 'qual') { sec = null; pend0 = true; return; }
+      if (e.k === 'match') { sec = 'M'; newSeg('M', 0); pend0 = false; return; }
       if (e.k === 'event' || e.k === 'date') { hdr.push(e.o); return; }
       if (e.k === 'sub') { if (sec !== 'M') { sec = 'M'; newSeg('M', null); } seg.items.push(e); return; }
       if (e.k === 'total') { if (!seg) newSeg('M', null); seg.items.push(e); return; }
       var p = e.p, nx = nextShot(i);
-      if (sec === null) { sec = p.P ? 'Q' : 'M'; newSeg(sec, null); }
+      if (sec === null) { // 開頭看這發＋後面兩發的 P 多數決
+        var nP = p.P ? 1 : 0, nA = 1, j3 = i;
+        while (nA < 3) { var e3 = nextShot(j3); if (!e3) break; nA++; if (e3.p.P) nP++; j3 = es.indexOf(e3); }
+        sec = nP * 2 >= nA && nP > 0 ? 'Q' : 'M'; newSeg(sec, pend0 ? 0 : null); pend0 = false;
+      }
       else if (sec === 'Q' && !p.P && (!nx || !nx.p.P)) { sec = 'M'; newSeg('M', null); }
       else if (sec === 'M' && p.P && nx && nx.p.P) { sec = 'Q'; newSeg('Q', null); }
       seg.items.push(e);
     });
     // 2) 發序：Viterbi——每行讀到的數字是候選；相鄰兩行通常 +1（中間漏讀 +2、+3 加成本；分段重疊造成的重讀＝往回，時間也要往回才便宜）；
     //    小計那一行前面一發要是 10 的倍數。讀到的數字裡都不合，才用推的（權重減半，畫面標「請核對」）。
-    var out = [];
+    var out = [], segNo = -1;
     segs.forEach(function (sg) {
       // 開頭幾行讀不到發序（又不是緊接在表頭後面）：沒辦法定位，丟掉這幾次讀到的（別的讀法、別張照片通常有）
       if (sg.start !== 0) { var f0 = -1; sg.items.forEach(function (e, ix) { if (f0 < 0 && e.k === 'shot' && e.p.nc.length) f0 = ix; }); sg.items = sg.items.filter(function (e, ix) { return e.k !== 'shot' || f0 < 0 ? e.k !== 'shot' : ix >= f0; }); }
@@ -159,16 +165,18 @@
         else Object.keys(layers[i - 1]).forEach(function (pv) { pv = +pv; for (var d = 1; d <= 4; d++) if (pv + d <= 99 && cand[pv + d] == null) cand[pv + d] = 1.6; });
         var lay = {};
         Object.keys(cand).forEach(function (v) {
-          v = +v; var em = cand[v] + (subAfter[i] && v % 10 ? 2 : 0), best = INF, from = null;
+          v = +v; var em = cand[v] + (subAfter[i] && v % 10 ? 2 : 0), best = INF, from = null, rsB = false;
           if (i === 0) { best = em + (sg.start === 0 ? (v - 1) * 0.8 : 0); }
           else Object.keys(layers[i - 1]).forEach(function (pv) {
             var P0 = layers[i - 1][pv], d = v - (+pv), tc;
             if (d >= 1 && d <= 4) tc = d - 1;
             else if (d <= 0 && d >= -7) { var back = ts[i] != null && ts[i - 1] != null && gapSec(ts[i], ts[i - 1]) != null; tc = back ? 0.6 : (d === 0 && ts[i] != null && ts[i] === ts[i - 1] ? 0.6 : 2.6); }
             else tc = 4; // 接不上（例如中間整段沒讀到）：重新起算
-            if (P0.c + tc + em < best) { best = P0.c + tc + em; from = +pv; }
+            var rs = false; // v3.0.3：序號跳回 1／2、時間照樣往後＝新的一組
+            if (d < 0 && v <= 2 && +pv >= 3 && cand[v] === 0 && ts[i] != null && ts[i - 1] != null && gapSec(ts[i - 1], ts[i]) != null && 0.5 < tc && (!resetT || resetT[L[i].p.t])) { tc = 0.5; rs = true; }
+            if (P0.c + tc + em < best) { best = P0.c + tc + em; from = +pv; rsB = rs; }
           });
-          if (best < INF) lay[v] = { c: best, from: from, guess: cand[v] > 0 };
+          if (best < INF) lay[v] = { c: best, from: from, guess: cand[v] > 0, rs: rsB };
         });
         // 只留成本最低的 40 個
         var ks = Object.keys(lay).sort(function (x, y) { return lay[x].c - lay[y].c; }).slice(0, 40), lay2 = {}; ks.forEach(function (k2) { lay2[k2] = lay[k2]; });
@@ -176,10 +184,12 @@
       }
       var lastL = layers[layers.length - 1], bk = null; Object.keys(lastL).forEach(function (k2) { if (bk == null || lastL[k2].c < lastL[bk].c) bk = k2; });
       var ns = new Array(L.length), gs = new Array(L.length), cur = +bk;
-      for (i = L.length - 1; i >= 0; i--) { var node = layers[i][cur]; ns[i] = cur; gs[i] = node.guess; cur = node.from; }
-      li = -1; var lastN = null;
+      var rsA = new Array(L.length);
+      for (i = L.length - 1; i >= 0; i--) { var node = layers[i][cur]; ns[i] = cur; gs[i] = node.guess; rsA[i] = !!node.rs; cur = node.from; }
+      var lbs = XA() ? XA().localBlocks(ts, rsA, gapSec) : ns.map(function () { return 0; });
+      li = -1; var lastN = null; segNo++;
       sg.items.forEach(function (e) {
-        if (e.k === 'shot') { li++; out.push({ k: 'shot', sec: sg.sec, n: ns[li], guess: gs[li], p: e.p }); lastN = ns[li]; }
+        if (e.k === 'shot') { li++; out.push({ k: 'shot', sec: sg.sec, n: ns[li], guess: gs[li], p: e.p, lb: lbs[li], sg: segNo, rs: rsA[li] }); lastN = ns[li]; }
         else if (e.k === 'sub') { var nxN = null; for (var j = li + 1; j < L.length; j++) { nxN = ns[j]; break; } var idx = lastN != null && lastN % 10 === 0 ? lastN / 10 - 1 : nxN != null && nxN % 10 === 1 ? (nxN - 1) / 10 - 1 : null; out.push({ k: 'sub', idx: idx, dec: e.o.dec, inner: e.o.inner }); }
         else if (e.k === 'total') out.push({ k: 'total', dec: e.o.dec, inner: e.o.inner });
       });
@@ -196,11 +206,17 @@
   function merge(passes, opt) {
     opt = opt || {};
     var groups = {}, subs = {}, totals = [], hdr = [];
-    passes.forEach(function (ps, pi) {
-      var r = parsePass(ps.lines || []);
+    // v3.0.3：先把每次讀法解析好，算出全單一致的組號（序號跳回 1＝新的一組），再依「試射／正式＋組＋序號」分組；印的序號留在 pn
+    var parseAll = function (resetT) { return passes.map(function (ps, pi) { var r = parsePass(ps.lines || [], ps.lineArrows, resetT); r.pi = pi; r.img = ps.img; return r; }); };
+    var PR = parseAll(null), rsC = {}, rsAny = false; // 跳回 1 要至少 2 次讀法同一時間都這樣讀才算新的一組
+    PR.forEach(function (r) { var seen = {}; r.items.forEach(function (it, ii, arr) { var nx = arr[ii + 1]; if (it.k === 'shot' && it.rs) rsAny = true; if (it.k === 'shot' && it.rs && it.p.t && !seen[it.p.t] && nx && nx.k === 'shot' && nx.sec === it.sec && nx.n === it.n + 1) { seen[it.p.t] = 1; rsC[it.p.t] = (rsC[it.p.t] || 0) + 1; rsAny = true; } }); });
+    if (rsAny) { var okT = {}; Object.keys(rsC).forEach(function (t) { if (rsC[t] >= 2) okT[t] = 1; }); PR = parseAll(okT); }
+    var BK = XA() ? XA().globalBlocks(PR) : { off: {} };
+    PR.forEach(function (r) {
+      var pi = r.pi, ps = { img: r.img };
       hdr = hdr.concat(r.hdr);
       r.items.forEach(function (it) {
-        if (it.k === 'shot') { var key = it.sec + it.n; (groups[key] = groups[key] || { sec: it.sec, n: it.n, reads: [] }).reads.push({ p: it.p, w: it.guess ? 0.5 : 1, pi: pi, img: ps.img }); }
+        if (it.k === 'shot') { var gb = it.gb || 0, nn = (BK.off[it.sec + gb] || 0) + it.n, key = it.sec + nn; (groups[key] = groups[key] || { sec: it.sec, n: nn, pn: it.n, blk: gb, reads: [] }).reads.push({ p: it.p, w: it.guess ? 0.5 : 1, pi: pi, img: ps.img }); }
         else if (it.k === 'sub') { if (it.idx != null && it.idx >= 0 && it.idx < 20) (subs[it.idx] = subs[it.idx] || []).push({ v: f1(it.dec) + '-' + it.inner, w: 1 }); }
         else totals.push({ v: f1(it.dec) + '-' + it.inner, w: 1 });
       });
@@ -249,8 +265,9 @@
       conflict = conflict.filter(function (c, j) { return conflict.indexOf(c) === j; });
       if (ts.length > 1 && ts[1].w >= ts[0].w * 0.5) conflict.push('t');
       var stars = R.filter(function (r) { return r.p.star; }).length, P = R.filter(function (r) { return r.p.P; }).length;
-      var q = { n: g.n, sighter: g.sec === 'Q', dec: best.d.v, inner: best.dd === 0 ? best.sc.inner : stars * 2 > R.length, t: ts.length ? ts[0].v : '', x: best.x.v, y: best.y.v,
-        ocr: { reads: R.length, conflict: conflict, stars: stars, p: P, alt: { x: xs.slice(0, 3).map(function (o) { return o.v; }), y: ys.slice(0, 3).map(function (o) { return o.v; }), dec: ds.slice(0, 3).map(function (o) { return o.v; }) } } };
+      var AR = root.WRSiusArrow || (typeof module !== 'undefined' && module.exports ? (function () { try { return require('./sius-arrow.js'); } catch (e) { return null; } })() : null);
+      var q = { n: g.n, pn: g.pn != null ? g.pn : g.n, blk: g.blk || 0, sighter: g.sec === 'Q', dec: best.d.v, inner: best.dd === 0 ? best.sc.inner : stars * 2 > R.length, t: ts.length ? ts[0].v : '', x: best.x.v, y: best.y.v,
+        ocr: { reads: R.length, conflict: conflict, stars: stars, p: P, arw: AR ? AR.vote(R.map(function (r) { return r.p.arrow; })) : null, alt: { x: xs.slice(0, 3).map(function (o) { return o.v; }), y: ys.slice(0, 3).map(function (o) { return o.v; }), dec: ds.slice(0, 3).map(function (o) { return o.v; }) } } };
       if (intMode) q.decInt = true;
       return q;
     }
@@ -377,7 +394,7 @@
     model.shots.forEach(function (q) {
       var at = q.sighter ? -1 : mi++;
       if (q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) return;
-      var s = { x: r2(+q.x), y: r2(+q.y), src: 'sius', t: q.t || '' }; if (q.dec != null) s.pd = q.dec; if (q.inner) s.pi = 1; if (q.n != null) s.n = q.n;
+      var s = { x: r2(+q.x), y: r2(+q.y), src: 'sius', t: q.t || '' }; if (q.dec != null) s.pd = q.dec; if (q.inner) s.pi = 1; if (q.n != null) s.n = q.n; if (q.pn != null && q.pn !== q.n) s.pn = q.pn; if (q.blk) s.b = q.blk; if (q.hh != null) s.hh = q.hh;
       if (q.sighter) sg.push(s); else (mt[Math.floor(at / 10)] = mt[Math.floor(at / 10)] || []).push(s);
     });
     var sheets = [], k = 0, mk = function (shots, extra) { var h = { id: 'h' + now + (k++) + Math.floor(Math.random() * 1000), created: new Date(now).toISOString(), shots: shots, calib: { mode: 'sius' } }; for (var e in extra || {}) h[e] = extra[e]; return h; };
@@ -386,6 +403,7 @@
     rec.targetId = model.targetId; rec.sheets = sheets;
     if (model.name) rec.name = model.name;
     rec.sius = { v: 2, imported: new Date(now).toISOString(), subs: model.subs.map(function (s) { return s ? { dec: s.dec, inner: s.inner } : null; }), total: model.total ? { dec: model.total.dec, inner: model.total.inner } : null };
+    if (model.practice) rec.sius.practice = true; // v3.0.3：整張都是試射（練習單）
     if (model.event) rec.sius.event = model.event;
     if (model.date) rec.sius.date = model.date;
     if (model.gun && model.gun.unverified) rec.sius.unverified = true;
@@ -395,8 +413,12 @@
   function fromRecord(rec) {
     var si = rec.sius || {};
     var m = { v: 2, targetId: rec.targetId, gun: { id: rec.targetId, auto: false, unverified: !!si.unverified }, event: si.event || '', date: si.date || '', name: rec.name || '', shots: [], subs: (si.subs || []).slice(), total: si.total || null };
-    (rec.sheets || []).forEach(function (sh) { (sh.shots || []).forEach(function (q) { m.shots.push({ n: q.n == null ? null : q.n, sighter: !!sh.sighter, dec: q.pd == null ? null : q.pd, inner: !!q.pi, t: q.t || '', x: q.x, y: q.y }); }); });
+    (rec.sheets || []).forEach(function (sh) { (sh.shots || []).forEach(function (q) { var o = { n: q.n == null ? null : q.n, sighter: !!sh.sighter, dec: q.pd == null ? null : q.pd, inner: !!q.pi, t: q.t || '', x: q.x, y: q.y }; if (q.pn != null) o.pn = q.pn; if (q.b) o.blk = q.b; if (q.hh != null) o.hh = q.hh; m.shots.push(o); }); });
+    if (si.practice) m.practice = true;
     var sg = m.shots.filter(function (q) { return q.sighter; }), mt = m.shots.filter(function (q) { return !q.sighter; }); m.shots = sg.concat(mt);
+    // v3.0.3：試射有好幾組時序號會重複（每組從 1 開始）→ 內部依序重編，印的序號留在 pn
+    var seenN = {}, dupN = sg.some(function (q) { if (q.n == null) return false; if (seenN[q.n]) return true; seenN[q.n] = 1; return false; });
+    if (dupN) sg.forEach(function (q, i) { if (q.pn == null) q.pn = q.n; q.n = i + 1; });
     return m;
   }
   // 存檔用的紀錄名稱：「小白單 2026/11/12 08:47」（日期讀不到就用今天）

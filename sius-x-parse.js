@@ -178,6 +178,9 @@
       return { kind: 'date', text: d[1] + '.' + d[2] + '.' + d[3] + ' ' + d[4] + ':' + d[5] };
     }
 
+    // v3.0.3：姓名列（有登錄選手才印）：「0-476(90) CHEN Chun-Lin NTS」＝號碼(數字) 姓名 隊伍
+    var nm = s.match(/^\s*\d{1,2}\s*[-~]\s*\d{1,5}\s*\(\s*\d{1,3}\s*\)\s+([A-Za-z][A-Za-z .,'\-]{1,60}?)\s*$/);
+    if (nm && /[A-Za-z]{2}/.test(nm[1])) return { kind: 'name', text: nm[1].replace(/\s+/g, ' ').trim() };
     var tg = s.match(/^\s*target\s+(\d{1,3}(?:\s*\/\s*\d{1,2})?)/i);
     if (tg) return { kind: 'target', text: 'Target ' + tg[1].replace(/\s+/g, '') };
 
@@ -343,6 +346,9 @@
       }
     }
 
+    // v3.0.3：特殊列。「!」＝示範發（不計分，官方：! = Demo Shot）；「Miss」＝脫靶（0 分，可能沒有座標）
+    if (/(?:^|[^\d])(?:10|[1-9])\s*!\s*[PpF]?\s*$/.test(pre)) o.demo = true;
+    if (/\bmiss\b/i.test(s)) { o.miss = true; if (o.dec == null && o.iv == null) { o.dec = 0; o.decInt = true; o.iv = 0; } }
     // 防呆：「Mat cp 8 P 13:10.04 ...」殘影行不當成射擊行（消除 3-26 多出 Q12）
     if (o.partial && o.x == null && o.y == null && /^\s*[mnh]at\s*c[hp]\b/i.test(s)) return null;
     if (o.partial && o.dec == null && o.iv == null) return null;

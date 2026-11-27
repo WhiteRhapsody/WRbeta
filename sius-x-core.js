@@ -77,12 +77,16 @@
       count: aligned.count,
       date: aligned.date,
       name: '',
+      practice: !!aligned.practice,
+      countHint: aligned.countHint || null,
       shots: [],
       subs: [],
       total: null,
       ocr: true,
-      alignInfo: { photoOrder: aligned.photoOrder, seamInfo: aligned.seamInfo, missingSubtotals: aligned.missingSubtotals }
+      alignInfo: { photoOrder: aligned.photoOrder, seamInfo: aligned.seamInfo, missingSubtotals: aligned.missingSubtotals, blocks: aligned.blocks && aligned.blocks.n }
     };
+    if (aligned.athlete) model.athlete = aligned.athlete; // v3.0.3 表頭姓名列（有印才有）
+    if (aligned.lane) model.lane = aligned.lane;
 
     function pickShot(slot) {
       var R = slot.reads;
@@ -196,8 +200,12 @@
       var tHint = tReads.length > 0 && tReads.every(function (r) { return !!r.p.tHint; }) && conflict.indexOf('t') < 0;
       var stars = R.filter(function (r) { return r.p.star; }).length, P = R.filter(function (r) { return r.p.P; }).length;
 
+      var AR = root.WRSiusArrow || (typeof require === 'function' ? (function () { try { return require('./sius-arrow.js'); } catch (e) { return null; } })() : null);
+      var arw = AR ? AR.vote(R.map(function (r) { return r.p.arrow; })) : null; // v3.0.3：各讀法認出的方向箭頭投票
       var q = {
         n: slot.n,
+        pn: slot.pn != null ? slot.pn : slot.n,
+        blk: slot.blk || 0,
         sighter: slot.sec === 'Q',
         dec: best.d.v,
         inner: best.dd === 0 ? best.sc.inner : stars * 2 > R.length,
@@ -207,6 +215,9 @@
         ocr: {
           rd: R.map(function (r) { return { img: r.img, pi: r.pi, kind: r.kind, w: r.ew, rawW: r.w, raw: r.p.raw, x: r.p.x, y: r.p.y, d: r.p.dec, t: r.p.t, star: !!r.p.star, arrowRaw: r.p.arrowRaw, signHint: r.p.signHint, hints: r.p.hints, conf: r.p.conf }; }),
           reads: R.length,
+          arw: arw,
+          demo: R.filter(function (r) { return r.p.demo; }).length * 2 > R.length,
+          miss: R.filter(function (r) { return r.p.miss; }).length * 2 > R.length,
           photoCount: slot.photoCount,
           w: { x: best.x.w, y: best.y.w, d: best.d.w, t: ts.length ? ts[0].w : 0 },
           nVotes: { x: best.x.n, y: best.y.n, d: best.d.n, t: ts.length ? ts[0].n : 0 },
@@ -226,8 +237,16 @@
     var fill = function (list, upto, sighter) {
       var have = {}, out = [];
       list.forEach(function (q) { have[q.n] = q; });
+      var B = aligned.blocks, sec = sighter ? 'Q' : 'M';
+      var pnOf = function (n) { if (!B) return { pn: n, blk: 0 }; var b = 0; while (B.off[sec + (b + 1)] != null && B.off[sec + (b + 1)] < n) b++; return { pn: n - (B.off[sec + b] || 0), blk: b }; };
+      // v3.0.3：練習單（全試射）每組最前面沒拍到的列不開空格（只拍到下半張時），記在 model.notShot 給畫面說明
+      var lead = {};
+      if (model.practice && sighter) { var firstRead = {}; list.forEach(function (q) { var b = pnOf(q.n).blk; if (firstRead[b] == null || q.n < firstRead[b]) firstRead[b] = q.n; });
+        Object.keys(firstRead).forEach(function (b) { var st = B ? (B.off[sec + b] || 0) + 1 : 1; if (firstRead[b] > st) { for (var k = st; k < firstRead[b]; k++) lead[k] = 1; (model.notShot = model.notShot || []).push({ blk: +b, from: 1, to: firstRead[b] - st }); } }); }
       for (var n = 1; n <= upto; n++) {
-        out.push(have[n] || { n: n, sighter: sighter, dec: null, inner: false, t: '', x: null, y: null, ocr: { reads: 0, missing: true, conflict: [] } });
+        if (lead[n]) continue;
+        if (!have[n]) { var pb = pnOf(n); out.push({ n: n, pn: pb.pn, blk: pb.blk, sighter: sighter, dec: null, inner: false, t: '', x: null, y: null, ocr: { reads: 0, missing: true, conflict: [] } }); }
+        else out.push(have[n]);
       }
       list.forEach(function (q) { if (q.n > upto) out.push(q); });
       return out;
@@ -286,7 +305,7 @@
     model.shots.forEach(function (q) {
       var at = q.sighter ? -1 : mi++;
       if (q.x == null || q.y == null || !isFinite(q.x) || !isFinite(q.y)) return;
-      var s = { x: r2(+q.x), y: r2(+q.y), src: 'sius', t: q.t || '' }; if (q.dec != null) s.pd = q.dec; if (q.inner) s.pi = 1; if (q.n != null) s.n = q.n;
+      var s = { x: r2(+q.x), y: r2(+q.y), src: 'sius', t: q.t || '' }; if (q.dec != null) s.pd = q.dec; if (q.inner) s.pi = 1; if (q.n != null) s.n = q.n; if (q.pn != null && q.pn !== q.n) s.pn = q.pn; if (q.blk) s.b = q.blk; if (q.hh != null) s.hh = q.hh;
       if (q.sighter) sg.push(s); else (mt[Math.floor(at / 10)] = mt[Math.floor(at / 10)] || []).push(s);
     });
     var sheets = [], k = 0, mk = function (shots, extra) { var h = { id: 'h' + now + (k++) + Math.floor(Math.random() * 1000), created: new Date(now).toISOString(), shots: shots, calib: { mode: 'sius' } }; for (var e in extra || {}) h[e] = extra[e]; return h; };
@@ -295,6 +314,7 @@
     rec.targetId = model.targetId; rec.sheets = sheets;
     if (model.name) rec.name = model.name;
     rec.sius = { v: 2, imported: new Date(now).toISOString(), subs: model.subs.map(function (s) { return s ? { dec: s.dec, inner: s.inner } : null; }), total: model.total ? { dec: model.total.dec, inner: model.total.inner } : null };
+    if (model.practice) rec.sius.practice = true; // v3.0.3：整張都是試射（練習單）
     if (model.event) rec.sius.event = model.event;
     if (model.date) rec.sius.date = model.date;
     if (model.gun && model.gun.unverified) rec.sius.unverified = true;
@@ -304,8 +324,12 @@
   function fromRecord(rec) {
     var si = rec.sius || {};
     var m = { v: 2, targetId: rec.targetId, gun: { id: rec.targetId, auto: false, unverified: !!si.unverified }, event: si.event || '', date: si.date || '', name: rec.name || '', shots: [], subs: (si.subs || []).slice(), total: si.total || null };
-    (rec.sheets || []).forEach(function (sh) { (sh.shots || []).forEach(function (q) { m.shots.push({ n: q.n == null ? null : q.n, sighter: !!sh.sighter, dec: q.pd == null ? null : q.pd, inner: !!q.pi, t: q.t || '', x: q.x, y: q.y }); }); });
+    (rec.sheets || []).forEach(function (sh) { (sh.shots || []).forEach(function (q) { var o = { n: q.n == null ? null : q.n, sighter: !!sh.sighter, dec: q.pd == null ? null : q.pd, inner: !!q.pi, t: q.t || '', x: q.x, y: q.y }; if (q.pn != null) o.pn = q.pn; if (q.b) o.blk = q.b; if (q.hh != null) o.hh = q.hh; m.shots.push(o); }); });
+    if (si.practice) m.practice = true;
     var sg = m.shots.filter(function (q) { return q.sighter; }), mt = m.shots.filter(function (q) { return !q.sighter; }); m.shots = sg.concat(mt);
+    // v3.0.3：試射有好幾組時序號會重複（每組從 1 開始）→ 內部依序重編，印的序號留在 pn
+    var seenN = {}, dupN = sg.some(function (q) { if (q.n == null) return false; if (seenN[q.n]) return true; seenN[q.n] = 1; return false; });
+    if (dupN) sg.forEach(function (q, i) { if (q.pn == null) q.pn = q.n; q.n = i + 1; });
     return m;
   }
   // 存檔用的紀錄名稱：「小白單 2026/11/12 08:47」（日期讀不到就用今天）

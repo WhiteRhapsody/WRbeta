@@ -42,11 +42,11 @@
   /* v3.0 beta：取消不再噴「Cannot read properties of null (reading 'postMessage')」。
    * 原因：tesseract.js 的 recognize() 先非同步載入圖片、之後才送工作給 worker；在這段空檔 terminate()，它送工作時 worker 已經是 null，
    * 錯誤在 tesseract 內部變成沒人接的 rejection。做法：worker 有工作在跑時先不關，等這份工作結束（成功或失敗）再關；新的工作也不再派給要關的 worker。 */
-  function track(w, img) {
+  function track(w, img, blocks) {
     if (w._kill) return Promise.reject(CANCEL);
     w._n = (w._n || 0) + 1;
     var done = function () { w._n--; if (!w._n && w._kill === 1) { w._kill = 2; try { quiet(w.terminate()); } catch (e) {} } };
-    var p; try { p = w.recognize(img); } catch (e) { done(); return Promise.reject(e); } // 同步丟錯也要歸還計數（審查時抓到）
+    var p; try { p = blocks ? w.recognize(img, {}, { text: true, blocks: true }) : w.recognize(img); } catch (e) { done(); return Promise.reject(e); } // 同步丟錯也要歸還計數（審查時抓到）
     p.then(done, done); return p;
   }
   function kill(w) { if (!w || w._kill) return; w._kill = 1; if (!w._n) { w._kill = 2; try { quiet(w.terminate()); } catch (e) {} } }
@@ -64,7 +64,7 @@
     return viaImg();
   }
   function grayCanvas(G) { var c = document.createElement('canvas'); c.width = G.w; c.height = G.h; var x = c.getContext('2d'), id = x.createImageData(G.w, G.h); I().toRGBA(G, id.data); x.putImageData(id, 0, 0); return c; }
-  function rec(w, G, my) { var c = grayCanvas(G); return track(w, c).then(function (r) { c.width = c.height = 1; if (my !== gen) throw CANCEL; return r; }, function (e) { c.width = c.height = 1; if (my !== gen) throw CANCEL; throw e; }); }
+  function rec(w, G, my, blocks) { var c = grayCanvas(G); return track(w, c, blocks).then(function (r) { c.width = c.height = 1; if (my !== gen) throw CANCEL; return r; }, function (e) { c.width = c.height = 1; if (my !== gen) throw CANCEL; throw e; }); }
   /* ---------- 自動轉正（原型 (e)）：0/90/180/270 度各取中間一塊給 Tesseract 讀，依「時間、座標、Subtotal 等字」計分 ---------- */
   function rotG(G, k) { k = ((k % 4) + 4) % 4; if (!k) return G; var w = G.w, h = G.h, W = k % 2 ? h : w, H = k % 2 ? w : h, o = new Uint8ClampedArray(w * h), g = G.g, x, y;
     for (y = 0; y < h; y++) { var r = y * w; for (x = 0; x < w; x++) { var nx, ny; if (k === 1) { nx = h - 1 - y; ny = x; } else if (k === 2) { nx = w - 1 - x; ny = h - 1 - y; } else { nx = y; ny = w - 1 - x; } o[ny * W + nx] = g[r + x]; } }
@@ -80,16 +80,29 @@
     return next();
   }
   /* ---------- 多 worker 佇列：誰空了誰拿下一段；每種讀法的文字照原順序接回 ---------- */
+  // v3.0.3：分段讀法（strips*）多要 Tesseract 字框，拿來認方向箭頭（sius-arrow.js）；整欄（col）不用
+  function wantArrows(kind) { var A = root.WRSiusArrow; return !!(A && A.CFG.on && /^strips/.test(kind)); }
   function readAll(ws, jobs, tick, opt, my) {
-    var out = jobs.map(function (j) { return new Array(j.parts.length); }), q = [], qi = 0;
+    var out = jobs.map(function (j) { return new Array(j.parts.length); }), arr = jobs.map(function (j) { return new Array(j.parts.length); }), q = [], qi = 0;
     jobs.forEach(function (j, ji) { j.parts.forEach(function (g, gi) { q.push([ji, gi]); }); });
     function lane(w) {
       if (my !== gen || (opt.cancelled && opt.cancelled())) return Promise.reject(CANCEL);
       if (qi >= q.length) return Promise.resolve();
       var it = q[qi++];
-      return rec(w, jobs[it[0]].parts[it[1]], my).then(function (r) { out[it[0]][it[1]] = r.data.text || ''; tick(); return lane(w); });
+      var J = jobs[it[0]], G = J.parts[it[1]], wa = wantArrows(J.kind);
+      return rec(w, G, my, wa).then(function (r) {
+        var tx = r.data.text || ''; out[it[0]][it[1]] = tx;
+        if (wa) { try { arr[it[0]][it[1]] = root.WRSiusArrow.extract(G, r.data, { debug: !!root.__arrDbg }); } catch (e) { arr[it[0]][it[1]] = null; } }
+        tick(); return lane(w);
+      });
     }
-    return Promise.all(ws.map(lane)).then(function () { return out.map(function (a) { return a.join('\n'); }); });
+    return Promise.all(ws.map(lane)).then(function () {
+      return out.map(function (a, ji) {
+        var text = a.join('\n'), la = null;
+        if (wantArrows(jobs[ji].kind)) { la = []; a.forEach(function (tx, gi) { var n = String(tx).split('\n').length, A = arr[ji][gi]; for (var i = 0; i < n; i++) la.push(A && A[i] || null); }); }
+        return { text: text, arrows: la };
+      });
+    });
   }
   /* files：File[]；opt：{ onProgress(p, phase), cancelled(), imgBase, targetId } */
   function run(files, opt) {
@@ -119,7 +132,7 @@
         chk(); total = 0; jobs.forEach(function (j) { total += j.parts.length; });
         var td = now();
         return readAll(ws, jobs, tick, opt, my).then(function (ts) {
-          ts.forEach(function (t, ji) { passes.push({ img: jobs[ji].img, kind: jobs[ji].kind, lines: t.split('\n') }); });
+          ts.forEach(function (t, ji) { var ps = { img: jobs[ji].img, kind: jobs[ji].kind, lines: t.text.split('\n') }; if (t.arrows) ps.lineArrows = t.arrows; passes.push(ps); });
           jobs = null;
           // 合併後還有讀不到／對不上 → 每張照片補一種讀法（0.8 倍）
           var need = false; try { var m = X().merge(passes, { targetId: opt.targetId }), ck = X().check(m); need = ck.bad > 0 || ck.rows.some(function (r) { return r.missing; }); } catch (e) { need = false; }
@@ -127,7 +140,7 @@
           var tm = now(), more = grays.map(function (G, idx) { var p = I().plan2(G, { v: CFG, mult: 0.8 }).passes[0]; return { img: base0 + idx, kind: 'strips08', parts: p.parts }; });
           T.segment += now() - tm; T.ocr += tm - td; var te = now();
           total += more.reduce(function (a, j) { return a + j.parts.length; }, 0);
-          return readAll(ws, more, tick, opt, my).then(function (ts2) { ts2.forEach(function (t, ji) { passes.push({ img: more[ji].img, kind: more[ji].kind, lines: t.split('\n') }); }); T.ocr += now() - te; info.more = true; });
+          return readAll(ws, more, tick, opt, my).then(function (ts2) { ts2.forEach(function (t, ji) { var ps = { img: more[ji].img, kind: more[ji].kind, lines: t.text.split('\n') }; if (t.arrows) ps.lineArrows = t.arrows; passes.push(ps); }); T.ocr += now() - te; info.more = true; });
         });
       });
     }).then(function () {
